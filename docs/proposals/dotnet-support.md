@@ -69,6 +69,21 @@ By default this deferred bucket includes:
 
 The proposal should treat these as optional future work, not as implicit outcomes of the bridge.
 
+### Current Varlock product-surface mapping for `.NET` v1
+
+To make parity claims reviewable, the proposal should map the current user-visible Varlock surfaces to an explicit `.NET` v1 status.
+
+Required v1 mapping:
+
+- `varlock load`: supported through the machine-readable CLI bridge and exposed through `Varlock.DotNet` plus the configuration provider packages
+- `varlock typegen`: supported for `.NET` through `lang=cs` in the existing type-generation flow
+- plugin-backed resolution: supported only through the CLI bridge using the supported executable and plugin discovery model
+- `varlock run`: no separate `.NET` process-wrapper command in v1; instead, `Varlock.DotNet` may expose a low-level child-process environment injection helper for non-hosted or utility scenarios without claiming full parity with the existing CLI UX
+- `varlock scan`: no `.NET`-native wrapper package in v1; teams should invoke the existing `varlock scan` CLI directly in repository and CI workflows when this protection is required
+- JavaScript runtime bootstrap injection and runtime patching: unsupported in `.NET` v1 unless a specific runtime behavior is intentionally designed and shipped
+
+This mapping should be treated as part of the product contract, not left to inference from package names.
+
 ## Product Positioning
 
 ### Default stance
@@ -297,6 +312,11 @@ public sealed class VarlockResolvedItem
     public string Key { get; }
     public object? Value { get; }
     public bool IsSensitive { get; }
+}
+
+public interface IVarlockProcessEnvironment
+{
+    IReadOnlyDictionary<string, string> BuildEnvironmentVariables(VarlockLoadOptions options);
 }
 ```
 
@@ -620,12 +640,14 @@ Log.Logger = new LoggerConfiguration()
 
 The `.NET` plan should define the security boundary explicitly rather than implying that Serilog support alone covers the full current Varlock security story.
 
-At minimum, the proposal should state for v1:
+Required v1 security stance:
 
-- how `RedactLogs` maps into supported `.NET` logging behavior
-- whether any `PreventLeaks` behavior is supported directly in `.NET` runtimes or only surfaced as metadata
-- whether there is any supported equivalent to `varlock scan`, or whether repository/file scanning is explicitly deferred
-- whether non-Serilog process output redaction is supported, unsupported, or deferred
+- `RedactLogs` is supported in `.NET` v1 only through documented Serilog integration points and explicit low-level redaction helpers exposed by the runtime bridge
+- `PreventLeaks` is surfaced through bridge metadata in `.NET` v1 but does not imply automatic patching of process output, HTTP responses, or framework response objects
+- there is no `.NET`-native equivalent to `varlock scan` in v1; repository and file scanning remain provided by the existing `varlock scan` CLI for CI and repository workflows
+- there is no supported non-Serilog global process output redaction mechanism in `.NET` v1
+- there is no automatic HTTP response interception or leak-prevention equivalent to the current JavaScript runtime patches in `.NET` v1
+- if child-process environment injection is provided by `Varlock.DotNet`, it should be documented as environment preparation only, not as a full parity replacement for `varlock run`
 
 Unsupported security behaviors should be documented plainly rather than implied by the broader “first-class” label.
 
@@ -638,6 +660,7 @@ Existing Varlock CLI plugin behavior should work through the CLI bridge only for
 The proposal should document:
 
 - supported plugin packaging and discovery modes
+- the exact executable layouts in which plugin loading is supported, such as package-managed executable plus documented plugin search roots
 - whether single-file and package-based plugins are both supported
 - how plugin loading failures surface to users
 - that `.NET` v1 does not introduce a second independent plugin runtime
@@ -702,6 +725,7 @@ Recommended scope:
 - a canonical recommendation for what command, API, or MSBuild target a `.NET` user runs first when debugging a failed load
 - enough structured information to explain why a value won precedence, which source files were active, and which watched files are currently relevant after reload
 - documentation of the machine-readable error categories and sample payloads used by the bridge so maintainers and consumers can debug compatibility issues deterministically
+- a documented recommendation for when users should call the raw `varlock scan` CLI directly because the scenario is repository protection rather than in-process application configuration
 
 ## MSBuild Integration
 
@@ -833,6 +857,7 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Blazor WebAssembly support is documented honestly as public-config-only while using the CLI bridge.
 - The initial CLI-bridge architecture is documented as intentional, not accidental, including the criteria that would justify a future native runtime.
 - Unsupported parity gaps versus JavaScript-specific runtime integrations are called out explicitly.
+- The current Varlock product surfaces are mapped explicitly to `.NET` v1 statuses so `load`, `typegen`, plugin-backed resolution, `run`, `scan`, and JavaScript-only runtime behaviors are not left ambiguous.
 - The machine-readable CLI contract consumed by the `.NET` bridge is documented clearly enough to support long-term maintenance.
 - The executable acquisition and version-compatibility story is documented clearly enough for local development, CI, and offline/restricted environments.
 
@@ -844,6 +869,7 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - `Varlock.SourceGeneration` exists in at least the initial CLI-generated form, with a clear evolution path to richer analyzer/source-generator support.
 - `Varlock.MSBuild` exists and provides build integration without requiring users to hand-roll targets.
 - `Varlock.Serilog` exists and provides Serilog-specific redaction ergonomics.
+- If child-process environment injection is claimed as supported, `Varlock.DotNet` exposes it as an explicit low-level API without presenting it as full `varlock run` parity.
 - Any `.NET` plugin package introduced is clearly marked supported, preview, or experimental.
 - A supported diagnostics or inspection workflow exists for debugging Varlock-backed `.NET` loads.
 - Package names, namespaces, versioning, and dependency directions are consistent and defensible for upstream review.
@@ -910,6 +936,7 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Example applications demonstrate Serilog integration in at least one hosted app and one non-hosted app where appropriate.
 - The behavior of redaction around reloads is defined and tested where metadata or active sensitive values change.
 - The status of non-Serilog redaction and leak-prevention behavior is documented explicitly as supported, unsupported, or deferred.
+- The docs state explicitly that repository/file scanning remains an existing CLI workflow in v1 rather than a `.NET` runtime feature.
 - If `PreventLeaks` metadata is exposed through the bridge, its supported `.NET` meaning is documented and tested where applicable.
 - If repository/file scanning is not part of v1, that deferral is documented plainly.
 
@@ -1041,39 +1068,31 @@ Varlock should claim first-class `.NET` support only when all of the following a
 12. example apps prove hosted and non-hosted scenarios plus claimed security and plugin behaviors
 13. CI validates the supported platform matrix
 14. unsupported parity gaps versus JavaScript-specific runtime integrations are explicitly documented
-15. the claimed `.NET` developer-experience intersections are documented and proven for the workflows that are labeled supported
+15. the current Varlock product surfaces are mapped explicitly to supported, deferred, or CLI-only `.NET` v1 behavior
+16. the claimed `.NET` developer-experience intersections are documented and proven for the workflows that are labeled supported
 
 ## Open Questions To Resolve During Implementation
 
-1. How should the `.NET` packages obtain the `varlock` executable in the user environment?
-    - preferred answer for v1: package-managed executable with explicit override path and documented opt-in PATH fallback
+1. Should generated C# names always be PascalCase transforms of env keys while preserving original key metadata?
 
-2. Should generated C# names always be PascalCase transforms of env keys while preserving original key metadata?
+2. What is the minimum supported legacy Windows target to prove first-class support credibly?
 
-3. What is the minimum supported legacy Windows target to prove first-class support credibly?
+3. Should a dedicated `.NET`-focused CLI subcommand be added after the initial bridge is working, or should the existing `load` and `typegen` commands remain the only contract?
 
-4. Should a dedicated `.NET`-focused CLI subcommand be added after the initial bridge is working, or should the existing `load` and `typegen` commands remain the only contract?
+4. Which plugin packaging and discovery modes are supported for `.NET` consumers beyond the minimum package-managed executable flow?
 
-5. What is the supported versioning strategy for the machine-readable CLI contract consumed by the `.NET` bridge?
-    - preferred answer for v1: explicit contract version handshake checked before normal load operations
-
-6. Which current Varlock security behaviors are part of first-class `.NET` support: logging redaction only, leak prevention, scanning, or some subset?
-
-7. Which plugin packaging and discovery modes are supported for `.NET` consumers?
-
-8. Is child-process environment injection part of the supported low-level `.NET` story, or explicitly out of scope for v1?
-
-9. What inspection or debugging command/API is the canonical `.NET` troubleshooting path?
+5. What inspection or debugging command/API is the canonical `.NET` troubleshooting path?
 
 ## Remaining Gaps To 9.5
 
 This proposal is intentionally trying to be strong enough that implementation success can later be evaluated at or above a 9.5/10 confidence level. The remaining credibility blockers should be treated as implementation-priority items rather than editorial footnotes.
 
-1. Finalize executable acquisition and compatibility behavior in a way that works predictably for local development, CI, and offline environments.
-2. Finalize a machine-readable failure contract with explicit categories, versioning, and location metadata rules.
-3. Finalize reload/watch semantics tightly enough that `dotnet watch`, IDE builds, and long-lived hosted apps have predictable behavior under repeated changes.
+1. Prove the executable acquisition, plugin discovery, and contract-version handshake model in real package layouts across local development, CI, and offline environments.
+2. Prove the machine-readable success and failure contract against real schema, resolution, and plugin-loading failures rather than only describing payload shape.
+3. Prove reload/watch semantics tightly enough that `dotnet watch`, IDE builds, and long-lived hosted apps have predictable behavior under repeated changes.
+4. Prove the explicit product-surface boundary in examples and docs so users can tell immediately when to use the `.NET` packages versus when to call the existing `varlock` CLI directly.
 
-If these three areas remain vague, the proposal may still be directionally correct but should not be treated as a 9.5/10 confidence design for delivery.
+If these areas are not proven in implementation, the proposal may still be directionally correct but should not be treated as a 9.5/10 confidence design for delivery.
 
 ## Recommended v1 Defaults
 
