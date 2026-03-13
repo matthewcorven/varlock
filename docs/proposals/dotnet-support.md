@@ -22,6 +22,53 @@ This proposal assumes the long-term native `.NET` parser/runtime question remain
 
 Initial first-class `.NET` support should mean first-class parity for schema loading, validation, coercion, sensitive metadata, supported logging/redaction workflows, and mainstream `.NET` configuration/hosting ergonomics. It should not be interpreted as immediate parity with every JavaScript-specific runtime injection or framework-specific build integration surface already present elsewhere in the repository.
 
+## Success Model
+
+To keep the proposal reviewable and honest, “first-class” should be evaluated across three separate parity buckets rather than as a single vague promise.
+
+### 1. Engine parity
+
+This is the minimum parity bar for a credible CLI-bridged `.NET` implementation.
+
+It means parity with the existing Varlock engine for:
+
+- schema discovery and loading
+- imports and environment-specific source handling
+- validation and coercion
+- resolver execution
+- plugin-backed loading through the CLI bridge
+- sensitive/public metadata
+- deterministic type-generation inputs derived from schema metadata rather than resolved environment state
+- machine-readable source and item metadata exposed through the serialized bridge contract
+
+### 2. `.NET`-native parity
+
+This is the idiomatic `.NET` surface that should feel first-class to application developers.
+
+It means parity for:
+
+- `IConfiguration` integration
+- `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>`
+- build-time C# generation
+- MSBuild integration
+- mainstream hosted and non-hosted `.NET` workflows
+- supported `.NET` logging and redaction ergonomics
+
+### 3. Explicitly deferred JavaScript-specific parity
+
+The proposal should explicitly not claim parity in v1 for runtime behaviors that are currently tied to JavaScript runtime patching or framework-specific code injection unless they are actually implemented for `.NET`.
+
+By default this deferred bucket includes:
+
+- JavaScript runtime bootstrap injection behavior
+- framework-specific build-time injection surfaces comparable to Vite or Next.js
+- non-Serilog global process output redaction
+- HTTP response interception and leak prevention equivalent to the current JS runtime patches
+- any `.NET` equivalent of `varlock run` unless intentionally designed and shipped
+- any `.NET` equivalent of `varlock scan` unless intentionally designed and shipped
+
+The proposal should treat these as optional future work, not as implicit outcomes of the bridge.
+
 ## Product Positioning
 
 ### Default stance
@@ -59,6 +106,23 @@ Official docs should recommend this split by default:
 
 - Core shared packages should target `netstandard2.0` unless a concrete dependency requires `netstandard2.1`
 - Host-specific convenience layers may multi-target newer frameworks where useful
+
+### Likely developer-experience intersections
+
+The support bar should include the mainstream intersections where `.NET` developers actually encounter configuration behavior, not just the top-level app types.
+
+The proposal should explicitly account for:
+
+- `HostApplicationBuilder` and `WebApplicationBuilder`
+- ASP.NET Core MVC and minimal API startup flows
+- `dotnet run`, `dotnet watch`, and IDE-driven debug launches
+- Visual Studio and Rider design-time builds where generated code and build diagnostics must behave predictably
+- coexistence with User Secrets during local development
+- coexistence guidance for legacy `ConfigurationManager` / `App.config` or `Web.config` migration paths where applicable
+- Azure Functions isolated worker local behavior, including how Varlock relates to `local.settings.json`
+- Blazor Server and Blazor WebAssembly public-config-only flows
+
+If any of these are intentionally unsupported in v1, that should be stated explicitly rather than left implicit.
 
 ### Proven-by-example app types
 
@@ -133,6 +197,68 @@ Requirements:
 - the serialized payload shape used by `.NET` should be versioned or otherwise evolved intentionally
 - human-readable CLI output should not be parsed by `.NET` integrations
 - CLI error handling should preserve actionable schema and resolution diagnostics rather than flattening them into generic process failures
+
+Additional v1 requirements:
+
+- the bridge should define stable machine-readable error categories and exit semantics for missing schema, schema errors, resolution errors, plugin loading errors, and executable discovery failures
+- machine-readable errors should preserve file, line, and column information where Varlock already has that information available
+- the bridge should define how version skew is handled between `.NET` packages and the `varlock` executable
+- the bridge should define whether machine-readable errors are emitted by a new flag, a dedicated command, stderr payloads, or another explicit mechanism
+
+Recommended v1 bridge contract details:
+
+- success and failure payloads should each include a bridge contract version field
+- machine-readable failures should use explicit categories such as `executable-not-found`, `executable-version-mismatch`, `schema-missing`, `schema-invalid`, `resolution-failed`, `plugin-load-failed`, and `bridge-internal-error`
+- machine-readable failures should preserve the original Varlock diagnostic message and include structured location metadata when available
+- the `.NET` bridge should treat unknown contract versions as unsupported rather than attempting best-effort parsing
+- package-to-executable compatibility should be checked before normal load execution so version mismatches fail fast and predictably
+
+Recommended machine-readable error shape:
+
+```json
+{
+    "contractVersion": 1,
+    "ok": false,
+    "category": "schema-invalid",
+    "message": "@defaultSensitive must resolve to a boolean value",
+    "location": {
+        "file": ".env.schema",
+        "line": 12,
+        "column": 5
+    }
+}
+```
+
+### Executable acquisition and versioning
+
+The proposal should treat executable acquisition as part of the support contract rather than an implementation footnote.
+
+Recommended v1 stance:
+
+1. the `.NET` packages should prefer a version-pinned Varlock executable distributed in a way controlled by the `.NET` package set
+2. explicit configuration should allow advanced users to override the executable path
+3. opportunistic PATH-based discovery should be treated as an advanced or development-only fallback rather than the primary supported path
+
+Recommended lookup order:
+
+1. explicit application configuration pointing to a specific executable path
+2. package-managed executable path resolved from the installed `.NET` package/tooling assets
+3. development-only PATH discovery when explicitly enabled or when running in a documented opt-in mode
+
+Recommended versioning behavior:
+
+- the `.NET` package should declare the compatible CLI contract version it expects
+- the executable should expose a machine-readable version/contract handshake that can be checked before load operations
+- incompatible versions should fail with a dedicated machine-readable category rather than surfacing as generic process errors
+- CI guidance should recommend pinning both the `.NET` package version and the executable source in the same repository-controlled workflow
+
+At minimum, the support contract should document:
+
+- how the executable is located
+- how package and executable versions are kept compatible
+- what happens when the executable is missing
+- what happens when the executable is incompatible with the consuming package version
+- what deterministic setup looks like in CI and offline/restricted environments
 
 ## Package Layout
 
@@ -324,6 +450,39 @@ Recommended semantics:
 - re-run the CLI bridge load
 - update configuration only after a successful reload
 - recompute watched files after each successful reload because imports and env-specific sources may change
+
+Recommended v1 operational details:
+
+- debounce should be explicit and documented rather than implied; a default window in the low hundreds of milliseconds is preferred over vague “briefly” language
+- only one reload should be active at a time; overlapping file events should be coalesced into a single pending reload
+- successful reloads should swap configuration atomically so consumers never observe partially updated state
+- change notifications should fire only after the new state is fully committed
+- failed reloads should not emit success-style change notifications
+- the active watched-file set should be recomputed from the latest successful load, not from failed attempts
+- if the root schema disappears after startup, behavior should follow the same last-known-good rules rather than poisoning active configuration
+
+### Reload and watch guarantees
+
+The support contract should define the guarantees, not just the intent.
+
+Minimum v1 guarantees:
+
+1. reads during reload see either the last successful state or the next successful state, never a mixed state
+2. `IOptionsMonitor<T>.OnChange(...)` fires at most once per successful committed reload cycle
+3. failed reloads preserve the last successful state and surface diagnostics without mutating current values
+4. watched files are derived from the last successful active source set and recomputed after each successful reload
+5. import graph changes and environment-specific source activation changes are reflected in the next watch-set recomputation
+
+### `dotnet watch` and IDE watch-mode interaction
+
+The proposal should define how Varlock reload behavior and generated-file behavior interact with `.NET` watch workflows.
+
+Recommended v1 stance:
+
+- runtime config reload and MSBuild-driven code generation should be treated as separate mechanisms with separate triggers
+- generated files written to `obj/Varlock/` should avoid causing pathological rebuild loops under `dotnet watch`
+- supported watch-mode behavior should be proven by example applications rather than assumed from provider semantics alone
+- if some watch workflows are slower or less capable in IDE-driven environments, that should be documented explicitly rather than treated as implementation noise
 
 ### Reload failure behavior
 
@@ -540,6 +699,9 @@ Recommended scope:
 - preservation of actionable file and location diagnostics from schema and resolution failures
 - a clear distinction between human-facing diagnostics and machine-facing bridge output
 - examples showing how users debug precedence, imports, missing schema, and reload failures
+- a canonical recommendation for what command, API, or MSBuild target a `.NET` user runs first when debugging a failed load
+- enough structured information to explain why a value won precedence, which source files were active, and which watched files are currently relevant after reload
+- documentation of the machine-readable error categories and sample payloads used by the bridge so maintainers and consumers can debug compatibility issues deterministically
 
 ## MSBuild Integration
 
@@ -666,10 +828,13 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - The official product stance is documented clearly: Varlock coexists with appsettings by default and can become the primary configuration source when a team chooses.
 - The default precedence model is documented and implemented: appsettings loads first, Varlock loads after it, and Varlock wins when keys overlap unless users explicitly opt into a different order.
 - The supported app-type matrix is documented with explicit notes about full support, partial support, and special constraints.
+- The support-boundary model is documented clearly in terms of engine parity, `.NET`-native parity, and explicitly deferred JavaScript-specific parity.
+- The likely developer-experience intersections are documented explicitly, including minimal APIs, `dotnet watch`, User Secrets coexistence, IDE-driven builds/debugging, Azure Functions isolated local workflow, and legacy migration guidance where claimed.
 - Blazor WebAssembly support is documented honestly as public-config-only while using the CLI bridge.
 - The initial CLI-bridge architecture is documented as intentional, not accidental, including the criteria that would justify a future native runtime.
 - Unsupported parity gaps versus JavaScript-specific runtime integrations are called out explicitly.
 - The machine-readable CLI contract consumed by the `.NET` bridge is documented clearly enough to support long-term maintenance.
+- The executable acquisition and version-compatibility story is documented clearly enough for local development, CI, and offline/restricted environments.
 
 ### 2. Package surface is complete and coherent
 
@@ -732,6 +897,8 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Build failures are surfaced as normal MSBuild diagnostics with actionable messages.
 - The integration works in standard command-line builds.
 - The integration works in IDE-driven builds to the extent required for mainstream .NET workflows.
+- The integration behaves predictably under `dotnet watch` and does not create pathological rebuild or regeneration loops in supported scenarios.
+- The interaction between runtime reloads and generated-file updates is documented clearly enough that users can predict whether a change triggers provider reload, rebuild, or both.
 - The integration does not require users to manually edit temporary generated files.
 - Generated artifacts are not committed accidentally as part of the recommended workflow.
 
@@ -763,6 +930,7 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Console, ASP.NET Core MVC, and WinForms examples exist and are working.
 - Worker Service, Azure Functions isolated worker, Blazor Server, and Blazor WebAssembly public-config examples exist and are working before the initiative is called complete.
 - Example apps demonstrate precedence with appsettings.
+- Example apps demonstrate coexistence with other common `.NET` configuration layers where the docs claim coexistence, such as User Secrets or `local.settings.json` in the relevant app types.
 - Example apps demonstrate typed access.
 - Example apps demonstrate validation behavior.
 - Example apps demonstrate `Optional` behavior where relevant.
@@ -781,6 +949,9 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Automated tests cover `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>` behavior.
 - Automated tests cover generated C# output validity and representative schema shapes.
 - Automated tests cover MSBuild integration sufficiently to catch regressions in generation and validation flows.
+- Automated tests cover machine-readable error contract behavior in addition to success payload behavior.
+- Automated tests cover executable discovery, override-path handling, and executable version-mismatch failures.
+- Automated tests cover watch/reload coalescing and last-known-good guarantees under repeated file changes.
 - Automated tests cover Serilog redaction behavior.
 - Example-app smoke tests exist and run in CI for the supported matrix that is claimed in docs.
 - Automated tests cover the machine-readable CLI contract consumed by the `.NET` bridge.
@@ -818,6 +989,7 @@ The `.NET` support initiative is only done when the project satisfies all of the
 
 - A new `.NET` user can get a working example running with documented steps only.
 - A user can add Varlock to an existing appsettings-based app without having to abandon existing configuration classes immediately.
+- A user can understand how Varlock should coexist with User Secrets, `local.settings.json`, and legacy configuration layers in the scenarios claimed by docs.
 - Errors during load, validation, and MSBuild generation are understandable and actionable.
 - IDE and build outputs point users toward the correct schema or configuration problems.
 - The required setup for the CLI bridge is explicit and not surprising.
@@ -855,25 +1027,26 @@ The `.NET` support initiative is only done when the project satisfies all of the
 
 Varlock should claim first-class `.NET` support only when all of the following are true:
 
-1. documented configuration provider integration exists
-2. documented `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>` behavior exists
-3. `optional` and `reloadOnChange` behavior is implemented and tested
-4. a stable machine-readable CLI contract for the `.NET` bridge exists and is documented
-5. C# type generation exists, is documented, and preserves the deterministic schema-driven model
-6. MSBuild integration exists and is documented
-7. supported logging/redaction behavior exists and is documented
-8. plugin-backed loading behavior is documented and tested for claimed supported scenarios
-9. diagnostics and inspection workflows exist for supported `.NET` usage modes
-10. example apps prove hosted and non-hosted scenarios plus claimed security and plugin behaviors
-11. CI validates the supported platform matrix
-12. unsupported parity gaps versus JavaScript-specific runtime integrations are explicitly documented
+1. the proposal clearly distinguishes engine parity, `.NET`-native supported parity, and explicitly deferred JavaScript-specific parity
+2. documented configuration provider integration exists
+3. documented `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>` behavior exists
+4. `optional` and `reloadOnChange` behavior is implemented and tested
+5. a stable machine-readable CLI contract for the `.NET` bridge exists and is documented
+6. a documented executable acquisition and compatibility story exists for local development and CI
+7. C# type generation exists, is documented, and preserves the deterministic schema-driven model
+8. MSBuild integration exists and is documented
+9. supported logging/redaction behavior exists and is documented
+10. plugin-backed loading behavior is documented and tested for claimed supported scenarios
+11. diagnostics and inspection workflows exist for supported `.NET` usage modes
+12. example apps prove hosted and non-hosted scenarios plus claimed security and plugin behaviors
+13. CI validates the supported platform matrix
+14. unsupported parity gaps versus JavaScript-specific runtime integrations are explicitly documented
+15. the claimed `.NET` developer-experience intersections are documented and proven for the workflows that are labeled supported
 
 ## Open Questions To Resolve During Implementation
 
 1. How should the `.NET` packages obtain the `varlock` executable in the user environment?
-   - packaged binary
-   - tool restore flow
-   - local CLI discovery with fallback
+    - preferred answer for v1: package-managed executable with explicit override path and documented opt-in PATH fallback
 
 2. Should generated C# names always be PascalCase transforms of env keys while preserving original key metadata?
 
@@ -882,6 +1055,7 @@ Varlock should claim first-class `.NET` support only when all of the following a
 4. Should a dedicated `.NET`-focused CLI subcommand be added after the initial bridge is working, or should the existing `load` and `typegen` commands remain the only contract?
 
 5. What is the supported versioning strategy for the machine-readable CLI contract consumed by the `.NET` bridge?
+    - preferred answer for v1: explicit contract version handshake checked before normal load operations
 
 6. Which current Varlock security behaviors are part of first-class `.NET` support: logging redaction only, leak prevention, scanning, or some subset?
 
@@ -890,6 +1064,29 @@ Varlock should claim first-class `.NET` support only when all of the following a
 8. Is child-process environment injection part of the supported low-level `.NET` story, or explicitly out of scope for v1?
 
 9. What inspection or debugging command/API is the canonical `.NET` troubleshooting path?
+
+## Remaining Gaps To 9.5
+
+This proposal is intentionally trying to be strong enough that implementation success can later be evaluated at or above a 9.5/10 confidence level. The remaining credibility blockers should be treated as implementation-priority items rather than editorial footnotes.
+
+1. Finalize executable acquisition and compatibility behavior in a way that works predictably for local development, CI, and offline environments.
+2. Finalize a machine-readable failure contract with explicit categories, versioning, and location metadata rules.
+3. Finalize reload/watch semantics tightly enough that `dotnet watch`, IDE builds, and long-lived hosted apps have predictable behavior under repeated changes.
+
+If these three areas remain vague, the proposal may still be directionally correct but should not be treated as a 9.5/10 confidence design for delivery.
+
+## Recommended v1 Defaults
+
+Unless implementation constraints force a different decision, the proposal should bias toward the following defaults because they maximize the chance of reaching a credible first-class support bar quickly.
+
+1. Use the CLI bridge as the only supported semantic engine in v1.
+2. Treat engine parity as mandatory and JavaScript-runtime parity as explicitly deferred unless implemented.
+3. Prefer a version-pinned executable acquisition model controlled by the `.NET` package set.
+4. Prefer provider-based and options-based application integration over direct static-access APIs.
+5. Treat Serilog as the only logging stack with first-class redaction ergonomics in v1 unless broader support is intentionally implemented.
+6. Treat repository/file scanning and process-wrapper behavior as out of scope for first-class `.NET` parity unless explicitly added and documented.
+7. Keep generated C# schema-driven and deterministic in the same way existing TypeScript generation works today.
+8. Require every user-facing support claim to be proven by an example app or automated test before the initiative is called complete.
 
 ## Repository Hygiene Notes
 
