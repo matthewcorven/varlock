@@ -20,6 +20,8 @@ The first shipping implementation should use the existing `varlock` CLI as the s
 
 This proposal assumes the long-term native `.NET` parser/runtime question remains open and should be re-evaluated as CLI-bridged support matures.
 
+Initial first-class `.NET` support should mean first-class parity for schema loading, validation, coercion, sensitive metadata, supported logging/redaction workflows, and mainstream `.NET` configuration/hosting ergonomics. It should not be interpreted as immediate parity with every JavaScript-specific runtime injection or framework-specific build integration surface already present elsewhere in the repository.
+
 ## Product Positioning
 
 ### Default stance
@@ -102,8 +104,12 @@ Preserve exactly:
 - environment-specific source handling
 - validation and coercion semantics
 - sensitive/public metadata
+- serialized graph contract and machine-readable output semantics used by the bridge
+- type-generation determinism from schema metadata rather than resolved environment state
+- redaction and leak-prevention settings semantics
 - resolver behavior
 - plugin behavior exposed through CLI execution
+- supported plugin discovery and loading semantics for the chosen executable distribution model
 
 Expose via .NET idioms:
 
@@ -115,6 +121,18 @@ Expose via .NET idioms:
 - source generation
 - MSBuild
 - Serilog hooks
+
+### CLI bridge contract
+
+The CLI bridge is not just an implementation detail. It is a compatibility contract between the existing Varlock engine and the `.NET` package surface.
+
+Requirements:
+
+- the `.NET` bridge should consume only machine-readable CLI output
+- `varlock load --format json-full` should be treated as a stable machine-oriented contract once this support ships
+- the serialized payload shape used by `.NET` should be versioned or otherwise evolved intentionally
+- human-readable CLI output should not be parsed by `.NET` integrations
+- CLI error handling should preserve actionable schema and resolution diagnostics rather than flattening them into generic process failures
 
 ## Package Layout
 
@@ -403,6 +421,13 @@ An optional direct access layer is still useful, especially for:
 
 But it should be secondary, not the lead product story.
 
+If this layer exists, the supported patterns should be explicit:
+
+- load a resolved graph without `IConfiguration`
+- bind generated or user-authored POCOs directly when appropriate
+- optionally project values into process environment for utility or legacy scenarios
+- support child-process env injection if that becomes part of the supported low-level story
+
 Example convenience API:
 
 ```csharp
@@ -432,11 +457,31 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 ```
 
+## Security Behavior Scope
+
+The `.NET` plan should define the security boundary explicitly rather than implying that Serilog support alone covers the full current Varlock security story.
+
+At minimum, the proposal should state for v1:
+
+- how `RedactLogs` maps into supported `.NET` logging behavior
+- whether any `PreventLeaks` behavior is supported directly in `.NET` runtimes or only surfaced as metadata
+- whether there is any supported equivalent to `varlock scan`, or whether repository/file scanning is explicitly deferred
+- whether non-Serilog process output redaction is supported, unsupported, or deferred
+
+Unsupported security behaviors should be documented plainly rather than implied by the broader “first-class” label.
+
 ## Plugin Support
 
 ### v1 guaranteed behavior
 
-Existing Varlock plugin behavior should work automatically through the CLI bridge.
+Existing Varlock CLI plugin behavior should work through the CLI bridge only for scenarios supported by the underlying `varlock` executable distribution and plugin-loading model used by the `.NET` packages.
+
+The proposal should document:
+
+- supported plugin packaging and discovery modes
+- whether single-file and package-based plugins are both supported
+- how plugin loading failures surface to users
+- that `.NET` v1 does not introduce a second independent plugin runtime
 
 ### v1 experimental behavior
 
@@ -462,6 +507,8 @@ Recommended evolution:
 - add `lang=cs`
 - support generated output paths that are safe for MSBuild and `obj/`
 - keep `ts` and `cs` generation in the same Varlock type-generation flow
+- keep generation schema-driven and deterministic rather than environment-driven
+- document imported-schema and `auto=false` semantics consistently with the existing type-generation model
 
 Examples:
 
@@ -482,6 +529,17 @@ varlock dotnet emit-config
 ```
 
 But the first iteration should not require inventing a new CLI surface if `typegen` and `load --format json-full` are sufficient.
+
+## Diagnostics and Inspection
+
+The proposal should treat inspection and troubleshooting as first-class developer-experience requirements, not as incidental consequences of the bridge.
+
+Recommended scope:
+
+- a documented way to inspect resolved config and source metadata for `.NET` scenarios
+- preservation of actionable file and location diagnostics from schema and resolution failures
+- a clear distinction between human-facing diagnostics and machine-facing bridge output
+- examples showing how users debug precedence, imports, missing schema, and reload failures
 
 ## MSBuild Integration
 
@@ -610,6 +668,8 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - The supported app-type matrix is documented with explicit notes about full support, partial support, and special constraints.
 - Blazor WebAssembly support is documented honestly as public-config-only while using the CLI bridge.
 - The initial CLI-bridge architecture is documented as intentional, not accidental, including the criteria that would justify a future native runtime.
+- Unsupported parity gaps versus JavaScript-specific runtime integrations are called out explicitly.
+- The machine-readable CLI contract consumed by the `.NET` bridge is documented clearly enough to support long-term maintenance.
 
 ### 2. Package surface is complete and coherent
 
@@ -620,6 +680,7 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - `Varlock.MSBuild` exists and provides build integration without requiring users to hand-roll targets.
 - `Varlock.Serilog` exists and provides Serilog-specific redaction ergonomics.
 - Any `.NET` plugin package introduced is clearly marked supported, preview, or experimental.
+- A supported diagnostics or inspection workflow exists for debugging Varlock-backed `.NET` loads.
 - Package names, namespaces, versioning, and dependency directions are consistent and defensible for upstream review.
 
 ### 3. Configuration provider behavior is fully implemented
@@ -635,6 +696,8 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Failed reloads do not replace active configuration with invalid or partial data.
 - Successful reloads update the provider atomically.
 - Configuration consumers see stable, predictable behavior during reload boundaries.
+- Provider behavior preserves sensitive metadata and other serialized settings required by the supported `.NET` experience.
+- Provider diagnostics include enough source identity to debug precedence and import-related behavior.
 
 ### 4. `IOptions<T>` integration is complete
 
@@ -657,6 +720,8 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Generated type naming rules are documented and consistently applied.
 - Generated output paths are safe for MSBuild and repository hygiene.
 - Generated code lands in build output directories for normal project flows unless the user explicitly chooses another path.
+- C# generation preserves the existing deterministic schema-driven model rather than depending on resolved environment values.
+- Imported-schema behavior and `auto=false` behavior are documented and tested consistently with the underlying Varlock type-generation model.
 
 ### 6. MSBuild integration is complete
 
@@ -677,6 +742,9 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - The Serilog package provides an ergonomic story for both automatic and explicit redaction.
 - Example applications demonstrate Serilog integration in at least one hosted app and one non-hosted app where appropriate.
 - The behavior of redaction around reloads is defined and tested where metadata or active sensitive values change.
+- The status of non-Serilog redaction and leak-prevention behavior is documented explicitly as supported, unsupported, or deferred.
+- If `PreventLeaks` metadata is exposed through the bridge, its supported `.NET` meaning is documented and tested where applicable.
+- If repository/file scanning is not part of v1, that deferral is documented plainly.
 
 ### 8. Plugin behavior is clearly supported
 
@@ -684,6 +752,8 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Documentation explains what “plugin support” means in the CLI-bridge model.
 - If any .NET-native plugin hooks are introduced, they are documented with explicit scope boundaries.
 - No experimental `.NET` plugin mechanism is presented as equivalent to full native Varlock engine parity unless it truly is.
+- Supported plugin packaging and discovery modes are documented.
+- Plugin loading failures are surfaced with actionable diagnostics.
 
 ### 9. Example applications prove the support claims
 
@@ -697,6 +767,8 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Example apps demonstrate validation behavior.
 - Example apps demonstrate `Optional` behavior where relevant.
 - Example apps demonstrate `ReloadOnChange` behavior where relevant.
+- At least one example demonstrates direct non-hosted loading without `IConfiguration` if that scenario is claimed as supported.
+- At least one example demonstrates plugin-backed secret resolution if plugin support is claimed in user-facing docs.
 - Example apps do not include unnecessary fork-only scaffolding or unfinished exploratory code.
 
 ### 10. Test coverage spans the entire support contract
@@ -711,6 +783,10 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Automated tests cover MSBuild integration sufficiently to catch regressions in generation and validation flows.
 - Automated tests cover Serilog redaction behavior.
 - Example-app smoke tests exist and run in CI for the supported matrix that is claimed in docs.
+- Automated tests cover the machine-readable CLI contract consumed by the `.NET` bridge.
+- Automated tests cover plugin-backed load scenarios if plugin support is claimed.
+- Automated tests cover representative schema and resolution diagnostics.
+- Automated tests cover imported-schema and `auto=false` type-generation semantics.
 
 ### 11. Cross-platform support claims are proven in CI
 
@@ -731,6 +807,9 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Docs explain how C# type generation works.
 - Docs explain how MSBuild integration works.
 - Docs explain Serilog integration.
+- Docs explain the machine-readable CLI bridge contract and supported inspection workflows.
+- Docs explain what current Varlock security behaviors are included, deferred, or unsupported in `.NET` v1.
+- Docs explain what plugin support means operationally for `.NET` consumers.
 - Docs explain platform caveats, especially Blazor WebAssembly.
 - Docs include migration guidance for teams already using appsettings, DotEnv, or `ConfigurationManager.AppSettings`.
 - Docs are organized in stable locations suitable for upstream merge and future maintenance.
@@ -743,11 +822,13 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - IDE and build outputs point users toward the correct schema or configuration problems.
 - The required setup for the CLI bridge is explicit and not surprising.
 - The support story does not rely on users discovering hidden environment assumptions.
+- The distinction between provider-based usage, direct runtime usage, and build-time generation usage is documented clearly.
+- The supported debugging path for failed loads is obvious from docs and error messages.
 
 ### 14. Distribution and release story is ready
 
 - Each `.NET` package has a clear publishing strategy.
-- The project has a decided story for how the `.NET` packages locate or obtain the `varlock` executable.
+- The project implements and validates a supported story for how the `.NET` packages locate or obtain the `varlock` executable.
 - Package metadata, README files, and versioning are ready for public consumption.
 - Release steps are documented well enough that upstream maintainers can ship the packages without fork-specific tribal knowledge.
 - Any new CI or release workflow changes are minimal, reviewable, and aligned with the existing monorepo release model.
@@ -777,11 +858,15 @@ Varlock should claim first-class `.NET` support only when all of the following a
 1. documented configuration provider integration exists
 2. documented `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>` behavior exists
 3. `optional` and `reloadOnChange` behavior is implemented and tested
-4. C# type generation exists and is documented
-5. MSBuild integration exists and is documented
-6. Serilog-specific redaction support exists and is documented
-7. example apps prove modern and legacy scenarios
-8. CI validates the supported platform matrix
+4. a stable machine-readable CLI contract for the `.NET` bridge exists and is documented
+5. C# type generation exists, is documented, and preserves the deterministic schema-driven model
+6. MSBuild integration exists and is documented
+7. supported logging/redaction behavior exists and is documented
+8. plugin-backed loading behavior is documented and tested for claimed supported scenarios
+9. diagnostics and inspection workflows exist for supported `.NET` usage modes
+10. example apps prove hosted and non-hosted scenarios plus claimed security and plugin behaviors
+11. CI validates the supported platform matrix
+12. unsupported parity gaps versus JavaScript-specific runtime integrations are explicitly documented
 
 ## Open Questions To Resolve During Implementation
 
@@ -795,6 +880,16 @@ Varlock should claim first-class `.NET` support only when all of the following a
 3. What is the minimum supported legacy Windows target to prove first-class support credibly?
 
 4. Should a dedicated `.NET`-focused CLI subcommand be added after the initial bridge is working, or should the existing `load` and `typegen` commands remain the only contract?
+
+5. What is the supported versioning strategy for the machine-readable CLI contract consumed by the `.NET` bridge?
+
+6. Which current Varlock security behaviors are part of first-class `.NET` support: logging redaction only, leak prevention, scanning, or some subset?
+
+7. Which plugin packaging and discovery modes are supported for `.NET` consumers?
+
+8. Is child-process environment injection part of the supported low-level `.NET` story, or explicitly out of scope for v1?
+
+9. What inspection or debugging command/API is the canonical `.NET` troubleshooting path?
 
 ## Repository Hygiene Notes
 
