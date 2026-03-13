@@ -1,0 +1,46 @@
+{
+  "agents": {
+    "picard": {
+      "created_at": "2026-03-13T10:56:25.531Z",
+      "persistent_name": "Picard",
+      "universe": "Star Trek",
+      "status": "active"
+    },
+    "data": {
+      "created_at": "2026-03-13T10:56:25.531Z",
+      "persistent_name": "Data",
+      "universe": "Star Trek",
+      "status": "active"
+    },
+    "geordi": {
+      "created_at": "2026-03-13T10:56:25.531Z",
+      "persistent_name": "Geordi",
+      "universe": "Star Trek",
+      "status": "active"
+    },
+    "tuvok": {
+      "created_at": "2026-03-13T10:56:25.531Z",
+      "persistent_name": "Tuvok",
+      "universe": "Star Trek",
+      "status": "active"
+    },
+    "o'brien": {
+      "created_at": "2026-03-13T10:56:25.531Z",
+      "persistent_name": "O'Brien",
+      "universe": "Star Trek",
+      "status": "active"
+    },
+    "scribe": {
+      "created_at": "2026-03-13T10:56:25.531Z",
+      "persistent_name": "Scribe",
+      "universe": "Star Trek",
+      "status": "active"
+    },
+    "ralph": {
+      "created_at": "2026-03-13T10:56:25.531Z",
+      "persistent_name": "Ralph",
+      "universe": "Star Trek",
+      "status": "active"
+    }
+  }
+}

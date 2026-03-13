@@ -783,6 +783,49 @@ Each example should prove:
 - `reloadOnChange` behavior where applicable
 - logging/redaction where applicable
 
+## Support-Matrix Ledger
+
+This ledger should live in the proposal until implementation artifacts exist elsewhere in the repository.
+
+It is intentionally a proof-planning table, not a claim that the listed examples or tests already exist. A row should move from `planned` to `proven` only when the referenced example app and automated test both exist or when the row explicitly documents why one of those proof forms is not applicable.
+
+### App-type support ledger
+
+| Support claim | Proving example app | Proving automated test | Key caveats | Proof status |
+| --- | --- | --- | --- | --- |
+| Console app direct runtime usage | `examples/dotnet-console-net8/` | console bridge integration test | non-hosted, may use low-level APIs instead of `IConfiguration` | planned |
+| ASP.NET Core MVC provider usage | `examples/dotnet-aspnet-mvc-net8/` | ASP.NET configuration provider smoke test | should prove precedence over appsettings and options binding | planned |
+| Worker Service / Generic Host usage | `examples/dotnet-worker-net8/` | worker `IOptionsMonitor<T>` reload test | should prove long-lived reload behavior | planned |
+| Azure Functions isolated worker usage | `examples/dotnet-functions-isolated-net8/` | functions isolated startup smoke test | must document coexistence with `local.settings.json` | planned |
+| Windows Forms legacy/non-hosted usage | `examples/dotnet-winforms-net48/` | legacy desktop bridge smoke test | minimum supported legacy target still open | planned |
+| Blazor Server usage | `examples/dotnet-blazor-server-net8/` | blazor server hosting smoke test | should prove server-side config access only | planned |
+| Blazor WebAssembly public-config-only usage | `examples/dotnet-blazor-wasm-net8-public/` | wasm public-config build validation test | must prove sensitive values do not cross the public boundary | planned |
+
+### Developer-experience intersection ledger
+
+| Support claim | Proving example app | Proving automated test | Key caveats | Proof status |
+| --- | --- | --- | --- | --- |
+| `dotnet run` startup path | `examples/dotnet-console-net8/` | CLI bridge startup test | should prove deterministic executable discovery | planned |
+| `dotnet watch` runtime reload behavior | `examples/dotnet-aspnet-mvc-net8/` | watch/reload coalescing test | must show no pathological rebuild loops | planned |
+| IDE-driven build and IntelliSense flow | `examples/dotnet-aspnet-mvc-net8/` | MSBuild generated-file validation test | IDE behavior should be documented from observed results | planned |
+| User Secrets coexistence | `examples/dotnet-aspnet-mvc-net8/` | precedence/coexistence integration test | docs should explain recommended ordering clearly | planned |
+| `local.settings.json` coexistence | `examples/dotnet-functions-isolated-net8/` | azure functions config layering test | functions-specific only | planned |
+| `IOptions<T>` binding | `examples/dotnet-aspnet-mvc-net8/` | options binding test | should cover user-authored and generated POCOs where supported | planned |
+| `IOptionsSnapshot<T>` scoped reload | `examples/dotnet-aspnet-mvc-net8/` | snapshot reload test | request-scoped semantics must be explicit | planned |
+| `IOptionsMonitor<T>` long-lived reload | `examples/dotnet-worker-net8/` | monitor reload test | must prove last-known-good preservation | planned |
+| C# type generation | `examples/dotnet-console-net8/` | generated C# golden-output test | naming rules and binder compatibility must be documented | planned |
+| Serilog redaction | `examples/dotnet-aspnet-mvc-net8/` | Serilog redaction test | only first-class for Serilog in v1 | planned |
+| Non-Serilog fallback redaction helpers | `examples/dotnet-console-net8/` | runtime helper redaction test | must show what is manual rather than automatic | planned |
+| Plugin-backed secret resolution | `examples/dotnet-console-net8/` or dedicated plugin fixture app | plugin-backed bridge test | supported only for the documented executable/plugin layout | planned |
+| Machine-readable error diagnostics | no standalone example required | bridge contract fixture tests | fixture payloads are the main proof artifact | planned |
+
+### Ledger maintenance rules
+
+- every user-facing support claim in this proposal should map to at least one ledger row
+- every row should identify the proving example app, the proving automated test, or explicitly document why one proof mechanism is not applicable
+- caveats should be kept in the ledger even after a row is proven so future maintainers can see the boundary of the claim
+- if a claim is removed from the proposal, its ledger row should be removed or marked intentionally deferred rather than left stale
+
 ## Testing Matrix
 
 The package set should not be considered first-class until it is exercised across:
@@ -806,6 +849,72 @@ Recommended validation categories:
 6. Serilog redaction tests
 7. example-app smoke tests
 
+## Mandatory Proof Artifacts
+
+To keep the remaining work reviewable, the initiative should define the specific artifacts that convert “this should work” into “this has been demonstrated”.
+
+The following artifacts should be treated as required deliverables rather than optional implementation notes.
+
+### 1. Executable distribution specimen
+
+Must include:
+
+- the exact supported packaging model for the `varlock` executable used by `.NET` consumers
+- the documented lookup order in local development and CI
+- an offline or restricted-network setup example
+- a version-handshake example showing compatible and incompatible executable behavior
+- the supported plugin search roots for the chosen executable layout
+
+### 2. Machine-readable contract fixtures
+
+Must include checked-in or reproducible fixture payloads for:
+
+- successful `load` bridge output
+- missing executable
+- executable version mismatch
+- schema-invalid failure
+- resolution-failed failure
+- plugin-load-failed failure
+
+These fixtures should be referenced by docs and tests so the `.NET` bridge contract is validated against stable examples rather than prose alone.
+
+### 3. C# generation specimen
+
+Must include:
+
+- a representative schema that exercises nested keys, scalars, and sensitive metadata
+- the generated `.g.cs` output for that schema
+- binder validation proving the generated types work with normal `.NET` binding flows
+- documented naming rules from env keys to generated C# members
+
+### 4. Watch and reload specimen
+
+Must include at least one hosted example and one MSBuild-integrated example demonstrating:
+
+- repeated file-change bursts
+- import graph changes
+- environment-specific source activation changes
+- last-known-good preservation after failed reload
+- `dotnet watch` behavior without pathological rebuild or regeneration loops
+
+### 5. Security-boundary specimen
+
+Must include:
+
+- one Serilog example proving automatic or ergonomic redaction
+- one non-Serilog example proving the supported manual/helper-based story and explicitly showing what is not automatic in v1
+- one Blazor WebAssembly public-config-only example proving how sensitive values are prevented from crossing the public boundary
+
+### 6. Support-matrix ledger
+
+Must include a simple table or checklist mapping each claimed app type and developer-experience intersection to:
+
+- the proving example app
+- the proving automated test
+- the known limitations or caveats
+
+This ledger should exist in repository documentation so future maintainers can see exactly which claim is backed by which artifact.
+
 ## Phased Implementation Plan
 
 ### Phase 0: design and repository preparation
@@ -815,6 +924,12 @@ Recommended validation categories:
 - define stable machine-readable CLI contract for the .NET bridge
 - decide how packaged binaries or tools are distributed to .NET consumers
 
+Phase 0 exit criteria:
+
+- the executable distribution specimen is designed tightly enough that implementation does not depend on ad hoc environment setup
+- machine-readable contract fixtures are specified for both success and failure cases
+- the support-matrix ledger structure exists, even if not all rows are proven yet
+
 ### Phase 1: core bridge and C# generation
 
 - add `lang=cs` support to type generation
@@ -823,12 +938,25 @@ Recommended validation categories:
 - create `Varlock.MSBuild`
 - prove with console, ASP.NET MVC, and WinForms examples
 
+Phase 1 exit criteria:
+
+- the C# generation specimen exists and passes binder validation
+- the executable distribution specimen is implemented for local development and CI
+- contract fixtures back low-level bridge tests
+- console, ASP.NET MVC, and WinForms examples prove initial direct and provider-based usage
+
 ### Phase 2: hosted app maturity
 
 - create `Varlock.Extensions.Hosting`
 - add worker service support
 - add `IOptionsSnapshot<T>` and `IOptionsMonitor<T>` reload tests
 - add `optional` and `reloadOnChange` behavior coverage
+
+Phase 2 exit criteria:
+
+- the watch and reload specimen exists and demonstrates atomic reload plus last-known-good behavior
+- hosted examples prove `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>` semantics
+- `dotnet watch` and IDE-driven workflows are documented from real observed behavior, not expectation
 
 ### Phase 3: logging and wider platform coverage
 
@@ -837,11 +965,22 @@ Recommended validation categories:
 - add Blazor Server example
 - add public-config-only Blazor WebAssembly example
 
+Phase 3 exit criteria:
+
+- the security-boundary specimen exists and makes the Serilog versus non-Serilog distinction concrete
+- Azure Functions isolated, Blazor Server, and Blazor WebAssembly examples prove the claimed caveats and supported flows
+- the support-matrix ledger is filled for every v1 support claim
+
 ### Phase 4: native evolution and plugin expansion
 
 - re-evaluate native `.NET` parser/runtime cost-benefit
 - expand .NET-native plugin capabilities if justified
 - consider Roslyn analyzer/source generator enhancements
+
+Phase 4 exit criteria:
+
+- native evolution work is justified by demonstrated limits of the CLI bridge rather than by speculative parity concerns
+- any expanded plugin or analyzer scope is documented as a new support contract, not assumed retroactively
 
 ## Definition of Done
 
@@ -913,6 +1052,7 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Generated code lands in build output directories for normal project flows unless the user explicitly chooses another path.
 - C# generation preserves the existing deterministic schema-driven model rather than depending on resolved environment values.
 - Imported-schema behavior and `auto=false` behavior are documented and tested consistently with the underlying Varlock type-generation model.
+- The C# generation specimen exists in-repo and is used as a regression artifact for naming, structure, and binder compatibility.
 
 ### 6. MSBuild integration is complete
 
@@ -927,6 +1067,7 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - The interaction between runtime reloads and generated-file updates is documented clearly enough that users can predict whether a change triggers provider reload, rebuild, or both.
 - The integration does not require users to manually edit temporary generated files.
 - Generated artifacts are not committed accidentally as part of the recommended workflow.
+- The watch and reload specimen proves the documented behavior under repeated file changes rather than relying only on unit tests.
 
 ### 7. Logging and redaction support is complete
 
@@ -939,6 +1080,7 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - The docs state explicitly that repository/file scanning remains an existing CLI workflow in v1 rather than a `.NET` runtime feature.
 - If `PreventLeaks` metadata is exposed through the bridge, its supported `.NET` meaning is documented and tested where applicable.
 - If repository/file scanning is not part of v1, that deferral is documented plainly.
+- The security-boundary specimen demonstrates the supported Serilog story, the non-Serilog fallback story, and the Blazor public-only boundary.
 
 ### 8. Plugin behavior is clearly supported
 
@@ -948,6 +1090,7 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - No experimental `.NET` plugin mechanism is presented as equivalent to full native Varlock engine parity unless it truly is.
 - Supported plugin packaging and discovery modes are documented.
 - Plugin loading failures are surfaced with actionable diagnostics.
+- The executable distribution specimen proves at least one plugin-backed load in the exact supported package layout.
 
 ### 9. Example applications prove the support claims
 
@@ -965,6 +1108,7 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - At least one example demonstrates direct non-hosted loading without `IConfiguration` if that scenario is claimed as supported.
 - At least one example demonstrates plugin-backed secret resolution if plugin support is claimed in user-facing docs.
 - Example apps do not include unnecessary fork-only scaffolding or unfinished exploratory code.
+- The support-matrix ledger links each claimed example-driven behavior to its corresponding example project.
 
 ### 10. Test coverage spans the entire support contract
 
@@ -985,6 +1129,7 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Automated tests cover plugin-backed load scenarios if plugin support is claimed.
 - Automated tests cover representative schema and resolution diagnostics.
 - Automated tests cover imported-schema and `auto=false` type-generation semantics.
+- Automated tests or golden fixtures cover the machine-readable contract examples referenced by the proposal.
 
 ### 11. Cross-platform support claims are proven in CI
 
@@ -1011,6 +1156,7 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Docs explain platform caveats, especially Blazor WebAssembly.
 - Docs include migration guidance for teams already using appsettings, DotEnv, or `ConfigurationManager.AppSettings`.
 - Docs are organized in stable locations suitable for upstream merge and future maintenance.
+- Docs link to the executable distribution specimen, machine-readable contract fixtures, support-matrix ledger, and relevant proving examples.
 
 ### 13. Developer experience is acceptable
 
@@ -1070,6 +1216,7 @@ Varlock should claim first-class `.NET` support only when all of the following a
 14. unsupported parity gaps versus JavaScript-specific runtime integrations are explicitly documented
 15. the current Varlock product surfaces are mapped explicitly to supported, deferred, or CLI-only `.NET` v1 behavior
 16. the claimed `.NET` developer-experience intersections are documented and proven for the workflows that are labeled supported
+17. the required proof artifacts exist for executable distribution, bridge contract fixtures, C# generation, watch/reload behavior, security boundaries, and support-matrix traceability
 
 ## Open Questions To Resolve During Implementation
 
@@ -1087,10 +1234,11 @@ Varlock should claim first-class `.NET` support only when all of the following a
 
 This proposal is intentionally trying to be strong enough that implementation success can later be evaluated at or above a 9.5/10 confidence level. The remaining credibility blockers should be treated as implementation-priority items rather than editorial footnotes.
 
-1. Prove the executable acquisition, plugin discovery, and contract-version handshake model in real package layouts across local development, CI, and offline environments.
-2. Prove the machine-readable success and failure contract against real schema, resolution, and plugin-loading failures rather than only describing payload shape.
-3. Prove reload/watch semantics tightly enough that `dotnet watch`, IDE builds, and long-lived hosted apps have predictable behavior under repeated changes.
-4. Prove the explicit product-surface boundary in examples and docs so users can tell immediately when to use the `.NET` packages versus when to call the existing `varlock` CLI directly.
+1. Produce the executable distribution specimen and plugin-backed proof layout for real package installations across local development, CI, and offline environments.
+2. Produce machine-readable success and failure fixtures for real schema, resolution, and plugin-loading failures and bind tests/docs to those fixtures.
+3. Produce the watch and reload specimen showing `dotnet watch`, IDE builds, and long-lived hosted apps behaving predictably under repeated changes.
+4. Produce the C# generation and security-boundary specimens so binder compatibility, Serilog scope, non-Serilog fallback, and Blazor public-only constraints are demonstrated rather than asserted.
+5. Produce and maintain the support-matrix ledger so every v1 claim has an attached proving example or automated test.
 
 If these areas are not proven in implementation, the proposal may still be directionally correct but should not be treated as a 9.5/10 confidence design for delivery.
 

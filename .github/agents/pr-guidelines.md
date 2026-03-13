@@ -52,6 +52,19 @@ When implementing a new feature or making significant changes, the PR should inc
 - Fix any discovered vulnerabilities
 - Include security summary in PR
 
+## Additional Requirements for `.NET` Initiative PRs
+
+When a PR implements or proves work from `docs/proposals/dotnet-support.md`, it must also:
+
+1. Cite the exact proposal sections touched.
+2. Cite the affected IDs from `docs/proposals/dotnet-support-ledger.yml`.
+3. State which phase and workstream owner the PR advances.
+4. Identify which support claims, proof artifacts, example apps, automated tests, and docs are being added or moved forward.
+5. Update `docs/proposals/dotnet-support-ledger.yml` whenever proof status, caveats, or deferrals change.
+6. Avoid marking a `.NET` support claim as proven until the linked example and automated test exist, or the ledger explicitly records why one proof form is not applicable.
+
+Use the repository PR template to capture this traceability in every `.NET` initiative PR.
+
 ## Changeset Commands
 
 Available commands (defined in root `package.json`):

@@ -1,0 +1,93 @@
+name: ".NET initiative task"
+title: "[.NET] "
+labels: ["enhancement", "triage"]
+description: Create an implementation-tracked .NET initiative task tied to the proposal and execution ledger
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for work that implements or proves part of `docs/proposals/dotnet-support.md`.
+
+        Before filing, identify the proposal sections and ledger IDs this task advances.
+  - type: input
+    id: phase
+    attributes:
+      label: Phase
+      description: Which implementation phase does this belong to?
+      placeholder: "phase-0, phase-1, phase-2, phase-3, or phase-4"
+    validations:
+      required: true
+  - type: dropdown
+    id: workstream_owner
+    attributes:
+      label: Primary workstream owner
+      description: Which squad role primarily owns the behavior seam?
+      options:
+        - Picard
+        - Data
+        - Geordi
+        - Tuvok
+        - O'Brien
+        - Ralph
+    validations:
+      required: true
+  - type: textarea
+    id: proposal_sections
+    attributes:
+      label: Proposal sections
+      description: Cite the exact proposal sections or line ranges this task implements.
+      placeholder: |
+        docs/proposals/dotnet-support.md#L933-L946
+        docs/proposals/dotnet-support.md#L1043-L1055
+    validations:
+      required: true
+  - type: input
+    id: ledger_ids
+    attributes:
+      label: Ledger IDs
+      description: List the IDs from `docs/proposals/dotnet-support-ledger.yml` that this task advances.
+      placeholder: "phase-1, varlock-dotnet, csharp-generation-specimen"
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Implementation scope
+      description: What exactly will be added, changed, or proven?
+      placeholder: Describe the package, example, test, or proof artifact this task owns.
+    validations:
+      required: true
+  - type: checkboxes
+    id: proof_artifacts
+    attributes:
+      label: Proof artifacts touched
+      description: Select every proof artifact this task creates or advances.
+      options:
+        - label: executable-distribution-specimen
+        - label: machine-readable-contract-fixtures
+        - label: csharp-generation-specimen
+        - label: watch-and-reload-specimen
+        - label: security-boundary-specimen
+        - label: support-matrix-ledger-artifact
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Completion evidence
+      description: List the example apps, automated tests, and docs that must be updated before this task is done.
+      placeholder: |
+        Example apps:
+        - examples/dotnet-console-net8/
+
+        Automated tests:
+        - generated C# golden-output test
+
+        Docs:
+        - support matrix row dx-csharp-generation
+    validations:
+      required: true
+  - type: textarea
+    id: caveats
+    attributes:
+      label: Caveats, deferrals, or out-of-scope notes
+      description: Capture any support boundary, caveat, or follow-on work this task should not silently absorb.
+      placeholder: Explain what remains deferred, unsupported, or intentionally out of scope.
