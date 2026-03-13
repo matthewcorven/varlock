@@ -20,6 +20,11 @@ Then build the libraries:
 bun run build:libs
 ```
 
+## Architecture
+
+If you are orienting yourself in the repository, start with [docs/repository-architecture.md](./docs/repository-architecture.md).
+It documents the monorepo structure, the parse -> graph -> resolve -> inject runtime pipeline, the framework integrations, plugin system, smoke tests, and release surfaces.
+
 
 ## Packages
 
