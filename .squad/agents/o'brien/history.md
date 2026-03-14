@@ -25,6 +25,8 @@
 - 2026-03-13: Re-checking after Data's latest landing confirmed the repo still has no checked-in specimen or CI lane that executes opt-in `PATH` lookup; runtime tests cover lookup order in code, but proposal and ledger proof should stay limited to repo-local, package-local, and local `.bin` artifacts exercised by `bun run proof:dotnet`.
 - 2026-03-13: That last proof-accounting objection was itself overtaken once the checked-in PATH harness and env-gated console seam landed; with fresh runtime-test and `bun run proof:dotnet` success, P1-A1 is now honestly complete and the stale inbox note should be cleared instead of merged back into the ledger.
 - 2026-03-13: The narrowest honest P1-A2 move with today's checked-in startup/runtime packages is an explicit `dotnet build` proof for the console and ASP.NET examples inside `bun run proof:dotnet`; that widens the matrix by one build-flow row without claiming watch-mode, IntelliSense, or generated-file behavior.
+- 2026-03-14: The checked-in repo-level MCP config already carried `context-mode`; the real drift risk was stale example JSON in shared templates and package READMEs, so proof here means keeping guidance synchronized instead of touching unrelated live server entries.
+- 2026-03-14: Changed `context-mode` MCP server from PATH-based direct invocation to `npx -y context-mode` for consistency with all other MCP servers, enabling package-based distribution and future version pinning; updated both live `.copilot/mcp-config.json` and all example configs in templates and package docs while preserving uncommitted edits.
 
 
 

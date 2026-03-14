@@ -25,6 +25,10 @@ Users configure MCP servers at these locations (checked in priority order):
 ```json
 {
   "mcpServers": {
+    "context-mode": {
+      "command": "npx",
+      "args": ["-y", "context-mode"]
+    },
     "trello": {
       "command": "npx",
       "args": ["-y", "@trello/mcp-server"],
@@ -42,6 +46,10 @@ Users configure MCP servers at these locations (checked in priority order):
 ```json
 {
   "mcpServers": {
+    "context-mode": {
+      "command": "npx",
+      "args": ["-y", "context-mode"]
+    },
     "github": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-github"],
@@ -58,6 +66,10 @@ Users configure MCP servers at these locations (checked in priority order):
 ```json
 {
   "mcpServers": {
+    "context-mode": {
+      "command": "npx",
+      "args": ["-y", "context-mode"]
+    },
     "azure": {
       "command": "npx",
       "args": ["-y", "@azure/mcp-server"],
@@ -77,6 +89,10 @@ Users configure MCP servers at these locations (checked in priority order):
 ```json
 {
   "mcpServers": {
+    "context-mode": {
+      "command": "npx",
+      "args": ["-y", "context-mode"]
+    },
     "aspire": {
       "command": "npx",
       "args": ["-y", "@aspire/mcp-server"],

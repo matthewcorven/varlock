@@ -11,7 +11,8 @@
       }
     },
     "context-mode": {
-      "command": "context-mode"
+      "command": "npx",
+      "args": ["-y", "context-mode"]
     }
   }
 }

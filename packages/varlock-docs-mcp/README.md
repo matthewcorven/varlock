@@ -20,6 +20,10 @@ For example, you can use the MCP server in Cursor by adding the following to you
 ```json
 {
   "mcpServers": {
+    "context-mode": {
+      "command": "npx",
+      "args": ["-y", "context-mode"]
+    },
     "varlock-docs-mcp-local": {
       "command": "npx",
       "args": ["mcp-remote", "http://localhost:8787/sse"]
