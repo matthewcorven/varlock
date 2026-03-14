@@ -1,0 +1,10 @@
+{
+  "contractVersion": 1,
+  "cliVersion": "__CLI_VERSION__",
+  "command": "load",
+  "format": "json-full",
+  "ok": false,
+  "category": "resolution-failed",
+  "message": "Value is required but is currently empty",
+  "key": "API_KEY"
+}

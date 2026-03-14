@@ -1,0 +1,10 @@
+{
+  "contractVersion": 1,
+  "cliVersion": "__CLI_VERSION__",
+  "command": "load",
+  "format": "json-full",
+  "ok": false,
+  "category": "schema-invalid",
+  "message": "only true, false, or `inferFromPrefix()` is allowed for @defaultSensitive decorator",
+  "source": ".env.schema"
+}

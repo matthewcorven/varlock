@@ -1,9 +1,18 @@
 import { define } from 'gunshi';
+import { gracefulExit } from 'exit-hook';
 
 import { loadVarlockEnvGraph } from '../../lib/load-graph';
 import { getItemSummary } from '../../lib/formatting';
 import { checkForConfigErrors, checkForNoEnvFiles, checkForSchemaErrors } from '../helpers/error-checks';
 import { type TypedGunshiCommandFn } from '../helpers/gunshi-type-utils';
+import {
+  getLoadBridgeFailurePayload,
+  getLoadBridgeSuccessPayload,
+  getLoadBridgeUnexpectedFailurePayload,
+  getLoadBridgeVersionMismatchPayload,
+  LOAD_BRIDGE_CONTRACT_VERSION,
+} from '../helpers/bridge-contract';
+import packageJson from '../../../package.json';
 
 export const commandSpec = define({
   name: 'load',
@@ -33,6 +42,10 @@ export const commandSpec = define({
       short: 'p',
       description: 'Path to a specific .env file or directory to use as the entry point',
     },
+    'bridge-contract': {
+      type: 'string',
+      description: `Emit the versioned machine-readable bridge contract for .NET consumers (supported version: ${LOAD_BRIDGE_CONTRACT_VERSION})`,
+    },
   },
   examples: `
 Loads and validates environment variables according to your .env files, and prints the results.
@@ -51,7 +64,61 @@ Examples:
 
 
 export const commandFn: TypedGunshiCommandFn<typeof commandSpec> = async (ctx) => {
-  const { format, compact, 'show-all': showAll } = ctx.values;
+  const {
+    format,
+    compact,
+    'show-all': showAll,
+    'bridge-contract': bridgeContract,
+  } = ctx.values;
+
+  let cliVersion = packageJson.version;
+  if (__VARLOCK_BUILD_TYPE__ !== 'release') cliVersion += `-${__VARLOCK_BUILD_TYPE__}`;
+
+  if (bridgeContract) {
+    const indent = compact ? 0 : 2;
+
+    if (bridgeContract !== String(LOAD_BRIDGE_CONTRACT_VERSION)) {
+      console.log(JSON.stringify(getLoadBridgeVersionMismatchPayload(cliVersion, bridgeContract), null, indent));
+      return gracefulExit(1);
+    }
+
+    if (format !== 'json-full') {
+      console.log(JSON.stringify(getLoadBridgeUnexpectedFailurePayload(
+        cliVersion,
+        new Error('Bridge contract requires --format json-full'),
+      ), null, indent));
+      return gracefulExit(1);
+    }
+
+    try {
+      const envGraph = await loadVarlockEnvGraph({
+        currentEnvFallback: ctx.values.env,
+        entryFilePath: ctx.values.path,
+      });
+      const earlyFailure = getLoadBridgeFailurePayload(envGraph, cliVersion);
+      if (earlyFailure) {
+        console.log(JSON.stringify(earlyFailure, null, indent));
+        return gracefulExit(1);
+      }
+
+      if (!envGraph.rootDataSource) throw new Error('expected root data source to be set');
+
+      await envGraph.generateTypesIfNeeded();
+      await envGraph.resolveEnvValues();
+
+      const lateFailure = getLoadBridgeFailurePayload(envGraph, cliVersion);
+      if (lateFailure) {
+        console.log(JSON.stringify(lateFailure, null, indent));
+        return gracefulExit(1);
+      }
+
+      console.log(JSON.stringify(getLoadBridgeSuccessPayload(envGraph, cliVersion), null, indent));
+      return gracefulExit(0);
+    } catch (error) {
+      console.log(JSON.stringify(getLoadBridgeUnexpectedFailurePayload(cliVersion, error), null, indent));
+      return gracefulExit(1);
+    }
+  }
 
   const envGraph = await loadVarlockEnvGraph({
     currentEnvFallback: ctx.values.env,

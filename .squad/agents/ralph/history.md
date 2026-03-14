@@ -9,3 +9,4 @@
 ## Learnings
 
 <!-- Append learnings below -->
+- 2026-03-13: Work-monitor updates that ask Matthew to choose sequencing, prioritization, delegation, or related next steps should use `.squad/progression.md` as the visual reference and point to the relevant stable node IDs.

@@ -329,14 +329,14 @@ support_matrix:
   app_types:
     - id: claim-console-direct-runtime
       example: examples/dotnet-console-net8/
-      test: console bridge integration test
-      caveat: non-hosted and may use low-level APIs instead of IConfiguration
-      proof_status: planned
+      test: bun run proof:dotnet console bridge check
+      caveat: non-hosted and uses low-level APIs instead of IConfiguration
+      proof_status: proven
     - id: claim-aspnet-provider
       example: examples/dotnet-aspnet-mvc-net8/
-      test: ASP.NET configuration provider smoke test
-      caveat: proves precedence over appsettings and options binding
-      proof_status: planned
+      test: bun run proof:dotnet ASP.NET provider check
+      caveat: startup-only provider ordering over appsettings; options binding and reload remain out of slice
+      proof_status: proven
     - id: claim-worker-monitor
       example: examples/dotnet-worker-net8/
       test: worker IOptionsMonitor<T> reload test
@@ -365,24 +365,44 @@ support_matrix:
   developer_experience:
     - id: dx-dotnet-run
       example: examples/dotnet-console-net8/
-      test: CLI bridge startup test
-      caveat: proves deterministic executable discovery
-      proof_status: planned
+      test: bun run proof:dotnet console bridge check
+      caveat: proven from the checked-in example working directory through built-in repo-local development lookup to packages/varlock/bin/cli.js
+      proof_status: proven
+    - id: dx-repo-local-executable-lookup
+      example: examples/dotnet-console-net8/
+      test: bun run proof:dotnet console bridge check
+      caveat: proves the default example working-directory walk-up to packages/varlock/bin/cli.js without an explicit ExecutablePath
+      proof_status: proven
+    - id: dx-package-local-executable-lookup
+      example: examples/dotnet-console-net8/
+      test: bun run proof:dotnet package-local wrapper check
+      caveat: a checked-in proof-only harness drops node_modules/varlock/bin/cli.js into the example at test time and asserts that branch runs before local node_modules/.bin/varlock and repo-local fallback
+      proof_status: proven
+    - id: dx-local-bin-executable-lookup
+      example: examples/dotnet-console-net8/
+      test: bun run proof:dotnet local-bin wrapper check
+      caveat: a checked-in proof-only harness drops node_modules/.bin/varlock into the example at test time and asserts that branch runs before repo-local fallback when the package-local layout is absent
+      proof_status: proven
+    - id: dx-path-executable-lookup
+      example: examples/dotnet-console-net8/
+      test: bun run proof:dotnet path lookup check
+      caveat: an env-guarded proof-only harness prepends a temporary CLI entry to PATH and sets VARLOCK_DOTNET_PROOF_FORCE_PATH_LOOKUP=1 so the example disables local lookup only for that proof run
+      proof_status: proven
     - id: dx-dotnet-watch
       example: examples/dotnet-aspnet-mvc-net8/
       test: watch and reload coalescing test
       caveat: proves no pathological rebuild loops
       proof_status: planned
     - id: dx-ide-build
-      example: examples/dotnet-aspnet-mvc-net8/
-      test: MSBuild generated-file validation test
-      caveat: documents IDE behavior from observed results
-      proof_status: planned
+      example: examples/dotnet-console-net8/ + examples/dotnet-aspnet-mvc-net8/
+      test: bun run proof:dotnet explicit dotnet build check
+      caveat: proves clean MSBuild compilation for the checked-in startup/runtime examples only; watch, generated-file loops, and IntelliSense observations remain planned
+      proof_status: proven
     - id: dx-user-secrets
       example: examples/dotnet-aspnet-mvc-net8/
-      test: precedence and coexistence integration test
-      caveat: docs explain recommended ordering clearly
-      proof_status: planned
+      test: bun run proof:dotnet ASP.NET user-secrets coexistence check
+      caveat: WebApplicationBuilder loads User Secrets before AddVarlock(...), so User Secrets-only keys survive while Varlock overrides overlapping keys by provider order
+      proof_status: proven
     - id: dx-local-settings
       example: examples/dotnet-functions-isolated-net8/
       test: Azure Functions config layering test
@@ -406,7 +426,7 @@ support_matrix:
     - id: dx-csharp-generation
       example: examples/dotnet-console-net8/
       test: generated C# golden-output test
-      caveat: naming rules and binder compatibility are documented
+      caveat: fixture-backed C# generation and decorator-write tests now exist in packages/varlock, but the example app does not yet consume generated output, so binder proof remains planned
       proof_status: planned
     - id: dx-serilog-redaction
       example: examples/dotnet-aspnet-mvc-net8/
@@ -426,8 +446,8 @@ support_matrix:
     - id: dx-machine-readable-errors
       example: none
       test: bridge contract fixture tests
-      caveat: fixture payloads are the primary proof artifact
-      proof_status: planned
+      caveat: fixture payloads are the primary proof artifact and include a shared location-bearing schema-invalid parse-error envelope consumed by both CLI and .NET tests
+      proof_status: proven
   maintenance_rules:
     - every user-facing support claim maps to at least one ledger row
     - every row identifies the proving example app, the proving automated test, or a written non-applicable reason
@@ -441,6 +461,10 @@ testing_matrix:
       lines: [829, 850]
   platforms: [Windows, macOS, Linux]
   target_frameworks: [net8.0, net48]
+  current_slice_notes:
+    - Only the console direct-runtime and ASP.NET startup-provider examples are automated in-repo today.
+    - CI currently proves those examples in the Ubuntu test workflow via bun run proof:dotnet, including an explicit dotnet build check for both checked-in examples.
+    - Cross-platform .NET matrix coverage remains planned.
   validation_categories:
     - CLI bridge integration tests
     - configuration provider tests
@@ -459,6 +483,12 @@ proof_artifacts:
       owner: O'Brien
       phase_required_by: phase-0
       proof_status: planned
+      current_slice_groundwork:
+        - built-in repo-local development lookup is proven by the console and ASP.NET example apps plus bun run proof:dotnet
+        - a checked-in proof-only harness in bun run proof:dotnet now proves package-local node_modules/varlock/bin/cli.js acquisition against the real console example without changing the checked-in example layout
+        - a checked-in proof-only harness in bun run proof:dotnet now proves local node_modules/.bin/varlock acquisition against the real console example when the package-local layout is absent
+        - a checked-in env-guarded proof-only harness in bun run proof:dotnet now proves opt-in PATH acquisition against the real console example without broadening default example behavior
+        - offline acquisition proof and a checked-in version-handshake specimen remain planned
       must_include:
         - exact supported packaging model for the varlock executable used by .NET consumers
         - documented lookup order in local development and CI
@@ -480,6 +510,10 @@ proof_artifacts:
       owner: Geordi
       phase_required_by: phase-1
       proof_status: planned
+      current_slice_groundwork:
+        - a representative schema, checked-in .g.cs output, and lang=cs decorator-write coverage now exist under packages/varlock/src/env-graph/test/fixtures/typegen-cs/
+        - vitest covers both the golden C# output and generateTypesIfNeeded(lang=cs) write path
+        - compiled binder validation and example-backed generated-type proof remain planned
       must_include:
         - representative schema covering nested keys, scalars, and sensitive metadata
         - generated .g.cs output
@@ -508,6 +542,10 @@ proof_artifacts:
       owner: O'Brien
       phase_required_by: phase-0
       proof_status: planned
+      current_slice_groundwork:
+        - console direct runtime, ASP.NET provider usage, and dotnet run startup discovery now have runnable examples plus automated proof
+        - bun run proof:dotnet now also proves clean dotnet build output for the checked-in console and ASP.NET examples without widening into watch or IntelliSense claims
+        - all other rows remain planned and intentionally unproven
       must_include:
         - every claimed app type
         - every claimed developer-experience intersection
@@ -3982,13 +4020,13 @@ clause_rows:
         - "Developer-experience intersection ledger"
       proposal_refs:
         - path: docs/proposals/dotnet-support.md
-          lines: [810, 810]
-      statement: "IDE-driven build and IntelliSense flow"
+          lines: [818, 818]
+      statement: "Explicit `dotnet build` example flow"
       table_cells:
-        - "`examples/dotnet-aspnet-mvc-net8/`"
-        - "MSBuild generated-file validation test"
-        - "IDE behavior should be documented from observed results"
-        - "planned"
+        - "`examples/dotnet-console-net8/` and `examples/dotnet-aspnet-mvc-net8/`"
+        - "`bun run proof:dotnet` explicit `dotnet build` check"
+        - "proves clean MSBuild compilation for the checked-in startup/runtime examples only; watch, generated-file loops, and IntelliSense observations remain planned"
+        - "proven"
     - id: "support-matrix-ledger-developer-experience-intersection-ledger-user-secrets-coexistence-l0811"
       owner: "O'Brien"
       kind: "table_row"
@@ -4136,9 +4174,9 @@ clause_rows:
       statement: "Machine-readable error diagnostics"
       table_cells:
         - "no standalone example required"
-        - "bridge contract fixture tests"
-        - "fixture payloads are the main proof artifact"
-        - "planned"
+        - "shared CLI and `.NET` bridge contract fixture tests"
+        - "fixture payloads are the main proof artifact and include a shared location-bearing schema-invalid parse-error envelope consumed by both CLI and `.NET` tests"
+        - "proven"
     - id: "support-matrix-ledger-ledger-maintenance-rules-l0822"
       owner: "O'Brien"
       kind: "heading"

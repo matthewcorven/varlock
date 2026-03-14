@@ -1,6 +1,4 @@
 {
-  "universe_allowlist": [
-    "*"
-  ],
+  "universe_allowlist": ["*"],
   "max_capacity": 25
 }

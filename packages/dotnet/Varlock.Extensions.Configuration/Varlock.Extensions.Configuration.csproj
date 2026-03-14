@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Varlock.Extensions.Configuration</AssemblyName>
+    <RootNamespace>Varlock.Extensions.Configuration</RootNamespace>
+    <PackageId>Varlock.Extensions.Configuration</PackageId>
+    <Description>Startup-only Microsoft.Extensions.Configuration provider for Varlock.</Description>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Varlock.DotNet\Varlock.DotNet.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

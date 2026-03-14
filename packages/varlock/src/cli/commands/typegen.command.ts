@@ -7,7 +7,7 @@ import { type TypedGunshiCommandFn } from '../helpers/gunshi-type-utils';
 
 export const commandSpec = define({
   name: 'typegen',
-  description: 'Generate TypeScript types from your env schema',
+  description: 'Generate types from your env schema',
   args: {
     path: {
       type: 'string',
@@ -16,11 +16,12 @@ export const commandSpec = define({
     },
   },
   examples: `
-Generates TypeScript type definitions from your .env schema files.
+Generates type definitions from your .env schema files.
 Uses only non-environment-specific schema info, so output is deterministic
 regardless of which environment is active.
 
 This is useful when you have \`@generateTypes(lang=ts, path=env.d.ts, auto=false)\`
+or \`@generateTypes(lang=cs, path=obj/Varlock/VarlockConfig.g.cs, auto=false)\`
 in your schema to disable automatic type generation during \`varlock load\` or \`varlock run\`.
 
 Examples:
@@ -42,7 +43,7 @@ export const commandFn: TypedGunshiCommandFn<typeof commandSpec> = async (ctx) =
 
   if (generatedCount === 0) {
     throw new CliExitError('No @generateTypes decorator found in your schema', {
-      suggestion: 'Add `@generateTypes(lang=ts, path=env.d.ts)` to your .env.schema file.',
+      suggestion: 'Add `@generateTypes(lang=ts, path=env.d.ts)` or `@generateTypes(lang=cs, path=obj/Varlock/VarlockConfig.g.cs)` to your .env.schema file.',
     });
   }
 

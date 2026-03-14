@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Varlock.DotNet</AssemblyName>
+    <RootNamespace>Varlock.DotNet</RootNamespace>
+    <PackageId>Varlock.DotNet</PackageId>
+    <Description>Low-level .NET bridge for invoking the Varlock CLI and consuming the resolved configuration graph.</Description>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

@@ -444,8 +444,8 @@ export class EnvGraph {
     return _.some(_.values(this.configSchema), (i) => !i.isValid);
   }
 
-  async generateTypes(lang: string, outputPath: string) {
-    await generateTypes(this, lang, outputPath);
+  async generateTypes(lang: string, outputPath: string, options?: Record<string, unknown>) {
+    await generateTypes(this, lang, outputPath, options);
   }
 
   /**
@@ -472,7 +472,6 @@ export class EnvGraph {
       if (typeGenSettings.obj.auto === false && !opts?.ignoreAutoFalse) continue;
 
       if (!typeGenSettings.obj.lang) throw new Error('@generateTypes - must set `lang` arg');
-      if (typeGenSettings.obj.lang !== 'ts') throw new Error(`@generateTypes - unsupported language: ${typeGenSettings.obj.lang}`);
       if (!typeGenSettings.obj.path) throw new Error('@generateTypes - must set `path` arg');
       if (!_.isString(typeGenSettings.obj.path)) throw new Error('@generateTypes - `path` arg must be a string');
 
@@ -480,7 +479,7 @@ export class EnvGraph {
         ? path.resolve(generateTypesDec.dataSource.fullPath, '..', typeGenSettings.obj.path)
         : typeGenSettings.obj.path;
 
-      await this.generateTypes(typeGenSettings.obj.lang, outputPath);
+      await this.generateTypes(typeGenSettings.obj.lang, outputPath, typeGenSettings.obj);
       generatedCount++;
     }
     return generatedCount;

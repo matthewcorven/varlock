@@ -1,0 +1,11 @@
+{
+  "contractVersion": 1,
+  "cliVersion": "__CLI_VERSION__",
+  "command": "load",
+  "format": "json-full",
+  "ok": false,
+  "category": "executable-version-mismatch",
+  "message": "Requested bridge contract version \"2\" is not supported by this varlock executable",
+  "requestedContractVersion": "2",
+  "supportedContractVersion": 1
+}

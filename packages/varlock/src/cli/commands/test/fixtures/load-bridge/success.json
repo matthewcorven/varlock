@@ -1,0 +1,31 @@
+{
+  "contractVersion": 1,
+  "cliVersion": "__CLI_VERSION__",
+  "command": "load",
+  "format": "json-full",
+  "ok": true,
+  "graph": {
+    "basePath": "__CWD__",
+    "sources": [
+      {
+        "label": "directory - __CWD__",
+        "enabled": true
+      },
+      {
+        "label": ".env.schema",
+        "enabled": true,
+        "path": ".env.schema"
+      }
+    ],
+    "settings": {
+      "redactLogs": true,
+      "preventLeaks": true
+    },
+    "config": {
+      "FOO": {
+        "value": "bar",
+        "isSensitive": true
+      }
+    }
+  }
+}

@@ -783,6 +783,10 @@ Each example should prove:
 - `reloadOnChange` behavior where applicable
 - logging/redaction where applicable
 
+Current repository proof slice only ships `examples/dotnet-console-net8/` and `examples/dotnet-aspnet-mvc-net8/`.
+Those examples prove direct low-level runtime loading and startup-only configuration-provider layering over `appsettings.json`.
+Worker, reload, functions, legacy, and hosted-helper claims remain planned and should not be inferred from these first two specimens.
+
 ## Support-Matrix Ledger
 
 This ledger should live in the proposal until implementation artifacts exist elsewhere in the repository.
@@ -793,8 +797,8 @@ It is intentionally a proof-planning table, not a claim that the listed examples
 
 | Support claim | Proving example app | Proving automated test | Key caveats | Proof status |
 | --- | --- | --- | --- | --- |
-| Console app direct runtime usage | `examples/dotnet-console-net8/` | console bridge integration test | non-hosted, may use low-level APIs instead of `IConfiguration` | planned |
-| ASP.NET Core MVC provider usage | `examples/dotnet-aspnet-mvc-net8/` | ASP.NET configuration provider smoke test | should prove precedence over appsettings and options binding | planned |
+| Console app direct runtime usage | `examples/dotnet-console-net8/` | `bun run proof:dotnet` console bridge check | non-hosted, uses low-level APIs instead of `IConfiguration` | proven |
+| ASP.NET Core MVC provider usage | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` ASP.NET provider check | startup-only provider ordering over `appsettings`; options binding and reload stay out of this slice | proven |
 | Worker Service / Generic Host usage | `examples/dotnet-worker-net8/` | worker `IOptionsMonitor<T>` reload test | should prove long-lived reload behavior | planned |
 | Azure Functions isolated worker usage | `examples/dotnet-functions-isolated-net8/` | functions isolated startup smoke test | must document coexistence with `local.settings.json` | planned |
 | Windows Forms legacy/non-hosted usage | `examples/dotnet-winforms-net48/` | legacy desktop bridge smoke test | minimum supported legacy target still open | planned |
@@ -805,19 +809,23 @@ It is intentionally a proof-planning table, not a claim that the listed examples
 
 | Support claim | Proving example app | Proving automated test | Key caveats | Proof status |
 | --- | --- | --- | --- | --- |
-| `dotnet run` startup path | `examples/dotnet-console-net8/` | CLI bridge startup test | should prove deterministic executable discovery | planned |
+| `dotnet run` startup path | `examples/dotnet-console-net8/` | `bun run proof:dotnet` console bridge check | proven from the checked-in example working directory through built-in repo-local development lookup to `packages/varlock/bin/cli.js` | proven |
+| Built-in repo-local development executable lookup | `examples/dotnet-console-net8/` | `bun run proof:dotnet` console bridge check | proves the default example working-directory walk-up to `packages/varlock/bin/cli.js` without an explicit `ExecutablePath` | proven |
+| Built-in package-local executable lookup | `examples/dotnet-console-net8/` | `bun run proof:dotnet` package-local wrapper check | a checked-in proof-only harness drops `node_modules/varlock/bin/cli.js` into the example at test time and asserts that branch runs before local `node_modules/.bin/varlock` and repo-local fallback | proven |
+| Built-in local `node_modules/.bin` executable lookup | `examples/dotnet-console-net8/` | `bun run proof:dotnet` local-bin wrapper check | a checked-in proof-only harness drops `node_modules/.bin/varlock` into the example at test time and asserts that branch runs before repo-local fallback when the package-local layout is absent | proven |
+| Opt-in `PATH` executable lookup | `examples/dotnet-console-net8/` | `bun run proof:dotnet` path lookup check | an env-guarded proof-only harness prepends a temporary CLI entry to `PATH` and sets `VARLOCK_DOTNET_PROOF_FORCE_PATH_LOOKUP=1`, which disables local lookup for that proof run without changing default example behavior | proven |
 | `dotnet watch` runtime reload behavior | `examples/dotnet-aspnet-mvc-net8/` | watch/reload coalescing test | must show no pathological rebuild loops | planned |
-| IDE-driven build and IntelliSense flow | `examples/dotnet-aspnet-mvc-net8/` | MSBuild generated-file validation test | IDE behavior should be documented from observed results | planned |
-| User Secrets coexistence | `examples/dotnet-aspnet-mvc-net8/` | precedence/coexistence integration test | docs should explain recommended ordering clearly | planned |
+| Explicit `dotnet build` example flow | `examples/dotnet-console-net8/` and `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` explicit `dotnet build` check | proves clean MSBuild compilation for the checked-in startup/runtime examples only; watch, generated-file loops, and IntelliSense observations remain planned | proven |
+| User Secrets coexistence | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` ASP.NET user-secrets coexistence check | `WebApplicationBuilder` loads User Secrets before `AddVarlock(...)`, so the proof keeps User Secrets-only keys while showing Varlock overrides overlapping keys by provider order | proven |
 | `local.settings.json` coexistence | `examples/dotnet-functions-isolated-net8/` | azure functions config layering test | functions-specific only | planned |
 | `IOptions<T>` binding | `examples/dotnet-aspnet-mvc-net8/` | options binding test | should cover user-authored and generated POCOs where supported | planned |
 | `IOptionsSnapshot<T>` scoped reload | `examples/dotnet-aspnet-mvc-net8/` | snapshot reload test | request-scoped semantics must be explicit | planned |
 | `IOptionsMonitor<T>` long-lived reload | `examples/dotnet-worker-net8/` | monitor reload test | must prove last-known-good preservation | planned |
-| C# type generation | `examples/dotnet-console-net8/` | generated C# golden-output test | naming rules and binder compatibility must be documented | planned |
+| C# type generation | `examples/dotnet-console-net8/` | generated C# golden-output test | fixture-backed C# generation and decorator-write tests now exist in `packages/varlock`, but the example app does not yet consume generated output, so binder proof remains planned | planned |
 | Serilog redaction | `examples/dotnet-aspnet-mvc-net8/` | Serilog redaction test | only first-class for Serilog in v1 | planned |
 | Non-Serilog fallback redaction helpers | `examples/dotnet-console-net8/` | runtime helper redaction test | must show what is manual rather than automatic | planned |
 | Plugin-backed secret resolution | `examples/dotnet-console-net8/` or dedicated plugin fixture app | plugin-backed bridge test | supported only for the documented executable/plugin layout | planned |
-| Machine-readable error diagnostics | no standalone example required | bridge contract fixture tests | fixture payloads are the main proof artifact | planned |
+| Machine-readable error diagnostics | no standalone example required | shared CLI and `.NET` bridge contract fixture tests | fixture payloads are the main proof artifact and now prove category/message fidelity, handshake compatibility, and location-bearing diagnostics from a shared schema-invalid parse-error fixture | proven |
 
 ### Ledger maintenance rules
 
@@ -833,6 +841,9 @@ The package set should not be considered first-class until it is exercised acros
 - Windows
 - macOS
 - Linux
+
+Current repository automation for this first proof follow-up slice only exercises the console and ASP.NET specimens in one Linux CI lane through `bun run proof:dotnet`, including an explicit `dotnet build` check for both checked-in examples before the runtime assertions.
+The broader platform matrix remains planned and should not be treated as proven yet.
 
 At minimum:
 

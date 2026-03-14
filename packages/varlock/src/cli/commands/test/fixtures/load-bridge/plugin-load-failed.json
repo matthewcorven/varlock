@@ -1,0 +1,10 @@
+{
+  "contractVersion": 1,
+  "cliVersion": "__CLI_VERSION__",
+  "command": "load",
+  "format": "json-full",
+  "ok": false,
+  "category": "plugin-load-failed",
+  "message": "Bad @plugin path: ../../../env-graph/test/plugins/test-plugin-no-package-json",
+  "source": ".env.schema"
+}

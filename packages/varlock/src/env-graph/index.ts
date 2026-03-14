@@ -13,4 +13,8 @@ export {
 export {
   BUILTIN_VARS, isBuiltinVar,
 } from './lib/builtin-vars';
-export { generateTsTypesSrc, getTsDefinitionForItem } from './lib/type-generation';
+export {
+  generateTsTypesSrc,
+  generateCsTypesSrc,
+  getTsDefinitionForItem,
+} from './lib/type-generation';

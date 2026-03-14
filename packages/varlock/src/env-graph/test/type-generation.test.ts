@@ -2,10 +2,12 @@ import {
   describe, expect, test, vi,
 } from 'vitest';
 import outdent from 'outdent';
+import fs from 'node:fs';
 import path from 'node:path';
 
 import {
   EnvGraph, DirectoryDataSource, DotEnvFileDataSource,
+  generateCsTypesSrc,
   generateTsTypesSrc,
   type TypeGenItemInfo,
 } from '../index';
@@ -42,6 +44,10 @@ async function getTypeGenInfoMap(g: EnvGraph) {
     infos[key] = await g.configSchema[key].getTypeGenInfo();
   }
   return infos;
+}
+
+function readFixture(...pathParts: Array<string>) {
+  return fs.readFileSync(path.join(path.dirname(expect.getState().testPath!), 'fixtures', ...pathParts), 'utf8');
 }
 
 describe('type generation', () => {
@@ -625,6 +631,110 @@ describe('type generation', () => {
         expect(devInfos[key].isSensitive, `${key} isSensitive`).toBe(prodInfos[key].isSensitive);
         expect(devInfos[key].description, `${key} description`).toBe(prodInfos[key].description);
         expect(devInfos[key].dataType?.name, `${key} dataType`).toBe(prodInfos[key].dataType?.name);
+      }
+    });
+  });
+
+  describe('generateCsTypesSrc output', () => {
+    test('matches the checked-in C# specimen', async () => {
+      const g = await loadGraph({
+        envFile: readFixture('typegen-cs', 'specimen.env.schema'),
+      });
+
+      const items: Array<TypeGenItemInfo> = [];
+      for (const key of g.sortedConfigKeys) {
+        items.push(await g.configSchema[key].getTypeGenInfo());
+      }
+
+      const src = await generateCsTypesSrc(items);
+      expect(src).toBe(readFixture('typegen-cs', 'VarlockConfig.g.cs'));
+    });
+
+    test('supports deterministic namespace and type-name overrides for C# output', async () => {
+      const g = await loadGraph({
+        envFile: readFixture('typegen-cs', 'specimen.env.schema'),
+      });
+
+      const items: Array<TypeGenItemInfo> = [];
+      for (const key of g.sortedConfigKeys) {
+        items.push(await g.configSchema[key].getTypeGenInfo());
+      }
+
+      const src = await generateCsTypesSrc(items, {
+        namespace: 'Contoso.Configuration.Generated',
+        typeName: 'AppConfig',
+      });
+
+      expect(src).toBe(readFixture('typegen-cs', 'CustomizedAppConfig.g.cs'));
+    });
+
+    test('includes dependency-free binding metadata for later binder integration', async () => {
+      const g = await loadGraph({
+        envFile: readFixture('typegen-cs', 'specimen.env.schema'),
+      });
+
+      const items: Array<TypeGenItemInfo> = [];
+      for (const key of g.sortedConfigKeys) {
+        items.push(await g.configSchema[key].getTypeGenInfo());
+      }
+
+      const src = await generateCsTypesSrc(items);
+      expect(src).toContain('public static global::System.Collections.Generic.IReadOnlyList<PropertyBinding> PropertyBindings { get; } = new PropertyBinding[]');
+      expect(src).toContain('new PropertyBinding("APP_ENV", "AppEnv", true, false),');
+      expect(src).toContain('new PropertyBinding("DB_PORT", "DbPort", false, false),');
+      expect(src).toContain('new PropertyBinding("OPEN_AI_API_KEY", "OpenAiApiKey", true, true),');
+    });
+
+    test('rejects invalid C# namespace overrides', async () => {
+      const g = await loadGraph({
+        envFile: readFixture('typegen-cs', 'specimen.env.schema'),
+      });
+
+      const items: Array<TypeGenItemInfo> = [];
+      for (const key of g.sortedConfigKeys) {
+        items.push(await g.configSchema[key].getTypeGenInfo());
+      }
+
+      await expect(generateCsTypesSrc(items, {
+        namespace: 'Contoso..Generated',
+      })).rejects.toThrow('`namespace` must be a dot-separated list of valid C# identifiers');
+    });
+
+    test('generateTypesIfNeeded writes C# files for lang=cs decorators', async () => {
+      const outputPath = path.join(path.dirname(expect.getState().testPath!), 'fixtures', 'typegen-cs', 'generated-specimen.g.cs');
+
+      try {
+        const g = await loadGraph({
+          envFile: readFixture('typegen-cs', 'specimen.env.schema').replace(
+            '# @defaultSensitive=false',
+            '# @defaultSensitive=false\n# @generateTypes(lang=cs, path=fixtures/typegen-cs/generated-specimen.g.cs, auto=false)',
+          ),
+        });
+
+        const generatedCount = await g.generateTypesIfNeeded({ ignoreAutoFalse: true });
+        expect(generatedCount).toBe(1);
+        expect(fs.readFileSync(outputPath, 'utf8')).toBe(readFixture('typegen-cs', 'VarlockConfig.g.cs'));
+      } finally {
+        if (fs.existsSync(outputPath)) fs.rmSync(outputPath);
+      }
+    });
+
+    test('generateTypesIfNeeded applies custom namespace and type-name overrides for lang=cs decorators', async () => {
+      const outputPath = path.join(path.dirname(expect.getState().testPath!), 'fixtures', 'typegen-cs', 'generated-customized-specimen.g.cs');
+
+      try {
+        const g = await loadGraph({
+          envFile: readFixture('typegen-cs', 'specimen.env.schema').replace(
+            '# @defaultSensitive=false',
+            '# @defaultSensitive=false\n# @generateTypes(lang=cs, path=fixtures/typegen-cs/generated-customized-specimen.g.cs, namespace=Contoso.Configuration.Generated, typeName=AppConfig, auto=false)',
+          ),
+        });
+
+        const generatedCount = await g.generateTypesIfNeeded({ ignoreAutoFalse: true });
+        expect(generatedCount).toBe(1);
+        expect(fs.readFileSync(outputPath, 'utf8')).toBe(readFixture('typegen-cs', 'CustomizedAppConfig.g.cs'));
+      } finally {
+        if (fs.existsSync(outputPath)) fs.rmSync(outputPath);
       }
     });
   });

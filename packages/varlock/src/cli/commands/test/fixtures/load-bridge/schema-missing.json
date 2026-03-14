@@ -1,0 +1,9 @@
+{
+  "contractVersion": 1,
+  "cliVersion": "__CLI_VERSION__",
+  "command": "load",
+  "format": "json-full",
+  "ok": false,
+  "category": "schema-missing",
+  "message": "No .env or .env.schema files found"
+}

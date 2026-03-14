@@ -1,0 +1,15 @@
+{
+  "contractVersion": 1,
+  "cliVersion": "__CLI_VERSION__",
+  "command": "load",
+  "format": "json-full",
+  "ok": false,
+  "category": "schema-invalid",
+  "message": "Parse error: Expected \"#\" or [ \\t] but \"F\" found.",
+  "location": {
+    "file": ".env.schema",
+    "line": 3,
+    "column": 1
+  },
+  "source": ".env.schema"
+}

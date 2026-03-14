@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "EXAMPLE-github": {
+     "@anthropic/github-mcp-server": {
       "command": "npx",
       "args": [
         "-y",
@@ -9,6 +9,9 @@
       "env": {
         "GITHUB_TOKEN": "${GITHUB_TOKEN}"
       }
+    },
+    "context-mode": {
+      "command": "context-mode"
     }
   }
 }
