@@ -1,14 +1,13 @@
 ---
-updated_at: 2026-03-15T11:58:00.000Z
-focus_area: P2-B1 MSBuild integration
+updated_at: 2026-03-15T13:00:00.000Z
+focus_area: P3-A1 wider platform proof
 active_issues: []
 ---
 
 # What We're Focused On
 
-P2-B1 ("MSBuild integration for generated C# output") is now **active**. Geordi's first cut is contract-respecting, deterministic, and proof-ready. Both Geordi and O'Brien can proceed in parallel:
+All Phase 2 work is **done**. P2-B1 ("MSBuild integration") was approved-closed by Picard with full proof chain: NuGet packageability, end-to-end `PackageReference` consumer build, and post-commit validation green.
 
-- **Geordi:** Continue with packageability (NuGet assets), design-time generation expansion, and watch-mode integration
-- **O'Brien:** Complete proof checklist (content parsing, optional validation tests) and documentation updates
+The next node is **P3-A1** ("Wider platform and framework proof coverage"). Both P2-A1 and P2-B1 predecessors are complete, so P3-A1 is unblocked. Scope and delegation have not yet been decided — Matthew's direction is needed before work begins.
 
-No blockers remain. P2-B1 targets closure once proof checklist is complete and `Varlock.MSBuild` NuGet is packageable.
+P4-A1 (analyzer/native-runtime decisions) remains deferred pending P3-A1 completion and bridge maturity assessment.

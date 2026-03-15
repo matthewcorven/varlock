@@ -555,3 +555,213 @@ Updated the ledger entry to reflect the actual generated-file path and clarified
 ### Files Modified
 
 - `docs/proposals/dotnet-support.md` — ledger entry clarification only (no claim changes, only accuracy)
+
+---
+
+## O'Brien: P2-B1 Closure Preflight — NuGet Packaging Path
+
+- **Decision Date:** 2026-03-15
+- **Initiative:** `dotnet-support`
+- **Node:** `P2-B1`
+- **Agent:** O'Brien (Distribution & Proof Lead)
+- **Status:** APPROVED
+- **Impact:** Phase-gate readiness confirmed
+
+### Executive Summary
+
+**STATUS: GO** — P2-B1 closure criteria are satisfiable and **comprehensive NuGet packaging proof is already implemented and passing**.
+
+The current tree demonstrates not just MSBuild integration in source form, but **complete end-to-end NuGet packaging**:
+- `Varlock.MSBuild` is a packable .csproj with proper metadata (`IsPackable=true`, `IncludeBuildOutput=false`)
+- Proof script dynamically packs the package into a temporary NuGet source
+- Proof creates a temporary consumer project with `PackageReference` (no manual imports)
+- Consumer project builds successfully and generates C# via the packaged MSBuild assets
+- Temporary artifacts are cleaned up after proof (no NuGetScratch or temp files leak into tree)
+- Documentation accurately reflects the packaged consumption proof as "proven"
+
+**No blockers identified.** The NuGet packaging surface is complete and honest.
+
+### Closure Checklist
+
+✅ Package Definition & Metadata
+- `packages/dotnet/Varlock.MSBuild/Varlock.MSBuild.csproj` exists
+- `<IsPackable>true</IsPackable>` enables packaging
+- `<PackageId>Varlock.MSBuild</PackageId>` defines package ID
+- `<IncludeBuildOutput>false</IncludeBuildOutput>` prevents assembly bloat
+- `<SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>` prevents dependency bloat
+- MSBuild assets (props, targets) are packed to both `build/` and `buildTransitive/` paths
+
+✅ Build Output Structure
+- `.csproj` includes `<None>` items for README.md, props, targets with `Pack="true"`
+- Each asset specifies correct `PackagePath`
+- `buildTransitive/` path ensures props/targets are inherited by transitive consumers
+- No source files packaged (props/targets only)
+
+✅ Proof Script Implements Complete NuGet Path
+- `packVarlockMsbuildPackage()` function executes `dotnet pack` with real output directory
+- Packing does NOT pollute repo; uses `mkdtempSync()` for temporary NuGet source
+- `createMsbuildPackageProofProject()` creates temporary consumer with:
+  - `<RestoreSources>` pointing to temporary nupkg directory
+  - `<PackageReference Include="Varlock.MSBuild" Version="X.Y.Z"/>`
+  - **No manual `<Import>` statements** (pure PackageReference consumption)
+- Consumer project specifies all Varlock properties
+- Consumer project does **not** override `VarlockExecutablePath` from package defaults
+
+✅ PackageReference Consumption Validation
+- Proof builds temporary consumer: `dotnet build`
+- Build succeeds and produces assembly
+- Generated file lands in `obj/Varlock/AppConfig.g.cs` (via packaged props/targets)
+- Generated namespace respects consumer configuration: `PackageProof.Generated`
+- Generated type name respects consumer configuration: `AppConfig`
+- Assertions validate: assembly exists, generated file exists, namespace override applied, type name override applied
+
+✅ Temp Artifact Cleanup
+- Proof creates temp package source via `mkdtempSync()`
+- Proof creates temp consumer project via `mkdtempSync()`
+- Both are cleaned via `fs.rmSync(..., { recursive: true, force: true })`
+- Cleanup is in `finally` block (executes even on error)
+- No NuGetScratch, bin/, obj/, or other build artifacts committed
+- `.gitignore` properly excludes `bin/`, `obj/`, and `*.nupkg`
+
+✅ Documentation Alignment
+- Proposal ledger explicitly documents: "the proof also packs `Varlock.MSBuild` and builds a temporary `PackageReference` consumer with no manual imports to prove the NuGet asset story"
+- Status marked as "proven"
+- MSBuild README includes example `<PackageReference>` usage
+- No unqualified claims
+
+✅ CI Integration
+- `bun run proof:dotnet` executes full proof including PackageReference validation
+- CI script runs `bun run proof:dotnet`
+- Proof output does not create committed artifacts
+
+✅ Example App Honest Scope
+- `examples/dotnet-aspnet-mvc-net8/` uses **source-level imports** (direct `<Import>` of props/targets)
+  - This is intentional for dev/proof purposes, not a PackageReference example
+  - Does NOT claim to be a packaged-consumer example
+- Packaged-consumer proof is separate, temporary, and created by `bun run proof:dotnet`
+- This split is honest: dev example shows direct integration; test proves packaged consumption works
+
+### Proof Execution
+
+```
+$ cd /Users/core/git/matthewcorven/varlock && bun run proof:dotnet
+$ (all assertions passed)
+Varlock .NET proof slice passed.
+```
+
+**Packaged NuGet consumption proof is complete and passing.**
+
+### Critical Audit Points
+
+✅ Packaging is Real
+- `dotnet pack` command executes (not mocked)
+- Real `.nupkg` file is created
+- `.nupkg` is unpacked and restored by real `dotnet restore` (implicit in `dotnet build`)
+- MSBuild props/targets from package are actually loaded and executed
+
+✅ No Committed Artifacts
+- Temp directory is cleaned up after proof
+- Proof does not modify checked-in source tree
+- No `NuGetScratch/`, `.nupkg`, or other temp build files committed
+- `.gitignore` prevents accidental commits
+
+✅ Honest Scope
+- Proof proves `PackageReference` consumption works
+- Proof does NOT claim: Automatic IDE integration, Design-time generation, Cross-platform support (Linux CI only), Watch-mode integration
+
+### Decision
+
+**GO** — P2-B1 closure is complete and honest.
+
+The NuGet packaging surface is fully implemented, dynamically tested, and properly scoped.
+
+**Recommended next steps:**
+1. Finalize package versioning strategy
+2. Update `.squad/decisions.md` and support-matrix ledger with "P2-B1 complete" marker
+3. Merge to main and stage P3-A1 (wider platform validation)
+
+---
+
+## Tuvok: P2-B1 Contract Review & Stability Preservation
+
+- **Decision Date:** 2026-03-15T16:54:02Z
+- **Initiative:** `dotnet-support`
+- **Node:** `P2-B1`
+- **Agent:** Tuvok (Security/Contracts Lead)
+- **Status:** APPROVED
+- **Impact:** Contract boundaries preserved; reload lifecycle stable
+
+### Executive Summary
+
+P2-B1 reload work has been analyzed against bridge stability and contract requirements. All critical machine-readable boundaries are preserved; public API is backward-compatible.
+
+### Contract Analysis (P2-B1 Reload Integration)
+
+✅ **Public API Surface Stable**
+- `VarlockConfigurationSource` additions: `ReloadOnChange` and `ReloadFailureBehavior` properties only
+- Existing properties and methods unchanged
+- All additions are optional; existing consumers unaffected
+
+✅ **Bridge Envelope Compatibility**
+- Existing success envelope shape unchanged
+- All 7 error categories (missing-executable, version-mismatch, schema-invalid, resolution-failed, plugin-load-failed, and others) remain parseable via `VarlockCliRuntime.ParseCliOutput()`
+- Optional-schema startup semantics unchanged; reload extends observation window
+- CLI bridge version contract (`--format json-full --bridge-contract 1`) unchanged
+
+✅ **Configuration Provider Lifecycle Semantics**
+- Last-known-good preservation is non-negotiable: failed reloads keep previous `Data`, no change-token fire
+- Atomic configuration swap required: single-assignment semantics into `Data` before token fires
+- Watch-set recomputation from new graph only after successful reload, not after failed attempts
+- Change-token integration: fire at most once per successful reload cycle, never after failure
+- Optional-schema startup semantics unchanged
+
+✅ **Existing Fixture Compatibility**
+- `BridgeContractAlignmentTests` fixtures and assertions must pass unchanged
+- Proof-harness output shapes (console and ASP.NET payloads) remain observable and testable
+- All 7 existing bridge error categories reused in reload path; no new categories
+
+### Decision
+
+**APPROVED.** P2-B1 reload implementation respects contract boundaries. No new categories, no envelope shape breaks. Bridge stability preserved. Reload lifecycle correctly implements atomic swap, change-token fire semantics, and last-known-good preservation.
+
+**Next:** P2-B1 → Packageability pass (Geordi NuGet assets) and proof finalization (O'Brien checklist) can proceed without contract risk.
+
+---
+
+## Picard: P2-B1 APPROVE-CLOSE — Phase-Gate Review & Decision
+
+- **Decision Date:** 2026-03-15T16:54:02Z
+- **Initiative:** `dotnet-support`
+- **Node:** `P2-B1` (MSBuild integration for generated C# output)
+- **Status:** APPROVED-CLOSE
+- **Commit:** `ffd3076` (Close P2-B1 MSBuild packageability)
+
+### Executive Summary
+
+**APPROVE-CLOSE.** P2-B1 is complete and meets its phase-gate obligations.
+
+### Evidence
+
+1. **Packageability proven.** `Varlock.MSBuild.csproj` produces a real `.nupkg` via `dotnet pack`. The proof script (`scripts/test-dotnet-proof.ts`) packs it into a temp NuGet source, creates a fresh `PackageReference` consumer, and builds successfully with zero manual imports. This closes the P2-B1 acceptance criterion that the MSBuild package auto-imports props/targets.
+
+2. **Deterministic type generation proven.** The PackageReference consumer proves end-to-end: schema → `varlock typegen` → `obj/Varlock/AppConfig.g.cs` with correct namespace (`PackageProof.Generated`) and class name (`AppConfig`). The existing ASP.NET example build also continues to pass, confirming no regressions.
+
+3. **Build-asset structure is correct.** `.props` and `.targets` are packed into both `build/` and `buildTransitive/` paths, which is the canonical NuGet layout for transitive MSBuild integration.
+
+4. **Post-commit validation green.** `dotnet test --filter ReloadTests` passes (no regression from P2-A1 work). `bun run proof:dotnet` passes end-to-end, covering pack, consumer build, and all prior proof rows.
+
+5. **Proposal support matrix updated.** The C# type generation ledger row in `docs/proposals/dotnet-support.md` reflects the NuGet asset story and is marked `proven`.
+
+### Scope Notes
+
+The README correctly documents what this package does **not** claim: no bundled executable, no separate validation step, no `dotnet watch` behavior. These are future-phase concerns and are correctly deferred.
+
+### Phase-Gate Status
+
+✅ **P2-B1 → DONE**
+
+Both P2-A1 and P2-B1 predecessors are complete. P3-A1 (wider platform proof) is now unblocked.
+
+### Next Node
+
+P3-A1 (Wider platform proof: Windows, macOS, CI parity). Ready for Matthew's acknowledgment to commence P3-A1 staging.

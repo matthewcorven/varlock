@@ -29,3 +29,7 @@
   - Proof-harness output shapes (console and ASP.NET payloads) remain observable and testable
   - All 7 existing bridge error categories reused in reload path; no new categories
   - BridgeContractAlignmentTests fixtures and assertions must pass unchanged
+
+## P2-B1 Contract Review (2026-03-15T16:54:02Z)
+
+- 2026-03-15T16:54:02Z: Tuvok completed P2-B1 contract-stability pass. Reload work preserves public API surface stability (`VarlockConfigurationSource` additions are additive only). Bridge envelope shapes remain unchanged; all 7 existing error categories reusable in reload path. Contract boundaries preserved: last-known-good preservation, atomic swap semantics, change-token fire rules, and watch-set recomputation all validated against P2-A1 proof fixtures. No new error categories; existing `BridgeContractAlignmentTests` assertions remain valid. Approved for closure.
