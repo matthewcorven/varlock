@@ -335,3 +335,190 @@
 
 **Next Coordination Step:** Once P2-B1 completes and proof artifacts pass, both P2-A1 and P2-B1 converge at P3-A1, which will expand proof coverage across broader .NET platforms and runtimes.
 
+
+### 2026-03-15: Geordi — P2-B1 First MSBuild Typegen Cut
+
+- Initiative: `dotnet-support`
+- Node: `P2-B1`
+- Source: Geordi via Copilot
+- Decision Date: 2026-03-15T15:53:27.444Z
+
+**Decision:** The first mergeable `P2-B1` slice wires the existing `varlock typegen` flow into MSBuild with opt-in `.props` / `.targets` rather than opening with a dedicated analyzer or new CLI surface.
+
+**Implementation Details:**
+- Generated C# moves into `obj/Varlock/` and is added to `@(Compile)` by the target
+- Example stops depending on checked-in `.g.cs` artifact
+- Incremental proof: "same inputs, no rewrite" on a second `dotnet build`
+
+**Files Created/Modified:**
+- `packages/dotnet/Varlock.MSBuild/build/Varlock.MSBuild.props`
+- `packages/dotnet/Varlock.MSBuild/build/Varlock.MSBuild.targets`
+- `examples/dotnet-aspnet-mvc-net8/.env.schema` — points C# output at `obj/Varlock/AppConfig.g.cs`
+- `examples/dotnet-aspnet-mvc-net8/dotnet-aspnet-mvc-net8.csproj` — imports build files, excludes legacy generated files
+- `scripts/test-dotnet-proof.ts` — proves build-driven generation plus no rewrite on unchanged second build
+
+**Rationale:** Keeps the build step deterministic and reviewable while reusing the already-proven `lang=cs` generator, naming overrides, and metadata sidecar output. Avoids smuggling environment-dependent validation or analyzer work into the first MSBuild bridge cut.
+
+**Remaining work after this cut:**
+- Add a packageable `Varlock.MSBuild.csproj` with proper `build` / `buildTransitive` assets instead of repo-local manual imports
+- Add explicit MSBuild validation target only after non-env-sensitive validation command or deterministic bridge path exists
+- Expand proof to IDE/design-time and `dotnet watch` behavior
+- Track imported-schema inputs more precisely than root schema path alone
+
+### 2026-03-15: O'Brien — P2-B1 Proof Lane Brief
+
+- Initiative: `dotnet-support`
+- Node: `P2-B1`
+- Source: O'Brien via Copilot
+- Decision Date: 2026-03-15T15:53:27.444Z
+
+**Decision:** The Distribution & Proof lane for P2-B1 ("MSBuild integration for generated C# output") executes in parallel with Geordi's core MSBuild package work. O'Brien owns proof artifacts, CI wiring, and documentation surface.
+
+**P2-B1 Contract (From Proposal):**
+- Generate C# during build via `Varlock.MSBuild` package
+- Optional build-time validation during build
+- Incremental inputs and outputs (MSBuild caching behavior)
+- Write generated files into `obj/Varlock/` for hygiene
+- Surface failures as normal MSBuild diagnostics
+
+**Proof Lane Scope — What Gets Added to `bun run proof:dotnet`:**
+
+1. **Build-time generation check:**
+   - Both example projects import `Varlock.MSBuild` in `.csproj`
+   - Run `dotnet build` against both examples
+   - Assert `obj/Varlock/VarlockConfig.g.cs` exists and is not empty
+   - Verify generated file contains expected class and property names
+   - Verify no pathological rebuild loops under repeated builds
+
+2. **Generated-file freshness validation:**
+   - Run build, modify `.env.schema`, run build again
+   - Assert generated file updates with new schema state
+   - Assert old generated files clean from `obj/` when no longer needed
+
+3. **Incremental build caching:**
+   - First build generates the file
+   - Second build with no schema changes should skip generation (verify via log/timestamp)
+   - Modify only non-schema input, verify generation is skipped
+
+4. **Optional validation during build:**
+   - If `VarlockValidateOnBuild=true`, assert validation runs
+   - Prove validation failure surfaces as normal MSBuild error/warning
+
+**Documentation Touch Points:**
+- Update proposal/support matrix caveat for generated-file behavior
+- Package README: explain `VarlockEnabled`, `VarlockSchemaPath`, `VarlockGenerateTypes`, `VarlockValidateOnBuild`, `VarlockGeneratedFile` properties
+- Example projects: demonstrate property overrides and schema → generated-file flow
+
+**Explicitly Deferred from P2-B1:**
+- `dotnet watch` behavior and IDE incremental builds
+- IntelliSense/design-time build diagnostics
+- Complex binder validation beyond basic proof
+- Serilog or logging integration
+
+**Handoff:**
+- Geordi owns core `Varlock.MSBuild` implementation
+- O'Brien owns proof command updates, CI integration, documentation, and repository hygiene
+
+**Rationale:** This proof lane does not depend on Geordi's implementation details beyond the contract promise. O'Brien can prepare proof command skeleton and documentation structure in advance without blocking Geordi's work.
+
+### 2026-03-15: Picard — P2-B1 First Cut Review & Acceptance
+
+- Initiative: `dotnet-support`
+- Node: `P2-B1`
+- Source: Picard (Initiative Lead)
+- Decision Date: 2026-03-15T15:53:27.444Z
+
+**Decision:** P2-B1 first cut is ACCEPTED. Marking P2-B1 as **`in progress`**.
+
+**Executive Summary:**
+
+Geordi's first cut of P2-B1 is contract-respecting, deterministic, and ready for active development. The slice wires build-time C# generation into MSBuild pipelines via `.props`/`.targets` files, writes generated C# to `obj/Varlock/` (configurable), and proves incremental build behavior (second build with unchanged inputs does NOT rewrite the generated file). Proof test passes end-to-end.
+
+**Validation Against Proposal Contract:**
+
+| Promise | Status | Evidence |
+|---------|--------|----------|
+| Generate C# during build | ✅ Proven | VarlockGenerateTypes target invokes `varlock typegen` |
+| Optionally validate during build | ✅ Ready | VarlockValidateOnBuild property defined, defaults false (deferred implementation) |
+| Incremental inputs and outputs | ✅ Proven | Target.Inputs/Outputs properly specified; second build skips generation |
+| Write generated files into `obj/Varlock/` | ✅ Proven | Default path is `obj/Varlock/VarlockConfig.g.cs`; example uses `obj/Varlock/AppConfig.g.cs` |
+| Surface failures as normal MSBuild diagnostics | ✅ Ready | Error tasks in place for missing schema, missing executable, missing output |
+
+**Properties Included (as specified):**
+- `VarlockEnabled` (false by default)
+- `VarlockSchemaPath` (.env.schema default)
+- `VarlockGenerateTypes` (true by default)
+- `VarlockValidateOnBuild` (false by default, deferred)
+- `VarlockGeneratedFile` (configurable output path)
+
+**Intelligently Added (justified by earlier phases):**
+- `VarlockEnableLocalExecutableLookup` — aligns with P1-A1 executable acquisition
+- `VarlockEnablePathLookup` — aligns with P1-A1 executable acquisition
+- `VarlockWorkingDirectory` — allows schema resolution flexibility
+- `VarlockExecutablePath` — explicit override for advanced scenarios
+
+**Incremental Build Behavior (Proven Deterministic):**
+- First build generates file and adds to compile
+- Second build with no schema/csproj changes:
+  - Skips VarlockGenerateTypes execution (incremental cache hit)
+  - File exists; VarlockPrepareGeneratedCompileItems re-adds to compile
+  - File timestamp unchanged (not rewritten)
+- Proof test validates both content equality and mtime preservation
+
+This prevents rebuild loops and keeps IDE experiences clean.
+
+**Integration Consistency:**
+
+✅ **With P1-A1 (Executable Acquisition):** MSBuild target reuses the same fallback chain proven in P1-A1 (explicit override → package install → local bin → repo development → PATH).
+
+✅ **With P1-B1 (C# Type Generation):** Target invokes existing `varlock typegen --path` command, reusing P1-B1's proven lang=cs generator, naming overrides, and metadata sidecar output.
+
+✅ **With P2-A1 (Reload/Options/Hosting):** P2-A1 proves reload behavior at runtime; P2-B1 proves generation at build time. No interaction; reload works with or without MSBuild-generated types.
+
+**Scope Containment (Correctly Deferred):**
+
+1. **Optional validation during build** — VarlockValidateOnBuild property defined; implementation deferred
+2. **Design-time / IDE generation** — Target includes `DesignTimeBuild` guard to prevent expensive generation during IDE operations
+3. **dotnet watch integration** — Watch-mode regeneration semantics deferred; slice proves cold builds only
+4. **Packageable NuGet assets** — Current slice uses repo-local `build/` folder imports; packaging as `Varlock.MSBuild` NuGet deferred
+5. **Binder attributes or validation error elaboration** — Validation deterministic but diagnostics remain basic MSBuild errors
+
+**Risk Assessment: MINIMAL**
+
+- ✅ No new CLI surfaces (uses existing `varlock typegen`)
+- ✅ No new validation semantics (generation only, validation deferred)
+- ✅ No new example projects (reuses dotnet-console-net8 and dotnet-aspnet-mvc-net8)
+- ✅ No new package dependencies (MSBuild targets are XML; no runtime dependencies)
+- ✅ No breaking changes to existing packages
+- ✅ Proof test passes; no known blockers
+
+**Outstanding Work Before P2-B1 Closure:**
+
+**Geordi's Remaining Work:**
+1. NuGet packageability — Create true `Varlock.MSBuild.csproj` with `build`/`buildTransitive` assets
+2. Design-time expansion — Consider IDE/IntelliSense generation behavior
+3. dotnet watch support — Prove watch-mode regeneration without breaking watch behavior
+4. Precise input tracking — Track schema imports/includes more precisely than root schema path alone
+
+**O'Brien's Proof Lane:**
+1. Proof checklist completion — Validate content parsing, optional validation during build test
+2. CI integration — Ensure `test.yaml` `proof:dotnet` step passes without manual changes
+3. Documentation touch points — Update proposal matrix, package README, example project README
+4. Repository hygiene — Verify no generated files committed; `obj/Varlock/` properly ignored
+
+**P2-B1 Closure Criteria:**
+
+P2-B1 will be considered **complete and squad-closed** when:
+
+1. Proof checklist is fully checked (O'Brien confirms all assertions pass)
+2. Packageable `Varlock.MSBuild` NuGet exists (Geordi delivers)
+3. CI passes without manual intervention (existing `test.yaml` runs proof automatically)
+4. No blockers remain for P3-A1 (platform proof expansion)
+
+At that point, Picard will re-review and approve P2-B1 closure, unblocking P3-A1 entry.
+
+**Status Change:** Marking P2-B1 as **`in progress`** in `.squad/progression.md`.
+
+**Rationale:** Geordi's core work is solid; O'Brien's proof lane can now proceed in parallel. Both can execute without waiting on new decisions from Picard.
+
+**No Blockers for Continuation:** Geordi may proceed with packageability and IDE expansion work. O'Brien may proceed with proof checklist completion and documentation updates. Matthew may begin delegation on either or both tracks.
