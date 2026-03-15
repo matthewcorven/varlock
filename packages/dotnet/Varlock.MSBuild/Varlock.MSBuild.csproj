@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Varlock.MSBuild</AssemblyName>
+    <RootNamespace>Varlock.MSBuild</RootNamespace>
+    <PackageId>Varlock.MSBuild</PackageId>
+    <Description>MSBuild integration for deterministic Varlock C# type generation.</Description>
+    <IsPackable>true</IsPackable>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="build/Varlock.MSBuild.props" Pack="true" PackagePath="build/Varlock.MSBuild.props" />
+    <None Include="build/Varlock.MSBuild.targets" Pack="true" PackagePath="build/Varlock.MSBuild.targets" />
+    <None Include="build/Varlock.MSBuild.props" Pack="true" PackagePath="buildTransitive/Varlock.MSBuild.props" />
+    <None Include="build/Varlock.MSBuild.targets" Pack="true" PackagePath="buildTransitive/Varlock.MSBuild.targets" />
+  </ItemGroup>
+</Project>
