@@ -1,6 +1,6 @@
 ---
 name: autonomous-executor-skill
-description: Orchestrate autonomous task execution using Open Ralph Wiggum's agentic loop with GitHub Copilot CLI. This skill should be used when the user asks to execute, run, or complete tasks autonomously — e.g. "run these with ralph", "execute this task", "use ralph to complete this". It downloads Open Ralph Wiggum into a workspace temp folder, parses execution specs to generate effective prompts, validates prerequisites and detects ambiguities, then delegates execution to a subagent that runs the ralph CLI with --agent copilot.
+description: Orchestrate autonomous task execution using Open Ralph Wiggum's agentic loop with GitHub Copilot CLI. This skill should be used when the user asks to execute, run, or complete tasks autonomously — e.g. "run these with wiggum", "execute this task", "use wiggum to complete this". It downloads Open Ralph Wiggum into a workspace temp folder, parses execution specs to generate effective prompts, validates prerequisites and detects ambiguities, then delegates execution to a subagent that runs the wiggum CLI with --agent copilot.
 ---
 
 # Autonomous Executor Skill
@@ -9,10 +9,10 @@ Orchestrate autonomous task completion using [Open Ralph Wiggum](https://github.
 
 ## When to Use
 
-- User requests autonomous execution of one or more tasks (e.g., "run this with ralph", "ralph this")
+- User requests autonomous execution of one or more tasks (e.g., "run this with wiggum", "wiggum this")
 - User wants to delegate multi-step implementation to an unattended agentic loop
 - Tasks have clear acceptance criteria and testable outcomes (Wiggum's sweet spot)
-- User says "execute", "run ralph", "ralph loop", or references completing tasks hands-off
+- User says "execute", "run wiggum", "wiggum loop", or references completing tasks hands-off
 
 ## When NOT to Use
 
@@ -235,9 +235,9 @@ The human can override the PM's selection by specifying `model: <model-name>` in
 
 The `--abort-promise ABORT` flag tells Wiggum to exit immediately when the agent outputs `<promise>ABORT</promise>`. Two abort types are defined in the prompt templates:
 
-| Type        | JSON File                               | When to Use                                                                                                           | Orchestrator Action                                                  |
-| ----------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| **BLOCKED** | `../../.tmp/ralph/blocked-TASK-{ID}.json` | Unresolvable external issue — missing dependency, missing env var, infrastructure failure, precondition not met       | Mark task as `status: blocked`, escalate to human. **Do not retry.**   |
+| Type        | JSON File                                 | When to Use                                                                                                           | Orchestrator Action                                                  |
+| ----------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| **BLOCKED** | `../../.tmp/ralph/blocked-TASK-{ID}.json` | Unresolvable external issue — missing dependency, missing env var, infrastructure failure, precondition not met       | Mark task as `status: blocked`, escalate to human. **Do not retry.** |
 | **FAILURE** | `../../.tmp/ralph/failed-TASK-{ID}.json`  | Exhausted all approaches — persistent test failures, unresolvable build errors, unable to satisfy acceptance criteria | Retry with `--add-context` if budget allows, else escalate to human. |
 
 The agent writes the appropriate JSON file (with a `reason` field) **before** outputting `<promise>ABORT</promise>`. The orchestrator reads the file after Wiggum exits to determine the abort type.
@@ -261,16 +261,16 @@ Example (local):
 | Flag                     | Purpose                                                                                                                                                                    |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--add-context "<text>"` | Inject additional context into the prompt at runtime. Used primarily for retries — include specific failure diagnostics (test output, build errors, selectors that broke). |
-| (omit `--no-stream`)     | Enable streaming of Wiggum stdout/stderr into `.tmp/ralph/logs/TASK-{ID}.log` so it can be tailed from another terminal.                                                     |
+| (omit `--no-stream`)     | Enable streaming of Wiggum stdout/stderr into `.tmp/ralph/logs/TASK-{ID}.log` so it can be tailed from another terminal.                                                   |
 
 **Choosing `--max-iterations`:**
 
-| Task Complexity | Estimated Hours                        | Max Iterations |
-| -------------------- | -------------------------------------- | -------------- |
-| Small (≤4 hrs)       | Config, token changes, simple entities | 10             |
-| Medium (5–12 hrs)    | Endpoint + tests, component migration  | 20             |
-| High (13–24 hrs)     | Full feature + E2E + DB verification   | 30             |
-| XL (25+ hrs)         | Multi-entity features, form sections   | 40             |
+| Task Complexity   | Estimated Hours                        | Max Iterations |
+| ----------------- | -------------------------------------- | -------------- |
+| Small (≤4 hrs)    | Config, token changes, simple entities | 10             |
+| Medium (5–12 hrs) | Endpoint + tests, component migration  | 20             |
+| High (13–24 hrs)  | Full feature + E2E + DB verification   | 30             |
+| XL (25+ hrs)      | Multi-entity features, form sections   | 40             |
 
 Use the "Est. Hours" column from `workitems/README.md` to determine complexity.
 
@@ -344,7 +344,7 @@ If verification fails, the orchestrator checks the retry budget:
 | Wiggum exits via ABORT promise              | Check for `../../.tmp/ralph/blocked-WI-{ID}.json` (BLOCKED → escalate, don't retry) or `../../.tmp/ralph/failed-WI-{ID}.json` (FAILURE → retry if budget allows). If neither file exists, check `ralph --status` and `.ralph/` state files. |
 | Max iterations reached (no promise)         | Implicit FAILURE. Increment `retriesUsed`, retry with `--add-context` if budget allows, otherwise report to user.                                                                                                                           |
 | Dependency WI not Done                      | Warn user, offer to execute dependency first or proceed with acknowledged risk                                                                                                                                                              |
-| Build/test failures after Wiggum completion | Re-run ralph with `--add-context` describing the specific failures (include exact error messages, failing test names, and the selector/DOM mismatches if applicable)                                                                        |
+| Build/test failures after Wiggum completion | Re-run wiggum with `--add-context` describing the specific failures (include exact error messages, failing test names, and the selector/DOM mismatches if applicable)                                                                       |
 | Commit message garbled by shell             | Use `git commit -F <file>` instead of `git commit -m "..."` for multi-line messages                                                                                                                                                         |
 | Wiggum writes BLOCKED file                  | `../../.tmp/ralph/blocked-WI-{ID}.json` exists → unresolvable blocker. Read the file for details, set WI to `status: blocked`, and escalate to the human. Do not retry — BLOCKED is not a transient failure.                                |
 | Wiggum writes FAILED file                   | `../../.tmp/ralph/failed-WI-{ID}.json` exists → agent exhausted approaches. Read the file for failure details, retry with `--add-context` including the failure reason if budget allows, otherwise escalate.                                |

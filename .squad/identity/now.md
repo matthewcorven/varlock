@@ -1,9 +1,9 @@
 ---
-updated_at: 2026-03-13T10:44:10.928Z
-focus_area: Initial setup
+updated_at: 2026-03-15T02:55:53.966Z
+focus_area: Autonomous executor wording cleanup
 active_issues: []
 ---
 
 # What We're Focused On
 
-Getting started. Updated by coordinator at session start.
+Removing internal "workitems" terminology from user-facing autonomous executor instructions and examples.
