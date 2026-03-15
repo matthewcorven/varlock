@@ -207,3 +207,131 @@
 - All meaningful changes require team consensus
 - Document architectural decisions here
 - Keep history focused on work, decisions focused on direction
+
+### 2026-03-15: P2-A1 Scope Boundary for Autonomous Ralph Run
+
+- Initiative: `dotnet-support`
+- Node: `P2-A1`
+- Source: Picard (Initiative Lead)
+- Decision Date: 2026-03-15T04:30:00Z
+
+**Decision:** P2-A1 is scoped to **watch-and-reload proof inside `Varlock.Extensions.Configuration`** — the existing package. The deliverable is reload semantics (ReloadOnChange, ReloadFailureBehavior, file-watching, change-token support, atomic swap, debounced coalescing, last-known-good preservation) proven through IOptionsMonitor<T>.OnChange in the existing ASP.NET example and extended `bun run proof:dotnet` harness.
+
+**Out of Scope:**
+- `Varlock.Extensions.Hosting` — convenience sugar (AddVarlock helper), deferred to P2-B1 or P2-A2
+- `examples/dotnet-worker-net8/` — dedicated long-running worker example, deferred to P2-B1 or P3-A1; existing ASP.NET example sufficient to prove `IOptionsMonitor<T>` semantics
+- `IOptionsSnapshot<T>` scoped-reload proof — deferred to P2-B1
+
+**Acceptance Checklist:**
+1. ReloadOnChange property on VarlockConfigurationSource (default false)
+2. ReloadFailureBehavior enum (KeepLastKnownGood only for v1)
+3. File watcher watching root schema path + active source files
+4. Debounced coalescing (overlapping file events → single reload, low hundreds ms)
+5. Atomic configuration swap (Data replaced only after successful reload)
+6. Change-token integration (fires only after successful committed reload)
+7. Last-known-good preservation (failed reloads keep previous Data)
+8. Watch-set recomputation after each successful reload
+9. IOptionsMonitor<T>.OnChange proof in ASP.NET example or harness
+10. Extended scripts/test-dotnet-proof.ts with reload assertions
+11. Unit/integration tests covering: successful cycle, failed preservation, change-token semantics
+12. Support-matrix ledger updates (planned → proven rows)
+13. Documentation (XML-doc on public reload APIs)
+14. bun run proof:dotnet passes with new assertions
+
+**Rationale:** Reload mechanics are load-bearing. Everything else is convenience, reusable, or contingent on stable infrastructure. One Ralph run. Reload correctness. Proof artifacts. Done.
+
+### 2026-03-15: P2-A1 Contract Boundaries for Ralph's Reload Implementation
+
+- Initiative: `dotnet-support`
+- Node: `P2-A1`
+- Source: Tuvok (Contracts & Security Lead)
+- Decision Date: 2026-03-15
+
+**Decision:** Ralph's reload implementation must preserve machine-readable contract boundaries for bridge envelope parsing, optional-schema semantics, and proof-harness assertions.
+
+**Public API Stability — Preserved:**
+- VarlockConfigurationSource properties: SchemaPath, Optional, EnvironmentName, WorkingDirectory, ExecutablePath, EnableLocalExecutableLookup, EnablePathLookup, Runtime
+- VarlockConfigurationSource.Build(IConfigurationBuilder builder)
+- VarlockConfigurationBuilderExtensions.AddVarlock(builder) and configure delegate overloads
+- VarlockConfigurationProvider.Load() synchronous startup path
+- VarlockConfigurationFlattener.Flatten() semantics (no JSON shadow entries)
+
+**Public API — New (Ralph adds exactly):**
+- Property ReloadOnChange { get; set; } on VarlockConfigurationSource (default false)
+- Property ReloadFailureBehavior { get; set; } on VarlockConfigurationSource (enum)
+- Enum VarlockReloadFailureBehavior with single value KeepLastKnownGood (v1)
+
+**Bridge Contract — Unchanged:**
+- Success payload: { contractVersion, cliVersion, command, format, ok: true, graph }
+- Failure payload: { contractVersion, cliVersion, command, format, ok: false, category, message }
+- 7 error categories: ExecutableNotFound, ExecutableVersionMismatch, SchemaMissing, SchemaInvalid, ResolutionFailed, PluginLoadFailed, BridgeInternalError
+- VarlockResolvedGraph properties (Items, Sources, RedactLogs, PreventLeaks, BasePath, ContractVersion)
+- BridgeContractAlignmentTests fixture files must pass without modification
+
+**Last-Known-Good Preservation:**
+1. Failed reload → keep previous Data unchanged
+2. Failed reload → do NOT fire IConfigurationRoot.GetReloadToken()
+3. Failed reload → do NOT mutate configuration values visible to consumers
+4. Optional: true with missing schema → empty provider stays empty on reload failure
+5. Reload failure with schema disappearing → preserve previous state
+
+**Atomic Swap & Change-Token:**
+1. Successful reload → swap Data atomically before firing change token
+2. Change token fires at most once per successful reload
+3. Consumers never observe partially-updated configuration state
+4. Concurrent reads during reload see either last successful or next successful state, never mixed
+
+**Watch-Set Recomputation:**
+1. After successful reload → recompute watched file set from new graph
+2. After failed reload → keep previous watch set unchanged
+3. Watch set derived only from last-successful-state graph
+4. Import graph changes and env-specific source activation reflected in next recomputation
+
+**Optional Schema + ReloadOnChange:**
+1. Optional: true, ReloadOnChange: false → empty provider, no watch for later arrival
+2. Optional: true, ReloadOnChange: true → empty provider, watches for schema file, activates on successful load
+3. Schema appears and loads successfully → populate Data + fire change token
+4. Schema appears and load fails → stay empty, no change token
+
+**Proof-Harness Observable Shapes:**
+- Console example: appName, httpPort, featureEnabled, secretIsSensitive, redactLogs, preventLeaks, sourceLabels (unchanged)
+- ASP.NET example: AppName, AppPort, FeatureEnabled, AppSettingsOnly, SecretTokenPresent, UserSecretsOnly (unchanged)
+- scripts/test-dotnet-proof.ts must pass after Ralph adds reload-specific test cases
+
+**Rationale:** Boundaries are machine-readable and test-backed. Protect existing consumer code and guarantee predictable bridge behavior under reload scenarios. Breaching these boundaries will invalidate tests and destabilize downstream production usage. Ralph's scope constrained to successful delivery within these boundaries.
+
+### 2026-03-15: Next Node After P2-A1: P2-B1 (MSBuild Integration)
+
+- Initiative: `dotnet-support`
+- Current Node: P2-A1 (Reload/options/hosting helpers) — COMPLETE
+- Next Node: P2-B1 (MSBuild integration)
+- Decision Maker: Picard (Initiative Lead)
+- Decision Date: 2026-03-15T04:30:00Z
+
+**Decision:** P2-B1 is NEXT. Reload mechanics and options-monitor proof are shipped and proven. MSBuild integration is the only remaining Phase 2 work item and must complete before the convergence point P3-A1 (per progression board).
+
+**Rationale:**
+1. **No blockers remain.** P2-A1's reload infrastructure is stable; proof passes; `bun run proof:dotnet` is clean. The contract with the CLI bridge is mature.
+2. **Phase gate alignment.** Progression board shows P2-B1 and P2-A1 as parallel Phase 2 deliverables, both converging at P3-A1. No Phase 2 exit possible until both complete.
+3. **Proposal alignment.** `docs/proposals/dotnet-support.md` Phase 2 scope explicitly includes "MSBuild integration for generated C# output." Non-deferred item.
+4. **Single critical path.** Unlike P2-A1 (which had parallel convenience-sugar deferral), P2-B1 has no deferred sub-items. Build-time integration is monolithic.
+
+**Scope — P2-B1 will cover:**
+- Integrate `varlock typegen --lang=cs` into MSBuild property groups or custom tasks
+- Generated C# output written to standard .NET build output tree (e.g., `obj/generated/`)
+- C# files eligible for `InternalsVisibleTo` or public consumption depending on design
+- Proof via existing ASP.NET MVC example (updated .csproj to use MSBuild integration)
+- Updated support-matrix ledger to mark "build-time C# generation" from `planned` to `proven`
+
+**Scope — P2-B1 does NOT cover:**
+- `Varlock.Extensions.Hosting` package (deferred to P2-A2 or beyond)
+- `varlock watch` behavior during MSBuild incremental builds (deferred; bridge can rerun on demand)
+- Analyzer or native runtime (deferred to P4-A1)
+
+**What Remains Deferred:**
+- `Varlock.Extensions.Hosting` → P2-A2 or P2-B2 (convenience sugar, not load-bearing)
+- Analyzer / native .NET parser → P4-A1 (requires bridge maturity + broader proof first)
+- Broader framework examples (Functions, Blazor, WinForms) → P3-A1 (part of wider platform proof)
+
+**Next Coordination Step:** Once P2-B1 completes and proof artifacts pass, both P2-A1 and P2-B1 converge at P3-A1, which will expand proof coverage across broader .NET platforms and runtimes.
+

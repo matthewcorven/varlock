@@ -15,3 +15,17 @@
 - 2026-03-13: Data fixed the bridge scaffold so structured values flatten into ordinary `IConfiguration` child keys without JSON shadow entries, and the low-level parser keeps today's unversioned `json-full` success payload behind an internal seam until the explicit handshake is enforced end to end.
 - 2026-03-13: The current P1-A2 diagnostics proof should reuse the checked-in CLI load-bridge fixtures from the `.NET` alignment tests instead of duplicating payloads, while keeping location-aware failure parsing covered by a narrow targeted test until the CLI fixture set includes that shape.
 - 2026-03-13: A malformed schema parse error (`# @defaultSensitive(` followed by a normal entry) yields a real `schema-invalid` bridge envelope with `.env.schema:3:1`, which now serves as the shared location-bearing fixture for both CLI and .NET bridge-alignment tests.
+
+## P2-A1 Contract Analysis (2026-03-15)
+
+- 2026-03-15: Tuvok completed contract-consistency pass for P2-A1 reload work; machine-readable boundaries documented:
+  - Public API stability preserved on `VarlockConfigurationSource` (new: `ReloadOnChange` and `ReloadFailureBehavior` properties only)
+  - Existing bridge envelope shapes (success + 7 error categories) remain parseable via `VarlockCliRuntime.ParseCliOutput()`
+  - Optional-schema startup semantics unchanged; reload extends observation window
+  - Last-known-good preservation is non-negotiable: failed reloads keep previous `Data`, no change-token fire
+  - Atomic configuration swap required: single-assignment semantics into `Data` before token fires
+  - Watch-set recomputation from new graph only after successful reload, not after failed attempts
+  - Change-token integration: fire at most once per successful reload cycle, never after failure
+  - Proof-harness output shapes (console and ASP.NET payloads) remain observable and testable
+  - All 7 existing bridge error categories reused in reload path; no new categories
+  - BridgeContractAlignmentTests fixtures and assertions must pass unchanged
