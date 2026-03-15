@@ -1,18 +1,18 @@
 # Ralph Skill
 
-Autonomous work item orchestrator — turns the VS Code agent into a hands-off executor by driving [Open Ralph Wiggum](https://github.com/Th0rgal/open-ralph-wiggum) with GitHub Copilot CLI.
+Autonomous task orchestrator — turns the VS Code agent into a hands-off executor by driving [Open Ralph Wiggum](https://github.com/Th0rgal/open-ralph-wiggum) with GitHub Copilot CLI.
 
 ## Quick Start
 
 ```
-"Run WI-001, WI-002, WI-003 with ralph"
+"Run TASK-001, TASK-002, TASK-003 with ralph"
 ```
 
-The orchestrator will parse the work items, validate prerequisites, ask you a few setup questions (including retry budget), then execute each one autonomously via Ralph's agentic loop.
+The orchestrator will parse the tasks, validate prerequisites, ask you a few setup questions (including retry budget), then execute each one autonomously via Ralph's agentic loop.
 
 ## Architecture Overview
 
-When multiple work items are assigned, three tiers of context isolation come into play. The **VS Code agent** orchestrates, **subagents** run the ralph CLI, and **Copilot CLI** iterates within each ralph loop. State flows between iterations and work items exclusively through the **filesystem** — not memory.
+When multiple tasks are assigned, three tiers of context isolation come into play. The **VS Code agent** orchestrates, **subagents** run the ralph CLI, and **Copilot CLI** iterates within each ralph loop. State flows between iterations and tasks exclusively through the **filesystem** — not memory.
 
 ### Control Flow Diagram
 
@@ -20,16 +20,16 @@ When multiple work items are assigned, three tiers of context isolation come int
 flowchart TB
     User["👤 User\n'Run WI-001, WI-002, WI-003 with ralph'"]
 
-    subgraph CTX_ORCH["CONTEXT WINDOW 1 — VS Code Agent (Orchestrator)\nPersistent across all work items · Has workspace access + skill instructions"]
+    subgraph CTX_ORCH["CONTEXT WINDOW 1 — VS Code Agent (Orchestrator)\nPersistent across all tasks · Has workspace access + skill instructions"]
         direction TB
 
-        Parse["📖 Step 1: Parse all work items\nRead WI_001.md, WI_002.md, WI_003.md"]
-        Topo["🔀 Topological Sort\nWI-001 → WI-002 (depends 001) → WI-003 (depends 002)"]
+        Parse["📖 Step 1: Parse all tasks\nRead TASK_001.md, TASK_002.md, TASK_003.md"]
+        Topo["🔀 Topological Sort\nTASK-001 → TASK-002 (depends 001) → TASK-003 (depends 002)"]
 
         subgraph VAL["Step 2: Validate + Ask Retry Budget"]
             V1["Check dependency statuses"]
             V2["Flag ambiguities / conflicts"]
-            V3["ask_questions:\n• resolve blockers\n• set maxRetriesPerWI (default: 2)"]
+            V3["ask_questions:\n• resolve blockers\n• set maxRetriesPerTask (default: 2)"]
         end
 
         Setup["🔧 Step 3: Setup Ralph\nbash scripts/setup-ralph.sh"]
@@ -37,15 +37,15 @@ flowchart TB
         subgraph LOOP["Sequential Execution Loop (retry-aware)"]
             direction TB
 
-            subgraph WI1["────── WI-001 (retriesUsed: 0/max) ──────"]
-                Gen1["📝 Step 4: Generate prompt\n.tmp/ralph/prompts/WI-001-prompt.md"]
+            subgraph WI1["────── TASK-001 (retriesUsed: 0/max) ──────"]
+                Gen1["📝 Step 4: Generate prompt\n.tmp/ralph/prompts/TASK-001-prompt.md"]
                 Exec1["🚀 Step 5: Launch subagent"]
                 Verify1["✅ Step 6: Verify\nBuild · Tests · Artifacts"]
                 Gate1{"Pass?"}
                 Retry1{"retriesUsed\n< max?"}
             end
 
-            subgraph WI2["────── WI-002 (retriesUsed: 0/max) ──────"]
+            subgraph WI2["────── TASK-002 (retriesUsed: 0/max) ──────"]
                 Gen2["📝 Generate prompt"]
                 Exec2["🚀 Launch subagent"]
                 Verify2["✅ Verify"]
@@ -53,7 +53,7 @@ flowchart TB
                 Retry2{"retriesUsed\n< max?"}
             end
 
-            subgraph WI3["────── WI-003 (retriesUsed: 0/max) ──────"]
+            subgraph WI3["────── TASK-003 (retriesUsed: 0/max) ──────"]
                 Gen3["📝 Generate prompt"]
                 Exec3["🚀 Launch subagent"]
                 Verify3["✅ Verify"]
@@ -62,11 +62,11 @@ flowchart TB
             end
         end
 
-        Report["📋 Final Report to User\nPer-WI status + attempt counts"]
+        Report["📋 Final Report to User\nPer-task status + attempt counts"]
     end
 
-    subgraph CTX_SUB1["CONTEXT WINDOW 2 — Subagent (WI-001)\nIsolated · Sees only its terminal + instructions"]
-        Ralph1["🔁 ralph --agent copilot\n--prompt-template frontend-builder.md\n--prompt-file WI-001-prompt.md\n--model claude-sonnet-4.6 --no-commit\n--max-iterations 20 --verbose-tools\n--allow-all --no-stream\n--completion-promise COMPLETE --abort-promise ABORT"]
+    subgraph CTX_SUB1["CONTEXT WINDOW 2 — Subagent (TASK-001)\nIsolated · Sees only its terminal + instructions"]
+        Ralph1["🔁 ralph --agent copilot\n--prompt-template frontend-builder.md\n--prompt-file TASK-001-prompt.md\n--model claude-sonnet-4.6 --no-commit\n--max-iterations 20 --verbose-tools\n--allow-all --no-stream\n--completion-promise COMPLETE --abort-promise ABORT"]
     end
 
     subgraph CTX_COPILOT1["CONTEXT WINDOW 3 — Copilot CLI (per iteration)\nFresh each iteration · Sees prompt + changed files + git history"]
@@ -75,20 +75,20 @@ flowchart TB
         Iter1_N["Iteration N: All tests pass → COMPLETE"]
     end
 
-    subgraph CTX_SUB2["CONTEXT WINDOW 4 — Subagent (WI-002)\nIsolated · Sees only its terminal + instructions"]
-        Ralph2["🔁 ralph --agent copilot\n--prompt-template backend-builder.md\n--prompt-file WI-002-prompt.md\n--model claude-sonnet-4.6 --no-commit\n--max-iterations 20 --verbose-tools\n--allow-all --no-stream\n--completion-promise COMPLETE --abort-promise ABORT"]
+    subgraph CTX_SUB2["CONTEXT WINDOW 4 — Subagent (TASK-002)\nIsolated · Sees only its terminal + instructions"]
+        Ralph2["🔁 ralph --agent copilot\n--prompt-template backend-builder.md\n--prompt-file TASK-002-prompt.md\n--model claude-sonnet-4.6 --no-commit\n--max-iterations 20 --verbose-tools\n--allow-all --no-stream\n--completion-promise COMPLETE --abort-promise ABORT"]
     end
 
-    subgraph CTX_COPILOT2["CONTEXT WINDOW 5 — Copilot CLI (per iteration)\nFresh each iteration · Sees prompt + codebase incl. WI-001 changes"]
+    subgraph CTX_COPILOT2["CONTEXT WINDOW 5 — Copilot CLI (per iteration)\nFresh each iteration · Sees prompt + codebase incl. TASK-001 changes"]
         Iter2_1["Iteration 1: Read prompt → implement"]
         Iter2_N["Iteration N: All tests pass → COMPLETE"]
     end
 
-    subgraph CTX_SUB3["CONTEXT WINDOW 6 — Subagent (WI-003)\nIsolated · Sees only its terminal + instructions"]
-        Ralph3["🔁 ralph --agent copilot\n--prompt-template frontend-builder.md\n--prompt-file WI-003-prompt.md\n--model claude-opus-4.6 --no-commit\n--max-iterations 30 --verbose-tools\n--allow-all --no-stream\n--completion-promise COMPLETE --abort-promise ABORT"]
+    subgraph CTX_SUB3["CONTEXT WINDOW 6 — Subagent (TASK-003)\nIsolated · Sees only its terminal + instructions"]
+        Ralph3["🔁 ralph --agent copilot\n--prompt-template frontend-builder.md\n--prompt-file TASK-003-prompt.md\n--model claude-opus-4.6 --no-commit\n--max-iterations 30 --verbose-tools\n--allow-all --no-stream\n--completion-promise COMPLETE --abort-promise ABORT"]
     end
 
-    subgraph CTX_COPILOT3["CONTEXT WINDOW 7 — Copilot CLI (per iteration)\nFresh each iteration · Sees prompt + codebase incl. WI-001+WI-002 changes"]
+    subgraph CTX_COPILOT3["CONTEXT WINDOW 7 — Copilot CLI (per iteration)\nFresh each iteration · Sees prompt + codebase incl. TASK-001+TASK-002 changes"]
         Iter3_1["Iteration 1: Read prompt → implement"]
         Iter3_N["Iteration N: All tests pass → COMPLETE"]
     end
@@ -143,8 +143,8 @@ flowchart TB
 
 | Boundary | What It Sees | Lifetime | Memory Model |
 |----------|-------------|----------|--------------|
-| **CW 1 — VS Code Orchestrator** | Full workspace, skill instructions, work item markdown, `ask_questions` for human interaction | Persists across **all** work items — tracks retry counts, remembers which WIs passed | Agent memory (in-session) |
-| **CW 2/4/6 — Subagents** | Only the terminal command + instructions provided by orchestrator | One per work item attempt — dies after ralph exits | None (stateless) |
+| **CW 1 — VS Code Orchestrator** | Full workspace, skill instructions, task specification markdown, `ask_questions` for human interaction | Persists across **all** tasks — tracks retry counts, remembers which tasks passed | Agent memory (in-session) |
+| **CW 2/4/6 — Subagents** | Only the terminal command + instructions provided by orchestrator | One per task attempt — dies after ralph exits | None (stateless) |
 | **CW 3/5/7 — Copilot CLI** | Same prompt text every iteration + whatever it reads from the **filesystem** (accumulated changes + git history) | **Fresh each iteration** — no memory of prior iterations | Filesystem only |
 
 ### How State Flows
@@ -154,24 +154,24 @@ Between Copilot iterations (within one Ralph loop):
   Iteration 1 writes files → Iteration 2 reads those files from disk
   (Ralph re-sends the same prompt; Copilot discovers prior work via file contents & git diff)
 
-Between work items (across Ralph loops):
-  WI-001 commits changes → WI-002's Copilot reads the updated codebase
-  (Orchestrator gates WI-002 on WI-001 verification; filesystem is the state bridge)
+Between tasks (across Ralph loops):
+  TASK-001 commits changes → TASK-002's Copilot reads the updated codebase
+  (Orchestrator gates TASK-002 on TASK-001 verification; filesystem is the state bridge)
 
-Between retries (same work item):
+Between retries (same task):
   Attempt 1 leaves partial work → Attempt 2 sees it + receives --add-context with failure details
   (Orchestrator injects specific error info so Ralph can self-correct)
 ```
 
 ### Retry Budget Enforcement
 
-The orchestrator asks the user **once** at the start for `maxRetriesPerWI` (default: 2). This means each work item gets **up to 3 total attempts** (1 initial + 2 retries). The budget is a hard ceiling — the orchestrator never silently exceeds it.
+The orchestrator asks the user **once** at the start for `maxRetriesPerTask` (default: 2). This means each task gets **up to 3 total attempts** (1 initial + 2 retries). The budget is a hard ceiling — the orchestrator never silently exceeds it.
 
 ```
-WI-001: Attempt 1 → ❌ fail → Attempt 2 → ❌ fail → Attempt 3 → ✅ pass → proceed to WI-002
-WI-002: Attempt 1 → ✅ pass → proceed to WI-003
-WI-003: Attempt 1 → ❌ fail → Attempt 2 → ❌ fail → Attempt 3 → ❌ fail → BUDGET EXHAUSTED
-         → Ask user: skip WI-003 / abort / increase budget
+TASK-001: Attempt 1 → ❌ fail → Attempt 2 → ❌ fail → Attempt 3 → ✅ pass → proceed to TASK-002
+TASK-002: Attempt 1 → ✅ pass → proceed to TASK-003
+TASK-003: Attempt 1 → ❌ fail → Attempt 2 → ❌ fail → Attempt 3 → ❌ fail → BUDGET EXHAUSTED
+          → Ask user: skip TASK-003 / abort / increase budget
 ```
 
 ## File Structure
@@ -194,12 +194,12 @@ ralph-skill/
 
 - [Bun](https://bun.sh/) runtime (for Ralph)
 - GitHub Copilot CLI on PATH (`copilot` binary or `gh copilot` extension)
-- Work items with concrete acceptance criteria in `workitems/items/`
+- Task specifications with concrete acceptance criteria in `tasks/items/`
 
 ## Monitoring & Streaming
 
-- The skill supports an **opt-in streaming mode**: when enabled the subagent invocation will stream Ralph's stdout/stderr to `.tmp/ralph/logs/WI-{ID}.log` so you can follow progress from another terminal.
+- The skill supports an **opt-in streaming mode**: when enabled the subagent invocation will stream Ralph's stdout/stderr to `.tmp/ralph/logs/TASK-{ID}.log` so you can follow progress from another terminal.
 - Use the helper scripts in `scripts/`:
-  - `run-ralph.sh <WI-ID> --prompt-template <path> [--model <model>] [--max-iterations <N>] [--stream]` — run Ralph with all mandatory flags. `--prompt-template` is required. Model is read from `state.json` if `--model` is omitted. Optionally enable streaming into `.tmp/ralph/logs/<WI-ID>.log`.
-  - `watch-ralph.sh <WI-ID|log-path>` — tail the corresponding log file (or a direct path) for live monitoring
+  - `run-ralph.sh <TASK-ID> --prompt-template <path> [--model <model>] [--max-iterations <N>] [--stream]` — run Ralph with all mandatory flags. `--prompt-template` is required. Model is read from `state.json` if `--model` is omitted. Optionally enable streaming into `.tmp/ralph/logs/<TASK-ID>.log`.
+  - `watch-ralph.sh <TASK-ID|log-path>` — tail the corresponding log file (or a direct path) for live monitoring
 - Logs live in `.tmp/ralph/logs/`. Keep an eye on retention and avoid writing secrets into prompts.
