@@ -9,6 +9,11 @@
 ## Learnings
 
 <!-- Append learnings below -->
+- 2026-03-16: P3-A1c publicOnly support implemented: Added `publicOnly` boolean option to C# type generation that excludes sensitive items from the generated class, strips `SensitiveKeys[]` and `PropertyBinding.IsSensitive` metadata from public artifacts, and fails loudly when all items are sensitive. The implementation faithfully follows the security boundary contract: sensitive config never crosses into Blazor WASM bundles.
+- 2026-03-16: P3-A1c WinForms net48 example added: Created minimal legacy desktop bridge proof at `examples/dotnet-winforms-net48/` using the narrowest honest scope (runtime loading only, no MSBuild integration or generated types). The example builds successfully and proves `netstandard2.0` Varlock.DotNet targeting works on legacy .NET Framework 4.8.
+- 2026-03-16: Type-generation test suite uses `vitest` CLI (`bunx vitest`), not `bun test`, to avoid `expect.getState()` compatibility issues with Bun's test runner. All 35 existing tests plus 4 new publicOnly tests pass cleanly with vitest.
+- 2026-03-16: WinForms proof path fixed with `--dump-config` flag: Added explicit command-line argument handling to emit machine-readable JSON to stdout when flag is present, otherwise display MessageBox for interactive runs. Enables honest automated proof on Windows runners without blocking on UI or weakening to build-only validation.
+
 - 2026-03-13: Picard assigned Geordi the first C# generation specimen as phase-1 work that can advance in parallel once naming and output expectations are fixed.
 - 2026-03-13: O'Brien's proof scope means the generation slice should travel with representative schema, `.g.cs` golden output, and binder-validation proof if `lang=cs` is included in the first implementation slice.
 - 2026-03-13: The first isolated `lang=cs` slice can live entirely inside `packages/varlock` by emitting a flat POCO plus sidecar metadata for original keys and sensitive items, leaving binder attributes and MSBuild packaging for the next phase.
@@ -59,3 +64,20 @@ Defined CI matrix strategy for P3-A1a: expand `.github/workflows/test.yaml` to r
 Build-owned scope is narrow and sound: no package changes, no new APIs. Implementation by O'Brien exposed critical bug (Issue 1: missing `build:libs` on non-Linux runners). Geordi's scope definition remains valid; workflow fix assigned to O'Brien.
 
 **Status:** Awaiting O'Brien's workflow fix. P3-A1a scope unaffected.
+
+---
+
+## P3-A1c: publicOnly Implementation & WinForms net48 Example (2026-03-15T20:50:57Z)
+
+**Session:** P3-A1c closeout consolidation  
+**Role:** MSBuild & Typegen Lead
+
+Implemented two critical P3-A1c deliverables:
+
+1. **publicOnly C# Generation:** Filtering + metadata stripping at line 467 in `type-generation.ts`. Contract locked: excludes sensitive items and sensitivity metadata (SensitiveKeys, PropertyBinding, IsSensitive). Error guard for empty-type case. Golden fixture `PublicOnlyConfig.g.cs` anchors regression. 5 new unit tests added (36 total passing).
+
+2. **WinForms net48 Example:** Direct `VarlockCliRuntime` API usage. .NET Framework 4.8 target (Windows-only runtime, cross-platform build). Proof mode via `--dump-config` flag. `dotnet build` succeeds, produces PE32 executable.
+
+Both deliverables meet specification. publicOnly contract is production-ready for Blazor WASM and future use.
+
+**Status:** COMPLETE

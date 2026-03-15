@@ -174,6 +174,10 @@ Ralph must add reload mechanics to VarlockConfigurationProvider while preserving
 
 10. **Positive-path tests are as important as failure-path fixtures:** The bridge has thorough failure fixtures (all 7 categories) but plugin-backed success paths have no .NET fixture. A support claim needs both a failure test and a success test. "It doesn't crash on failure" is not the same as "it works."
 
+11. **Golden-file fixtures are the strongest contract guardrails for generation boundaries:** Inline assertions (`toContain`/`not.toContain`) prove individual properties. Golden-file comparison (`toBe(readFixture(...))`) proves the *entire output shape* and makes regressions visible in diffs. For security-critical generation boundaries like `publicOnly`, always add a golden-file fixture alongside inline assertions. The `PublicOnlyConfig.g.cs` fixture proves the complete public-only output including what is absent.
+
+12. **"Proof does not need binary inspection" is a scoping decision, not a concession:** When the generated source file is the only controlled artifact entering the target bundle, validating the source is sufficient. Binary inspection (e.g., scanning WASM assemblies for sensitive strings) adds test complexity without improving the guarantee — the compiler does not invent new configuration values. State this explicitly in proof constraints to prevent overclaiming in the harness.
+
 ## Related Decisions
 
 - **P1-A1 executable lookup and handshake hardening** — defines executable resolution order and bridge handshake semantics that reload reuses

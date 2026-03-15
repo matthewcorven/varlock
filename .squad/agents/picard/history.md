@@ -49,3 +49,44 @@ Reassignments issued per reviewer lockout rule. P3-A1a sequencing (four sub-batc
 ## P3-A1b Lead Review — APPROVE-CLOSE (2026-03-16)
 
 - 2026-03-16: P3-A1b approved-closed on first review pass. All four deliverables present and correct: (1) `Varlock.Extensions.Hosting` is a ~30-line pure delegation layer with two `HostApplicationBuilder.AddVarlock()` overloads matching the updated proposal surface. (2) Worker example properly uses `BackgroundService` with `IOptionsMonitor<T>` for reload proof in a long-lived hosted service. (3) `IOptionsSnapshot<T>` scoped-reload proof added to ASP.NET example — strongest possible demonstration with scope isolation across reload boundaries. (4) Proof script comprehensively expanded with worker build/dump/reload/reload-fail assertions plus snapshot assertions. Ledger updated honestly. No scope leakage. Minor follow-ons: `IHostBuilder` overloads deferred, `fail-fast: false` still pending, no dedicated hosting unit tests (acceptable for pure delegation). P3-A1b → DONE, P3-A1c → NEXT.
+
+## Learnings
+
+- 2026-03-16: P3-A1c design review identified that the `publicOnly` C# generation contract is an unlocked prerequisite for Blazor WASM but does NOT block the other three framework examples. Splitting into two waves (Functions+Blazor Server+WinForms first, then Blazor WASM after contract lock) follows the established "prove infrastructure before building on top" principle while avoiding unnecessary serial bottlenecks.
+- 2026-03-16: WinForms net48 is a non-hosted target — it uses direct `VarlockCliRuntime` like the console example, not `HostApplicationBuilder.AddVarlock()`. Geordi owns this because it's a build/TFM concern (netstandard2.0 compatibility with net48, MSBuild targets for legacy SDK-style projects).
+- 2026-03-16: The publicOnly contract is a real product-surface decision, not an implementation detail. It touches the Varlock CLI typegen surface (needs a `--public-only` flag or equivalent) and affects how MSBuild targets invoke generation for Blazor WASM projects. This must be designed by Geordi+Tuvok jointly and accepted by Picard before Data builds the example.
+
+## P3-A1c Final Lead Review — APPROVE-CLOSE (2026-03-16)
+
+- 2026-03-16: P3-A1c approved-closed after full deliverable audit. All four framework examples are honestly implemented and proven:
+  1. **Azure Functions isolated** — `ConfigureAppConfiguration` → `AddVarlock()` with `local.settings.json` coexistence proven (FUNCTIONS_ONLY_KEY preservation assertion).
+  2. **Blazor Server** — `builder.Configuration.AddVarlock()` with runtime `--dump-config` proof.
+  3. **Blazor WASM public-only** — build-time POCO generation via `publicOnly=true`; 9 boundary assertions on generated `.g.cs` (sensitive metadata absent, non-sensitive properties present, PropertyKeys retained). No runtime bridge in WASM bundle. Satisfies Tuvok's locked contract.
+  4. **WinForms net48** — direct `VarlockCliRuntime` (non-hosted), 7 runtime assertions on `--dump-config` payload. Runtime proof properly gated to Windows-only; build proof cross-platform.
+- Ledger language verified narrow and honest across all four new rows. Functions coexistence and WASM boundary caveats are precise. WinForms implicit Windows constraint is defensible.
+- `publicOnly` type generation: 5 dedicated tests, golden fixture anchored, implementation satisfies full contract (sensitive item filtering, metadata stripping, empty-type guardrail).
+- Scope leakage check: 0 Serilog references, 0 analyzer/source-generator references, 0 new packages beyond scope. Clean.
+- Minor non-blocking recommendation: WinForms ledger row could add "runtime proof is Windows-only; build proven cross-platform" for self-documentation.
+- P3-A1c → DONE. P3-A1d (Serilog + security boundary) now unblocked.
+
+### Learnings
+
+- 2026-03-16: The two-wave execution strategy for P3-A1c (unblocked examples first, WASM after contract lock) delivered exactly as designed — Wave 1 and Wave 2 both completed without blocking each other, and the contract gate prevented premature WASM work. This pattern should be reused whenever a sub-batch has mixed dependency profiles.
+- 2026-03-16: For platform-gated proof rows (like WinForms net48), the ledger caveats column should explicitly state the platform constraint on the proof execution, not just the runtime target. Implicit constraints are defensible but explicit ones are self-documenting.
+
+---
+
+## P3-A1c Lead Review & APPROVE-CLOSE (2026-03-15T20:50:57Z)
+
+**Session:** P3-A1c closeout consolidation  
+**Role:** Initiative lead, final design authority, APPROVE-CLOSE gate
+
+Completed final lead review of all P3-A1c deliverables (Azure Functions isolated, Blazor Server, Blazor WASM public-only, WinForms net48). Verified:
+- All four examples implement correctly and prove according to specification
+- Ledger rows narrowly scoped and honestly proven
+- Zero scope leakage (no P3-A1d or P4-A1 references)
+- All team decisions consolidated to decisions.md
+
+**Decision:** APPROVE-CLOSE P3-A1c. P3-A1d (Security boundary + Serilog + ledger completion) now unblocked.
+
+**Status:** COMPLETE

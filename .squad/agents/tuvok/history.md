@@ -83,3 +83,12 @@ Performed comprehensive boundary, security, and contract gap analysis for P3-A1:
 **P3-A1a Boundary Review:** No contract regression. Approved as contract-safe.
 
 **Status:** P3-A1a boundary cleared; queued for P3-A1b design work (parallel start).
+
+## P3-A1c publicOnly Contract Pass (2026-03-16)
+
+- 2026-03-16: Tuvok completed P3-A1c contract/security pass for the Blazor WASM public-only boundary. The `publicOnly` generation contract is implemented by Geordi, tested with 4 unit tests, and now anchored by a new golden-file fixture at `packages/varlock/src/env-graph/test/fixtures/typegen-cs/PublicOnlyConfig.g.cs`.
+- 2026-03-16: The `publicOnly=true` contract provably excludes: sensitive C# properties, `SensitiveKeys[]` array, `PropertyBinding` class (with `IsSensitive`), and `PropertyBindings[]` collection. It preserves `PropertyKeys` dictionary (no sensitivity info). It throws at build time if all items are sensitive.
+- 2026-03-16: The full decorator pipeline is verified: `@generateTypes(lang=cs, publicOnly=true)` → decorator parser → `resolveCsTypeGenerationOptions` (validates boolean) → `generateCsTypesSrc` (filters sensitive items before emission). No runtime component exists; this is generation-time scope control only.
+- 2026-03-16: Key constraint for Data: the WASM example MUST NOT use `VarlockConfigurationProvider` or `AddVarlock()`. WASM apps cannot invoke the CLI. The example proves generated-type consumption only.
+- 2026-03-16: Key constraint for O'Brien: proof does NOT need binary inspection. Assert the generated `.g.cs` excludes `SensitiveKeys`, `IsSensitive`, `PropertyBinding`, and sensitive property names. That is sufficient for v1. Ledger language must say "public-only generation boundary" — not "security boundary."
+- 2026-03-16: Gap 1 from the P3-A1 boundary analysis (Blazor WASM public-config boundary) is now resolved. Decision written to `.squad/decisions/inbox/tuvok-p3-a1c-wasm-boundary.md`.
