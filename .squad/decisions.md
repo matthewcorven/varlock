@@ -1255,3 +1255,241 @@ Cross-platform CI parity is proven and approved-closed.
 **Consolidation completed:** 2026-03-15T18-05-08Z
 **Decisions merged:** 8 inbox files
 **Remaining inbox:** 0 files
+
+## P3-A1b: Contract Analysis for Hosting Package & Worker Proof
+
+- **Decision Date:** 2026-03-16
+- **Initiative:** `dotnet-support`
+- **Node:** `P3-A1b`
+- **Source:** Tuvok (Contracts & Security Lead)
+- **Status:** APPROVED FOR IMPLEMENTATION
+
+### Scope Under Review
+
+P3-A1b delivers three items:
+1. `Varlock.Extensions.Hosting` package
+2. `examples/dotnet-worker-net8/` Worker Service example
+3. `IOptionsSnapshot<T>` proof in existing ASP.NET MVC example
+
+### Contract Analysis: `Varlock.Extensions.Hosting`
+
+#### Minimum API Surface (MANDATORY)
+
+Ship exactly two overloads on `HostApplicationBuilder`:
+
+```csharp
+public static HostApplicationBuilder AddVarlock(this HostApplicationBuilder builder);
+public static HostApplicationBuilder AddVarlock(
+    this HostApplicationBuilder builder,
+    Action<VarlockConfigurationSource> configure);
+```
+
+These MUST delegate to existing `builder.Configuration.AddVarlock(...)` from `Varlock.Extensions.Configuration`. No parallel configuration path, second provider, or new configuration semantics.
+
+The parameterless overload SHOULD set `WorkingDirectory` from `builder.Environment.ContentRootPath` if the caller does not provide one.
+
+#### `IServiceCollection.AddVarlock()` — DEFER
+
+Do not ship in P3-A1b. Rationale: `IServiceCollection` has no access to `IConfigurationBuilder`. Every Generic Host app has `HostApplicationBuilder` or `IConfigurationBuilder`, but neither is guaranteed via `IServiceCollection` alone.
+
+#### Package Structure
+
+- Assembly: `Varlock.Extensions.Hosting`
+- Target: `netstandard2.0` (via `Directory.Build.props`)
+- References: `Varlock.Extensions.Configuration` (transitively brings `Varlock.DotNet`)
+- Public types: 1 (`VarlockHostingExtensions`)
+- Public methods: 2 (the two overloads)
+- New error categories: NONE
+- New bridge envelope changes: NONE
+
+#### Dependency Chain Constraint
+
+`Varlock.Extensions.Hosting` → `Varlock.Extensions.Configuration` → `Varlock.DotNet`
+
+Must NOT reference `Varlock.DotNet` directly. Pure delegation — zero new bridge interaction.
+
+#### `ReloadOnChange` Default
+
+MUST NOT change the default value (remains `false`). Rationale: Consumers calling `builder.Configuration.AddVarlock()` directly vs. `builder.AddVarlock()` should get identical behavior unless explicitly configured otherwise.
+
+### Contract Analysis: Worker Service Example
+
+The Worker Service proves existing `VarlockConfigurationProvider` reload semantics work correctly in a `BackgroundService` (long-lived, non-request-scoped) context:
+
+- Config loads at startup ✓
+- `IOptionsMonitor<T>.CurrentValue` reads initial config ✓
+- `IOptionsMonitor<T>.OnChange` fires on successful reload ✓
+- Failed reload preserves last-known-good ✓
+- Failed reload does NOT fire `OnChange` ✓
+
+What's NEW: Worker proves these semantics in a `BackgroundService` loop, confirming `IOptionsMonitor<T>` singleton lifetime in Generic Host DI (not just ASP.NET).
+
+What it Must NOT Introduce:
+- No new bridge error categories
+- No new reload semantics
+- No custom `IHostedService` lifecycle — `VarlockConfigurationProvider.Dispose()` handles cleanup via `IConfiguration` root disposal
+
+Graceful Shutdown: No Worker-specific code needed. Existing `VarlockConfigurationProvider.Dispose()` (stops timer, disposes watchers, sets `_disposed = true`) is triggered during host shutdown.
+
+### Contract Analysis: `IOptionsSnapshot<T>` Proof
+
+`IOptionsSnapshot<T>`:
+- Is **scoped** — one instance per DI scope
+- Reads from configuration values current **at scope creation time**
+- Does NOT trigger reloads
+- After a successful reload, the NEXT scope gets new values; CURRENT scope keeps snapshot
+
+What the proof must show:
+1. Request A reads `IOptionsSnapshot<T>` → config v1
+2. File change triggers reload → provider swaps data, fires change-token
+3. Request B reads `IOptionsSnapshot<T>` → config v2
+4. Request A (if still alive) keeps config v1
+
+No new provider code required. `IOptionsSnapshot<T>` is entirely `Microsoft.Extensions.Options` infrastructure. The existing reload mechanism (atomic swap + change-token) is sufficient.
+
+Documentation claim boundary: "reflects the latest successful configuration state per scope/request" — NOT "provides per-request reload."
+
+### Diagnostics & Error Boundaries
+
+No new bridge error categories. The existing 7 categories apply identically in Worker and ASP.NET contexts. No new diagnostics shapes introduced.
+
+### Support-Matrix Ledger Impact
+
+After P3-A1b:
+- Worker Service / Generic Host usage → Proven
+- `IOptionsSnapshot<T>` per-scope semantics → Proven
+- `Varlock.Extensions.Hosting` exists → Proven
+- `HostApplicationBuilder.AddVarlock()` convenience → Proven
+
+Remain planned:
+- `IServiceCollection.AddVarlock()`
+- `dotnet watch` parity
+- DI registration of `IVarlockRuntime`
+- Worker-specific diagnostics/health checks
+
+### Overclaim Flags
+
+1. **Hosting package is NOT a new configuration path.** Documentation must not describe it as an alternative; it is syntactic convenience delegating to the same underlying mechanism.
+
+2. **`IOptionsSnapshot<T>` is NOT "per-request reload."** It is per-scope configuration view. Reloads happen asynchronously; snapshots observe state at scope creation.
+
+3. **Worker Service does NOT prove `dotnet watch` integration.** Proof harness modifies `.env.schema` files directly; does not prove `dotnet watch` triggered rebuilds preserve configuration state.
+
+### Verdict
+
+**APPROVED FOR IMPLEMENTATION.** P3-A1b is low-risk, high-proof-value. Hosting package introduces zero new contracts (pure delegation). Worker proves existing semantics in new hosting context. `IOptionsSnapshot<T>` proves existing Microsoft.Extensions.Options infrastructure with no Varlock code changes.
+
+---
+
+## P3-A1b Lead Review — APPROVE-CLOSE
+
+- **Decision Date:** 2026-03-16
+- **Initiative:** `dotnet-support`
+- **Node:** `P3-A1b`
+- **Source:** Picard (Lead Review Gate)
+- **Status:** APPROVED-CLOSE
+
+### Scope Compliance
+
+All four P3-A1b deliverables present and correct:
+
+| Deliverable | Status |
+|---|---|
+| `Varlock.Extensions.Hosting` package | ✅ Delivered |
+| Worker Service example with `IOptionsMonitor<T>` reload | ✅ Delivered |
+| `IOptionsSnapshot<T>` scoped-reload proof | ✅ Delivered |
+| Proof script expansion + ledger updates | ✅ Delivered |
+
+No scope leakage into P3-A1c (Functions/Blazor/WinForms) or P3-A1d (Serilog/security).
+
+### Hosting Package Assessment
+
+`VarlockHostApplicationBuilderExtensions` is a **pure delegation layer** (~30 lines):
+- Two overloads match the updated proposal candidate surface exactly
+- Delegates to `builder.Configuration.AddVarlock()` from `Varlock.Extensions.Configuration`
+- Null checks, fluent `HostApplicationBuilder` return
+- Targets `netstandard2.0`; `Microsoft.Extensions.Hosting` v10.0.0 is consistent with Configuration package
+
+### Worker Example Assessment
+
+Clean `BackgroundService` pattern:
+- `Host.CreateApplicationBuilder(args)` + `builder.AddVarlock()` — correct Generic Host usage
+- `IOptionsMonitor<VarlockWorkerOptions>` injection for long-lived reload observation
+- Three proof modes: `--dump-config`, `--reload-proof`, `--reload-fail-proof`
+- `IHostApplicationLifetime.StopApplication()` for clean self-shutdown
+- `TaskCompletionSource<T>` for async reload notification — correct async pattern
+- Schema file restoration in `finally` blocks — safe cleanup
+
+### IOptionsSnapshot<T> Proof Assessment
+
+The `--snapshot-proof` mode in ASP.NET example correctly proves request-scoped semantics:
+1. Scope A created before reload → snapshot frozen at original value
+2. Schema modified → reload fires
+3. Scope B created after reload → sees reloaded value
+4. Scope A re-read → still sees original value (key `IOptionsSnapshot<T>` semantic)
+5. Broken schema written → no extra `OnChange` notifications
+6. Scope C created after failed reload → sees last-known-good value
+
+### Proof Script Coverage
+
+New assertions:
+- Worker `dotnet build` succeeds
+- Worker `--dump-config` produces correct baseline JSON
+- Worker reload proof: value changes, count ≥ 1, monitor reflects new value
+- Worker reload-fail proof: count stays 0, monitor preserves last-known-good
+- ASP.NET snapshot proof: scope isolation, last-known-good, no phantom notifications
+- `parseTaggedLines` generalization (clean refactor)
+
+### Ledger Honesty
+
+All proposal updates accurately describe proven state:
+- Worker Service row: `planned` → `proven` ✅
+- `IOptionsSnapshot<T>` row: `planned` → `proven` ✅
+- `IOptionsMonitor<T>` row: expanded to cover Worker and ASP.NET flows ✅
+- `dotnet build` row: includes worker example ✅
+- Phase 2 exit criteria: updated to reflect actual proof state ✅
+- DoD hosting entry: narrowed to match implementation ✅
+
+### Minor Follow-Ons (Non-Blocking)
+
+1. `IHostBuilder` overloads not provided (only `HostApplicationBuilder` — proposal updated)
+2. `fail-fast: false` still not set on CI matrix (carried forward from P3-A1a)
+3. No dedicated unit tests for Hosting package (acceptable given pure delegation proven end-to-end)
+
+### Conclusion
+
+P3-A1b is clean, well-scoped, and honest. The hosting package is minimal by design. The worker example correctly exercises Generic Host lifecycle. The snapshot proof is the strongest `IOptionsSnapshot<T>` demonstration possible — scope isolation across reload boundaries. All ledger entries are accurate.
+
+**APPROVE-CLOSE.** P3-A1b → DONE, P3-A1c → NEXT.
+
+---
+
+## P3-A1b: Hosted Proof Modes Design
+
+- **Decision Date:** 2026-03-16
+- **Initiative:** `dotnet-support`
+- **Node:** `P3-A1b`
+- **Source:** Data (Runtime Lead)
+- **Status:** DECISION RECORD
+
+### Decision
+
+Keep `Varlock.Extensions.Hosting` as a pure `HostApplicationBuilder` convenience layer delegating to `builder.Configuration.AddVarlock(...)`, and default `WorkingDirectory` to `builder.Environment.ContentRootPath` only when the caller leaves it blank.
+
+For hosted proof apps, prefer self-contained proof modes inside the app process:
+
+1. **Worker / Generic Host:** Run reload proof from a `BackgroundService`, subscribe to `IOptionsMonitor<T>.OnChange`, mutate `.env.schema`, emit tagged proof lines, and stop host with `IHostApplicationLifetime.StopApplication()`.
+
+2. **ASP.NET scoped proof:** Prove `IOptionsSnapshot<T>` with ordinary DI scopes created from the built app rather than special HTTP choreography. A scope created before reload keeps original snapshot; scopes created after successful or failed reloads observe latest successful state.
+
+### Why
+
+This keeps the bridge boundary honest. The hosting package adds zero new configuration semantics, and the proof harness only observes standard .NET behaviors (`HostApplicationBuilder`, `IOptionsMonitor<T>`, `IOptionsSnapshot<T>`) riding on existing Varlock provider.
+
+Also gives O'Brien and later platform-example work a reusable pattern: proof script stays thin because the app itself controls mutation timing, completion, and tagged output.
+
+---
+
+**Consolidation completed:** 2026-03-15T18-05-08Z (extended to include P3-A1b)
+**Decisions merged:** 12 total inbox files (9 from P3-A1a, 3 from P3-A1b)
+**Remaining inbox:** 0 files
