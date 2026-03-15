@@ -27,6 +27,7 @@
 - 2026-03-13: The narrowest honest P1-A2 move with today's checked-in startup/runtime packages is an explicit `dotnet build` proof for the console and ASP.NET examples inside `bun run proof:dotnet`; that widens the matrix by one build-flow row without claiming watch-mode, IntelliSense, or generated-file behavior.
 - 2026-03-14: The checked-in repo-level MCP config already carried `context-mode`; the real drift risk was stale example JSON in shared templates and package READMEs, so proof here means keeping guidance synchronized instead of touching unrelated live server entries.
 - 2026-03-14: Changed `context-mode` MCP server from PATH-based direct invocation to `npx -y context-mode` for consistency with all other MCP servers, enabling package-based distribution and future version pinning; updated both live `.copilot/mcp-config.json` and all example configs in templates and package docs while preserving uncommitted edits.
+- 2026-03-15: Proof audit for P1-B1 autonomous completion via Ralph: verified P1-B1 proof slice materially complete with `bun run proof:dotnet` generating ASP.NET example's C# specimen, validating deterministic namespace/type-name overrides, and exercising binder-based projection through generated metadata and configuration-binder flow.
 
 
 

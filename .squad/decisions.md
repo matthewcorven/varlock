@@ -150,6 +150,32 @@
 - Proof path: `examples/dotnet-aspnet-mvc-net8/.env.schema` + `examples/dotnet-aspnet-mvc-net8/Generated/AppConfig.g.cs` + `examples/dotnet-aspnet-mvc-net8/AppConfigSnapshot.cs` + `scripts/test-dotnet-proof.ts`.
 - Boundaries: this does not claim MSBuild-triggered generation; that remains planned under `P2-B1`.
 
+### 2026-03-14: Context-Mode MCP Server Acquisition Strategy
+
+- Initiative: `mcp-server-configuration`
+- Date: 2026-03-14
+- Source: O'Brien, requested by Matthew Corven
+- Decision: Changed `context-mode` MCP server from direct PATH-based command invocation to `npx`-based global package acquisition, making it consistent with all other MCP server entries.
+- Implementation: Modified `.copilot/mcp-config.json`, `.squad/templates/mcp-config.md`, and `packages/varlock-docs-mcp/README.md` to use `npx -y context-mode` instead of direct `context-mode` command.
+- Rationale: Consistency with other MCP servers (`github`, `azure`, `aspire`, `trello`), automatic package installation, future version pinning capability, and cross-environment portability.
+- Scope: CLI config and documentation examples only; no separate VS Code config created.
+
+### 2026-03-15: User Directive — Remove "workitems" Language
+
+- Date: 2026-03-15T02:55:53Z
+- Source: Matthew Corven
+- Directive: Remove or replace "workitems" / "work item" language in user-facing instructions and examples; users should not be introduced to that concept.
+- Scope: User-facing materials only
+- Rationale: User request — captured for team memory
+
+### 2026-03-14: User Directive — Align VS Code Copilot and GitHub Copilot CLI MCP Servers
+
+- Date: 2026-03-14T14:14:51Z
+- Source: Matthew Corven
+- Directive: Keep VS Code Copilot and GitHub Copilot CLI aligned on the same MCP server set and versions, preferring `npx` or similar package-runner based invocation over local direct commands.
+- Scope: MCP server configuration across both environments
+- Rationale: User request — captured for team memory
+
 ## Governance
 
 - All meaningful changes require team consensus
