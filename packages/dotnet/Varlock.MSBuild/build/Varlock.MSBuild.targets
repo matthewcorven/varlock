@@ -1,0 +1,47 @@
+<Project>
+  <PropertyGroup>
+    <_VarlockWorkingDirectoryFullPath>$([System.IO.Path]::GetFullPath('$(VarlockWorkingDirectory)', '$(MSBuildProjectDirectory)'))</_VarlockWorkingDirectoryFullPath>
+    <_VarlockSchemaFullPath>$([System.IO.Path]::GetFullPath('$(VarlockSchemaPath)', '$(_VarlockWorkingDirectoryFullPath)'))</_VarlockSchemaFullPath>
+    <_VarlockGeneratedFileFullPath>$([System.IO.Path]::GetFullPath('$(VarlockGeneratedFile)', '$(MSBuildProjectDirectory)'))</_VarlockGeneratedFileFullPath>
+    <_VarlockGeneratedDirectory>$([System.IO.Path]::GetDirectoryName('$(_VarlockGeneratedFileFullPath)'))</_VarlockGeneratedDirectory>
+    <_VarlockLocalBinExecutableName Condition="'$(OS)' == 'Windows_NT'">varlock.cmd</_VarlockLocalBinExecutableName>
+    <_VarlockLocalBinExecutableName Condition="'$(OS)' != 'Windows_NT'">varlock</_VarlockLocalBinExecutableName>
+
+    <_VarlockPackageRoot Condition="'$(VarlockExecutablePath)' == '' and '$(VarlockEnableLocalExecutableLookup)' == 'true'">$([MSBuild]::GetDirectoryNameOfFileAbove('$(_VarlockWorkingDirectoryFullPath)', 'node_modules/varlock/bin/cli.js'))</_VarlockPackageRoot>
+    <_VarlockLocalBinRoot Condition="'$(VarlockExecutablePath)' == '' and '$(VarlockEnableLocalExecutableLookup)' == 'true'">$([MSBuild]::GetDirectoryNameOfFileAbove('$(_VarlockWorkingDirectoryFullPath)', 'node_modules/.bin/$(_VarlockLocalBinExecutableName)'))</_VarlockLocalBinRoot>
+    <_VarlockDevelopmentRoot Condition="'$(VarlockExecutablePath)' == '' and '$(VarlockEnableLocalExecutableLookup)' == 'true'">$([MSBuild]::GetDirectoryNameOfFileAbove('$(_VarlockWorkingDirectoryFullPath)', 'packages/varlock/bin/cli.js'))</_VarlockDevelopmentRoot>
+
+    <_VarlockResolvedExecutable Condition="'$(VarlockExecutablePath)' != ''">$(VarlockExecutablePath)</_VarlockResolvedExecutable>
+    <_VarlockResolvedExecutable Condition="'$(_VarlockResolvedExecutable)' == '' and '$(_VarlockPackageRoot)' != ''">$([System.IO.Path]::Combine('$(_VarlockPackageRoot)', 'node_modules', 'varlock', 'bin', 'cli.js'))</_VarlockResolvedExecutable>
+    <_VarlockResolvedExecutable Condition="'$(_VarlockResolvedExecutable)' == '' and '$(_VarlockLocalBinRoot)' != ''">$([System.IO.Path]::Combine('$(_VarlockLocalBinRoot)', 'node_modules', '.bin', '$(_VarlockLocalBinExecutableName)'))</_VarlockResolvedExecutable>
+    <_VarlockResolvedExecutable Condition="'$(_VarlockResolvedExecutable)' == '' and '$(_VarlockDevelopmentRoot)' != ''">$([System.IO.Path]::Combine('$(_VarlockDevelopmentRoot)', 'packages', 'varlock', 'bin', 'cli.js'))</_VarlockResolvedExecutable>
+    <_VarlockResolvedExecutable Condition="'$(_VarlockResolvedExecutable)' == '' and '$(VarlockEnablePathLookup)' == 'true'">varlock</_VarlockResolvedExecutable>
+
+    <_VarlockExecutableExtension>$([System.IO.Path]::GetExtension('$(_VarlockResolvedExecutable)'))</_VarlockExecutableExtension>
+    <_VarlockExecutableCommand Condition="'$(_VarlockResolvedExecutable)' != '' and '$(_VarlockExecutableExtension)' == '.js'">node &quot;$(_VarlockResolvedExecutable)&quot;</_VarlockExecutableCommand>
+    <_VarlockExecutableCommand Condition="'$(_VarlockExecutableCommand)' == '' and '$(_VarlockResolvedExecutable)' != ''">&quot;$(_VarlockResolvedExecutable)&quot;</_VarlockExecutableCommand>
+    <_VarlockTypegenCommand>$(_VarlockExecutableCommand) typegen --path &quot;$(_VarlockSchemaFullPath)&quot;</_VarlockTypegenCommand>
+  </PropertyGroup>
+
+  <Target Name="VarlockGenerateTypes"
+          Condition="'$(VarlockEnabled)' == 'true' and '$(VarlockGenerateTypes)' == 'true' and '$(DesignTimeBuild)' != 'true'"
+          Inputs="$(MSBuildProjectFullPath);$(MSBuildThisFileFullPath);$(_VarlockSchemaFullPath)"
+          Outputs="$(_VarlockGeneratedFileFullPath)">
+    <Error Condition="!Exists('$(_VarlockSchemaFullPath)')" Text="Varlock schema '$(_VarlockSchemaFullPath)' was not found." />
+    <Error Condition="'$(_VarlockExecutableCommand)' == ''" Text="Unable to locate a Varlock executable for MSBuild type generation. Set VarlockExecutablePath, install a local package copy, or make 'varlock' discoverable from PATH." />
+    <MakeDir Directories="$(_VarlockGeneratedDirectory)" />
+    <Exec Command="$(_VarlockTypegenCommand)" WorkingDirectory="$(_VarlockWorkingDirectoryFullPath)" />
+    <Error Condition="!Exists('$(_VarlockGeneratedFileFullPath)')" Text="Varlock type generation expected '$(_VarlockGeneratedFileFullPath)' but the file was not produced. Ensure @generateTypes(lang=cs, path=...) matches VarlockGeneratedFile." />
+  </Target>
+
+  <Target Name="VarlockPrepareGeneratedCompileItems"
+          Condition="'$(VarlockEnabled)' == 'true' and '$(VarlockGenerateTypes)' == 'true' and ('$(DesignTimeBuild)' != 'true' or Exists('$(_VarlockGeneratedFileFullPath)'))"
+          BeforeTargets="CoreCompile"
+          DependsOnTargets="VarlockGenerateTypes">
+    <Error Condition="!Exists('$(_VarlockGeneratedFileFullPath)')" Text="Varlock generated file '$(_VarlockGeneratedFileFullPath)' is missing. Build once without DesignTimeBuild or check the VarlockGenerateTypes configuration." />
+    <ItemGroup>
+      <Compile Include="$(_VarlockGeneratedFileFullPath)" AutoGen="true" DesignTime="true" Visible="false" />
+      <FileWrites Include="$(_VarlockGeneratedFileFullPath)" />
+    </ItemGroup>
+  </Target>
+</Project>

@@ -65,20 +65,6 @@ function runDotnet(projectDir: string, args: Array<string>, envOverrides: NodeJS
   };
 }
 
-function runBun(workingDir: string, args: Array<string>): CommandResult {
-  const result = spawnSync('bun', args, {
-    cwd: workingDir,
-    encoding: 'utf-8',
-    env: process.env,
-  });
-
-  return {
-    stdout: result.stdout ?? '',
-    stderr: result.stderr ?? '',
-    exitCode: result.status ?? 1,
-  };
-}
-
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
     throw new Error(message);
@@ -233,26 +219,13 @@ function clearUserSecrets(projectDir: string) {
 
 const consoleProjectDir = join(repoRoot, 'examples', 'dotnet-console-net8');
 const aspNetProjectDir = join(repoRoot, 'examples', 'dotnet-aspnet-mvc-net8');
-const aspNetGeneratedTypePath = join(aspNetProjectDir, 'Generated', 'AppConfig.g.cs');
+const aspNetGeneratedTypeDir = join(aspNetProjectDir, 'obj', 'Varlock');
+const aspNetGeneratedTypePath = join(aspNetGeneratedTypeDir, 'AppConfig.g.cs');
 
-fs.mkdirSync(dirname(aspNetGeneratedTypePath), { recursive: true });
-assertCommandSucceeded(
-  'varlock typegen dotnet-aspnet-mvc-net8',
-  runBun(aspNetProjectDir, ['../../packages/varlock/bin/cli.js', 'typegen']),
-);
+fs.rmSync(aspNetGeneratedTypeDir, { recursive: true, force: true });
 assert(
-  fs.existsSync(aspNetGeneratedTypePath),
-  'proof:dotnet should generate the ASP.NET C# specimen at examples/dotnet-aspnet-mvc-net8/Generated/AppConfig.g.cs before build validation.',
-);
-
-const aspNetGeneratedTypeSrc = fs.readFileSync(aspNetGeneratedTypePath, 'utf8');
-assert(
-  aspNetGeneratedTypeSrc.includes('namespace DotnetAspNetMvcNet8.Generated'),
-  'proof:dotnet should generate the ASP.NET specimen with the configured DotnetAspNetMvcNet8.Generated namespace.',
-);
-assert(
-  aspNetGeneratedTypeSrc.includes('public sealed partial class AppConfig'),
-  'proof:dotnet should generate the ASP.NET specimen with the configured AppConfig type name.',
+  !fs.existsSync(aspNetGeneratedTypePath),
+  'proof:dotnet should start from a clean obj/Varlock/ generated-output path before MSBuild generation runs.',
 );
 
 assertCommandSucceeded(
@@ -271,6 +244,37 @@ assertCommandSucceeded(
 assert(
   fs.existsSync(getBuildOutputPath(aspNetProjectDir, 'dotnet-aspnet-mvc-net8')),
   'dotnet build proof should produce the ASP.NET example assembly under bin/Debug/net8.0.',
+);
+assert(
+  fs.existsSync(aspNetGeneratedTypePath),
+  'proof:dotnet should generate the ASP.NET C# specimen at examples/dotnet-aspnet-mvc-net8/obj/Varlock/AppConfig.g.cs during dotnet build.',
+);
+
+const aspNetGeneratedTypeSrc = fs.readFileSync(aspNetGeneratedTypePath, 'utf8');
+assert(
+  aspNetGeneratedTypeSrc.includes('namespace DotnetAspNetMvcNet8.Generated'),
+  'proof:dotnet should generate the ASP.NET specimen with the configured DotnetAspNetMvcNet8.Generated namespace.',
+);
+assert(
+  aspNetGeneratedTypeSrc.includes('public sealed partial class AppConfig'),
+  'proof:dotnet should generate the ASP.NET specimen with the configured AppConfig type name.',
+);
+
+const aspNetGeneratedTypeMtimeMs = fs.statSync(aspNetGeneratedTypePath).mtimeMs;
+
+assertCommandSucceeded(
+  'dotnet build dotnet-aspnet-mvc-net8 incremental',
+  runDotnet(aspNetProjectDir, ['build', '--nologo', '--verbosity', 'quiet']),
+);
+
+const aspNetGeneratedTypeSrcAfterIncrementalBuild = fs.readFileSync(aspNetGeneratedTypePath, 'utf8');
+assert(
+  aspNetGeneratedTypeSrcAfterIncrementalBuild === aspNetGeneratedTypeSrc,
+  'proof:dotnet should keep ASP.NET generated C# output deterministic across identical builds.',
+);
+assert(
+  fs.statSync(aspNetGeneratedTypePath).mtimeMs === aspNetGeneratedTypeMtimeMs,
+  'proof:dotnet should not rewrite the ASP.NET generated C# file when MSBuild inputs are unchanged.',
 );
 
 const consoleResult = runDotnet(consoleProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
@@ -382,5 +386,143 @@ try {
 } finally {
   clearUserSecrets(aspNetProjectDir);
 }
+
+// --- Reload proof: successful reload fires configuration change notification ---
+
+function parseReloadProofLines(stdout: string): Map<string, string> {
+  const lines = stdout.split('\n').map((l) => l.trim()).filter(Boolean);
+  const result = new Map<string, string>();
+  for (const line of lines) {
+    const colonIndex = line.indexOf(':');
+    if (colonIndex > 0 && line.startsWith('RELOAD_')) {
+      result.set(line.substring(0, colonIndex), line.substring(colonIndex + 1));
+    }
+  }
+
+  return result;
+}
+
+const reloadSuccessResult = runDotnet(aspNetProjectDir, [
+  'run',
+  '--no-build',
+  '--no-launch-profile',
+  '--verbosity',
+  'quiet',
+  '--',
+  '--reload-proof',
+]);
+
+assert(
+  reloadSuccessResult.exitCode === 0,
+  `Reload success proof should exit cleanly, got code ${reloadSuccessResult.exitCode}.\n${reloadSuccessResult.stdout}\n${reloadSuccessResult.stderr}`,
+);
+
+const reloadSuccessLines = parseReloadProofLines(reloadSuccessResult.stdout);
+
+assert(
+  reloadSuccessLines.has('RELOAD_PROOF_INITIAL'),
+  'Reload success proof should emit RELOAD_PROOF_INITIAL line.',
+);
+
+const reloadInitial = JSON.parse(reloadSuccessLines.get('RELOAD_PROOF_INITIAL')!) as AspNetPayload;
+assert(
+  reloadInitial.AppName === 'varlock-web',
+  'Reload proof initial state should have APP_NAME = varlock-web.',
+);
+
+assert(
+  !reloadSuccessLines.has('RELOAD_PROOF_TIMEOUT'),
+  'Reload success proof should not time out. Configuration change notification must fire after a successful file change.',
+);
+
+assert(
+  reloadSuccessLines.has('RELOAD_PROOF_RELOADED'),
+  'Reload success proof should emit RELOAD_PROOF_RELOADED line after file change triggers reload.',
+);
+
+const reloadReloaded = JSON.parse(reloadSuccessLines.get('RELOAD_PROOF_RELOADED')!) as AspNetPayload;
+assert(
+  reloadReloaded.AppName === 'varlock-reloaded',
+  'After successful reload, APP_NAME should reflect the updated .env.schema value.',
+);
+
+const reloadCount = parseInt(reloadSuccessLines.get('RELOAD_PROOF_COUNT') ?? '0', 10);
+assert(
+  reloadCount >= 1,
+  'Reload success proof should report at least one configuration reload notification.',
+);
+
+assert(
+  reloadSuccessLines.has('RELOAD_PROOF_MONITOR_APP_NAME'),
+  'Reload success proof should emit RELOAD_PROOF_MONITOR_APP_NAME line.',
+);
+assert(
+  reloadSuccessLines.get('RELOAD_PROOF_MONITOR_APP_NAME') === 'varlock-reloaded',
+  'IOptionsMonitor<VarlockAppOptions>.CurrentValue.APP_NAME should reflect the reloaded value.',
+);
+
+// --- Reload proof: failed reload does NOT fire notification or mutate state ---
+
+const reloadFailResult = runDotnet(aspNetProjectDir, [
+  'run',
+  '--no-build',
+  '--no-launch-profile',
+  '--verbosity',
+  'quiet',
+  '--',
+  '--reload-fail-proof',
+]);
+
+assert(
+  reloadFailResult.exitCode === 0,
+  `Reload failure proof should exit cleanly, got code ${reloadFailResult.exitCode}.\n${reloadFailResult.stdout}\n${reloadFailResult.stderr}`,
+);
+
+const reloadFailLines = parseReloadProofLines(reloadFailResult.stdout);
+
+assert(
+  reloadFailLines.has('RELOAD_FAIL_PROOF_INITIAL'),
+  'Reload failure proof should emit RELOAD_FAIL_PROOF_INITIAL line.',
+);
+
+const failInitial = JSON.parse(reloadFailLines.get('RELOAD_FAIL_PROOF_INITIAL')!) as AspNetPayload;
+assert(
+  failInitial.AppName === 'varlock-web',
+  'Reload failure proof initial state should have APP_NAME = varlock-web.',
+);
+
+assert(
+  reloadFailLines.has('RELOAD_FAIL_PROOF_AFTER'),
+  'Reload failure proof should emit RELOAD_FAIL_PROOF_AFTER line.',
+);
+
+const failAfter = JSON.parse(reloadFailLines.get('RELOAD_FAIL_PROOF_AFTER')!) as AspNetPayload;
+assert(
+  failAfter.AppName === 'varlock-web',
+  'After failed reload, APP_NAME must remain unchanged (last-known-good preserved).',
+);
+assert(
+  failAfter.AppPort === 4311,
+  'After failed reload, APP_PORT must remain unchanged.',
+);
+assert(
+  failAfter.FeatureEnabled === true,
+  'After failed reload, FEATURE_ENABLED must remain unchanged.',
+);
+
+const failReloadCount = parseInt(reloadFailLines.get('RELOAD_FAIL_PROOF_COUNT') ?? '-1', 10);
+assert(
+  failReloadCount === 0,
+  `Failed reload must not fire configuration reload notification. Got ${failReloadCount} notification(s).`,
+);
+
+assert(
+  reloadFailLines.has('RELOAD_FAIL_PROOF_MONITOR_APP_NAME'),
+  'Reload failure proof should emit RELOAD_FAIL_PROOF_MONITOR_APP_NAME line.',
+);
+assert(
+  reloadFailLines.get('RELOAD_FAIL_PROOF_MONITOR_APP_NAME') === 'varlock-web',
+  'IOptionsMonitor<VarlockAppOptions>.CurrentValue.APP_NAME must remain unchanged after failed reload.',
+);
 
 console.log('Varlock .NET proof slice passed.');

@@ -20,6 +20,19 @@ public sealed class VarlockConfigurationSource : IConfigurationSource
 
   public bool EnablePathLookup { get; set; } = true;
 
+  /// <summary>
+  /// When <c>true</c>, the provider watches the root schema path and active
+  /// source files for changes, debounces overlapping events, and reloads
+  /// configuration through the existing bridge load path. Default is <c>false</c>.
+  /// </summary>
+  public bool ReloadOnChange { get; set; }
+
+  /// <summary>
+  /// Controls behavior when a reload attempt fails. Default is
+  /// <see cref="VarlockReloadFailureBehavior.KeepLastKnownGood"/>.
+  /// </summary>
+  public VarlockReloadFailureBehavior ReloadFailureBehavior { get; set; } = VarlockReloadFailureBehavior.KeepLastKnownGood;
+
   public IVarlockRuntime? Runtime { get; set; }
 
   public IConfigurationProvider Build(IConfigurationBuilder builder)

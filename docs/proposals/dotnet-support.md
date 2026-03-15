@@ -783,9 +783,9 @@ Each example should prove:
 - `reloadOnChange` behavior where applicable
 - logging/redaction where applicable
 
-Current repository proof slice only ships `examples/dotnet-console-net8/` and `examples/dotnet-aspnet-mvc-net8/`.
-Those examples prove direct low-level runtime loading and startup-only configuration-provider layering over `appsettings.json`.
-Worker, reload, functions, legacy, and hosted-helper claims remain planned and should not be inferred from these first two specimens.
+Current repository proof slice ships `examples/dotnet-console-net8/` and `examples/dotnet-aspnet-mvc-net8/`.
+Those examples prove direct low-level runtime loading, startup configuration-provider layering over `appsettings.json`, and runtime `ReloadOnChange` behavior including successful reload notification, failed reload last-known-good preservation, and change-token semantics.
+Worker-service hosting, `IOptionsSnapshot<T>` request-scope semantics, `dotnet watch` parity, functions, legacy, and hosted-helper claims remain planned and should not be inferred from these specimens.
 
 ## Support-Matrix Ledger
 
@@ -798,7 +798,7 @@ It is intentionally a proof-planning table, not a claim that the listed examples
 | Support claim | Proving example app | Proving automated test | Key caveats | Proof status |
 | --- | --- | --- | --- | --- |
 | Console app direct runtime usage | `examples/dotnet-console-net8/` | `bun run proof:dotnet` console bridge check | non-hosted, uses low-level APIs instead of `IConfiguration` | proven |
-| ASP.NET Core MVC provider usage | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` ASP.NET provider check | startup-only provider ordering over `appsettings`; options binding and reload stay out of this slice | proven |
+| ASP.NET Core MVC provider usage | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` ASP.NET provider check | provider ordering over `appsettings` with reload support; `ReloadOnChange` proven for successful reload, failed reload last-known-good, and configuration change-token notification semantics | proven |
 | Worker Service / Generic Host usage | `examples/dotnet-worker-net8/` | worker `IOptionsMonitor<T>` reload test | should prove long-lived reload behavior | planned |
 | Azure Functions isolated worker usage | `examples/dotnet-functions-isolated-net8/` | functions isolated startup smoke test | must document coexistence with `local.settings.json` | planned |
 | Windows Forms legacy/non-hosted usage | `examples/dotnet-winforms-net48/` | legacy desktop bridge smoke test | minimum supported legacy target still open | planned |
@@ -820,8 +820,8 @@ It is intentionally a proof-planning table, not a claim that the listed examples
 | `local.settings.json` coexistence | `examples/dotnet-functions-isolated-net8/` | azure functions config layering test | functions-specific only | planned |
 | `IOptions<T>` binding | `examples/dotnet-aspnet-mvc-net8/` | options binding test | should cover user-authored and generated POCOs where supported | planned |
 | `IOptionsSnapshot<T>` scoped reload | `examples/dotnet-aspnet-mvc-net8/` | snapshot reload test | request-scoped semantics must be explicit | planned |
-| `IOptionsMonitor<T>` long-lived reload | `examples/dotnet-worker-net8/` | monitor reload test | must prove last-known-good preservation | planned |
-| C# type generation | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` C# generation check | `proof:dotnet` runs `varlock typegen` against the ASP.NET example, verifies the generated file exists at `Generated/AppConfig.g.cs`, and asserts the configured namespace and class name; the example app does not yet consume generated output and binder proof remains planned for `P2-B1` | proven (generation structure; binder proof planned) |
+| `IOptionsMonitor<T>` long-lived reload | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` reload-proof and reload-fail-proof checks; C# `ReloadTests` | proven via DI-injected `IOptionsMonitor<VarlockAppOptions>` in the ASP.NET example reload-proof and reload-fail-proof modes; the proof shows `OnChange` fires on successful reload and does not fire on failed reload, and that `CurrentValue` reflects the last successful state; dedicated worker-service long-lived injection proof remains planned | proven |
+| C# type generation | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` C# generation check | `proof:dotnet` invokes `dotnet build`, which runs `varlock typegen` during MSBuild, verifies the generated file exists at `obj/Varlock/AppConfig.g.cs`, and asserts the configured namespace and class name; generation is deterministic and incremental; the example app does not yet consume generated output and binder proof remains planned for `P2-B1` | proven (generation structure; binder proof planned) |
 | Serilog redaction | `examples/dotnet-aspnet-mvc-net8/` | Serilog redaction test | only first-class for Serilog in v1 | planned |
 | Non-Serilog fallback redaction helpers | `examples/dotnet-console-net8/` | runtime helper redaction test | must show what is manual rather than automatic | planned |
 | Plugin-backed secret resolution | `examples/dotnet-console-net8/` or dedicated plugin fixture app | plugin-backed bridge test | supported only for the documented executable/plugin layout | planned |
@@ -960,13 +960,15 @@ Phase 1 exit criteria:
 - create `Varlock.Extensions.Hosting`
 - add worker service support
 - add `IOptionsSnapshot<T>` and `IOptionsMonitor<T>` reload tests
-- add `optional` and `reloadOnChange` behavior coverage
+- `ReloadOnChange` and `ReloadFailureBehavior` are now implemented in `Varlock.Extensions.Configuration`
+- `optional` + `reloadOnChange` later-appearance behavior is implemented and tested
+- configuration change-token notification semantics proven via `bun run proof:dotnet` reload-proof and reload-fail-proof
 
 Phase 2 exit criteria:
 
-- the watch and reload specimen exists and demonstrates atomic reload plus last-known-good behavior
-- hosted examples prove `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>` semantics
-- `dotnet watch` and IDE-driven workflows are documented from real observed behavior, not expectation
+- ~~the watch and reload specimen exists and demonstrates atomic reload plus last-known-good behavior~~ **done:** `ReloadOnChange` provider implementation with atomic swap, last-known-good preservation, debounced file watching, and proof in `bun run proof:dotnet`
+- hosted examples prove `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>` semantics (partial: `IOptionsMonitor<T>` reload proven via DI injection in ASP.NET example; `IOptionsSnapshot<T>` request-scoped proof and standalone worker-service proof planned)
+- `dotnet watch` and IDE-driven workflows are documented from real observed behavior, not expectation (not yet proven; `dotnet watch` parity not claimed)
 
 ### Phase 3: logging and wider platform coverage
 

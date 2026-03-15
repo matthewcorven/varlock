@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <VarlockEnabled Condition="'$(VarlockEnabled)' == ''">false</VarlockEnabled>
+    <VarlockGenerateTypes Condition="'$(VarlockGenerateTypes)' == ''">true</VarlockGenerateTypes>
+    <VarlockValidateOnBuild Condition="'$(VarlockValidateOnBuild)' == ''">false</VarlockValidateOnBuild>
+    <VarlockEnableLocalExecutableLookup Condition="'$(VarlockEnableLocalExecutableLookup)' == ''">true</VarlockEnableLocalExecutableLookup>
+    <VarlockEnablePathLookup Condition="'$(VarlockEnablePathLookup)' == ''">true</VarlockEnablePathLookup>
+    <VarlockWorkingDirectory Condition="'$(VarlockWorkingDirectory)' == ''">$(MSBuildProjectDirectory)</VarlockWorkingDirectory>
+    <VarlockSchemaPath Condition="'$(VarlockSchemaPath)' == ''">.env.schema</VarlockSchemaPath>
+    <VarlockGeneratedFile Condition="'$(VarlockGeneratedFile)' == ''">$(BaseIntermediateOutputPath)Varlock/VarlockConfig.g.cs</VarlockGeneratedFile>
+  </PropertyGroup>
+</Project>
