@@ -821,7 +821,7 @@ It is intentionally a proof-planning table, not a claim that the listed examples
 | `IOptions<T>` binding | `examples/dotnet-aspnet-mvc-net8/` | options binding test | should cover user-authored and generated POCOs where supported | planned |
 | `IOptionsSnapshot<T>` scoped reload | `examples/dotnet-aspnet-mvc-net8/` | snapshot reload test | request-scoped semantics must be explicit | planned |
 | `IOptionsMonitor<T>` long-lived reload | `examples/dotnet-worker-net8/` | monitor reload test | must prove last-known-good preservation | planned |
-| C# type generation | `examples/dotnet-console-net8/` | generated C# golden-output test | fixture-backed C# generation and decorator-write tests now exist in `packages/varlock`, but the example app does not yet consume generated output, so binder proof remains planned | planned |
+| C# type generation | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` C# generation check | `proof:dotnet` runs `varlock typegen` against the ASP.NET example, verifies the generated file exists at `Generated/AppConfig.g.cs`, and asserts the configured namespace and class name; the example app does not yet consume generated output and binder proof remains planned for `P2-B1` | proven (generation structure; binder proof planned) |
 | Serilog redaction | `examples/dotnet-aspnet-mvc-net8/` | Serilog redaction test | only first-class for Serilog in v1 | planned |
 | Non-Serilog fallback redaction helpers | `examples/dotnet-console-net8/` | runtime helper redaction test | must show what is manual rather than automatic | planned |
 | Plugin-backed secret resolution | `examples/dotnet-console-net8/` or dedicated plugin fixture app | plugin-backed bridge test | supported only for the documented executable/plugin layout | planned |
@@ -946,15 +946,14 @@ Phase 0 exit criteria:
 - add `lang=cs` support to type generation
 - create `Varlock.DotNet`
 - create `Varlock.Extensions.Configuration`
-- create `Varlock.MSBuild`
-- prove with console, ASP.NET MVC, and WinForms examples
+- prove with console and ASP.NET MVC examples; wider platform coverage deferred to Phase 3
 
 Phase 1 exit criteria:
 
-- the C# generation specimen exists and passes binder validation
+- the C# generation specimen exists and output structure is validated; binder proof is deferred to `P2-B1`
 - the executable distribution specimen is implemented for local development and CI
 - contract fixtures back low-level bridge tests
-- console, ASP.NET MVC, and WinForms examples prove initial direct and provider-based usage
+- console and ASP.NET MVC examples prove initial direct and provider-based usage; WinForms and other wider platform targets are deferred to `P3-A1`
 
 ### Phase 2: hosted app maturity
 
@@ -1108,7 +1107,7 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Minimal example projects exist for the agreed support matrix.
 - Each example is runnable without local, undocumented hand steps.
 - Each example is intentionally small and focused on proving specific behavior.
-- Console, ASP.NET Core MVC, and WinForms examples exist and are working.
+- Console and ASP.NET Core MVC examples exist and are working (Phase 1 proven slice); WinForms and other wider platform targets are deferred to `P3-A1`.
 - Worker Service, Azure Functions isolated worker, Blazor Server, and Blazor WebAssembly public-config examples exist and are working before the initiative is called complete.
 - Example apps demonstrate precedence with appsettings.
 - Example apps demonstrate coexistence with other common `.NET` configuration layers where the docs claim coexistence, such as User Secrets or `local.settings.json` in the relevant app types.

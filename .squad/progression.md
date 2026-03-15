@@ -19,7 +19,7 @@ flowchart LR
   P0C2 --> P0C3["P0-C3\nFirst proof examples + CI lane\nDONE"]
   P0C3 --> P1A1["P1-A1\nExecutable acquisition hardening\nDONE"]
   P0C3 --> P1B1["P1-B1\nC# typegen deepening\nDONE"]
-  P1A1 --> P1A2["P1-A2\nBroader proof matrix\nIN PROGRESS"]
+  P1A1 --> P1A2["P1-A2\nBroader proof matrix\nDONE"]
   P1B1 --> P2B1["P2-B1\nMSBuild integration\nNOT STARTED"]
   P1A2 --> P2A1["P2-A1\nReload/options/hosting helpers\nNOT STARTED"]
   P2A1 --> P3A1["P3-A1\nWider platform proof\nNOT STARTED"]
@@ -32,8 +32,7 @@ flowchart LR
   classDef idle fill:#f3f4f6,stroke:#6b7280,color:#111827;
   classDef deferred fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d;
 
-  class P0C1,P0C2,P0C3,P1A1,P1B1 done;
-  class P1A2 progress;
+  class P0C1,P0C2,P0C3,P1A1,P1B1,P1A2 done;
   class P2A1,P2B1,P3A1 idle;
   class P4A1 deferred;
 ```
