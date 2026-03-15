@@ -20,3 +20,21 @@
 - 2026-03-15: P1-B1 autonomous completion via Ralph: identified TypeScript typing gap in `packages/varlock/src/env-graph/lib/type-generation.ts` (items not explicitly typed as `Array<Promise<TypeGenItemInfo>>` before `Promise.all()`), applied fix autonomously, verified via `bun run build:libs`, type-generation tests (31/31), and `bun run proof:dotnet`.
 - 2026-03-15: The first safe `P2-B1` cut is an opt-in `Varlock.MSBuild` props/targets layer that drives the existing deterministic `varlock typegen` flow into `obj/Varlock/`, adds the generated file to `@(Compile)`, and proves unchanged builds do not rewrite the `.g.cs` output.
 - 2026-03-15: P2-B1 kickoff: produced first MSBuild typegen cut wiring `varlock typegen` into MSBuild with opt-in `.props` / `.targets`, generating C# into `obj/Varlock/`, and proving no rewrite on unchanged second build. Decision documented in `decisions.md`.
+- 2026-03-15: Shipping validation for the paired P2-A1/P2-B1 slice is green on targeted ReloadTests, `bun run proof:dotnet`, and a follow-up `dotnet build -p:DesignTimeBuild=true` against the ASP.NET example; claim deterministic MSBuild generation and design-time compile inclusion only, with `dotnet watch` still explicitly unproven.
+
+---
+
+## 2026-03-15 — Product Commit (P2-B1 First Cut)
+
+**Status:** DONE  
+**Commit:** d978a13  
+**Message:** Add reload support and MSBuild typegen integration
+
+**Validation:**
+- ✅ Reload Tests: `dotnet test ... --filter ReloadTests` passed
+- ✅ Proof Step: `bun run proof:dotnet` passed
+- ✅ Product diff clean; no conflicts
+
+**Next Phase:** Proceed with packageability work (NuGet `Varlock.MSBuild`). O'Brien proof lane proceeds in parallel.
+
+**Orchestration Log:** `.squad/orchestration-log/2026-03-15T16:20:33Z-geordi-product-commit.md`

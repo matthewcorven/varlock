@@ -522,3 +522,36 @@ At that point, Picard will re-review and approve P2-B1 closure, unblocking P3-A1
 **Rationale:** Geordi's core work is solid; O'Brien's proof lane can now proceed in parallel. Both can execute without waiting on new decisions from Picard.
 
 **No Blockers for Continuation:** Geordi may proceed with packageability and IDE expansion work. O'Brien may proceed with proof checklist completion and documentation updates. Matthew may begin delegation on either or both tracks.
+
+---
+
+## O'Brien: C# Type Generation Path Alignment
+
+- **Decision Date:** 2026-03-15
+- **Initiative:** `dotnet-support`
+- **Node:** `P2-B1`
+- **Status:** RESOLVED
+- **Impact:** Documentation alignment only
+
+### Issue
+
+The P2-B1 support-matrix ledger entry for "C# type generation" claimed the generated file location as `Generated/AppConfig.g.cs`, but the actual MSBuild implementation following the deterministic-external-typegen pattern now writes to `obj/Varlock/AppConfig.g.cs`.
+
+This was caught during proof validation before commit.
+
+### Resolution
+
+Updated the ledger entry to reflect the actual generated-file path and clarified that generation happens during `dotnet build` via MSBuild integration, not as a separate step. The entry now correctly states:
+- Generated file lives at `obj/Varlock/AppConfig.g.cs` (intermediate output, not tracked)
+- Generation is deterministic and incremental
+- Proof validates both structure and incrementality
+
+### Proof Status
+
+✓ `bun run proof:dotnet` passes with updated docs  
+✓ Generation path assertion in `scripts/test-dotnet-proof.ts` confirms `obj/Varlock/AppConfig.g.cs`  
+✓ Incremental build detection confirmed (mtime unchanged on second identical build)
+
+### Files Modified
+
+- `docs/proposals/dotnet-support.md` — ledger entry clarification only (no claim changes, only accuracy)

@@ -32,3 +32,20 @@
 
 
 
+
+---
+
+## 2026-03-15 — Docs Proof Approval (P2-B1 First Cut)
+
+**Status:** APPROVED  
+**Review Scope:** Support-matrix claims, docs alignment, path accuracy
+
+**Fix Applied:** Updated `docs/proposals/dotnet-support.md`
+- Path: `Generated/AppConfig.g.cs` → `obj/Varlock/AppConfig.g.cs`
+- Clarified: Generation timing (during `dotnet build`), not separate step
+
+**Result:** Proposal now accurately reflects implementation. No claim drift.
+
+**Next Phase:** Begin proof checklist completion + CI wiring. Parallel with Geordi packageability.
+
+**Orchestration Log:** `.squad/orchestration-log/2026-03-15T16:20:33Z-o'brien-docs-approval.md`
