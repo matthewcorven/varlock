@@ -11,18 +11,19 @@ using Varlock.Extensions.Configuration;
 
 var reloadProof = args.Contains("--reload-proof", StringComparer.Ordinal);
 var reloadFailProof = args.Contains("--reload-fail-proof", StringComparer.Ordinal);
+var snapshotProof = args.Contains("--snapshot-proof", StringComparer.Ordinal);
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddVarlock((source) =>
 {
   source.WorkingDirectory = builder.Environment.ContentRootPath;
-  source.ReloadOnChange = reloadProof || reloadFailProof;
+  source.ReloadOnChange = reloadProof || reloadFailProof || snapshotProof;
 });
 
 builder.Services.AddControllersWithViews();
 
-if (reloadProof || reloadFailProof)
+if (reloadProof || reloadFailProof || snapshotProof)
 {
   builder.Services.Configure<VarlockAppOptions>(builder.Configuration);
 }
@@ -76,6 +77,69 @@ if (reloadProof)
     else
     {
       Console.WriteLine("RELOAD_PROOF_TIMEOUT");
+    }
+  }
+  finally
+  {
+    File.WriteAllText(schemaPath, originalContent);
+  }
+
+  return;
+}
+
+if (snapshotProof)
+{
+  var app = builder.Build();
+  var config = app.Services.GetRequiredService<IConfiguration>();
+  var monitor = app.Services.GetRequiredService<IOptionsMonitor<VarlockAppOptions>>();
+
+  var reloadFired = 0;
+  var reloadEvent = new ManualResetEventSlim(false);
+
+  using var subscription = monitor.OnChange(_ =>
+  {
+    Interlocked.Increment(ref reloadFired);
+    reloadEvent.Set();
+  });
+
+  using var scopeA = app.Services.CreateScope();
+  var requestA = scopeA.ServiceProvider.GetRequiredService<IOptionsSnapshot<VarlockAppOptions>>();
+  Console.WriteLine("SNAPSHOT_PROOF_SCOPE_A_INITIAL:" + JsonSerializer.Serialize(AppConfigSnapshot.From(requestA.Value, config)));
+  Console.Out.Flush();
+
+  var schemaPath = Path.Combine(builder.Environment.ContentRootPath, ".env.schema");
+  var originalContent = File.ReadAllText(schemaPath);
+  var modifiedContent = originalContent.Replace(
+    "APP_NAME=varlock-web",
+    "APP_NAME=varlock-snapshot-reloaded",
+    StringComparison.Ordinal);
+  File.WriteAllText(schemaPath, modifiedContent);
+
+  try
+  {
+    var gotReload = reloadEvent.Wait(TimeSpan.FromSeconds(15));
+    if (gotReload)
+    {
+      Thread.Sleep(150);
+
+      using var scopeB = app.Services.CreateScope();
+      var requestB = scopeB.ServiceProvider.GetRequiredService<IOptionsSnapshot<VarlockAppOptions>>();
+      Console.WriteLine("SNAPSHOT_PROOF_SCOPE_B_AFTER:" + JsonSerializer.Serialize(AppConfigSnapshot.From(requestB.Value, config)));
+      Console.WriteLine("SNAPSHOT_PROOF_SCOPE_A_STILL:" + JsonSerializer.Serialize(AppConfigSnapshot.From(requestA.Value, config)));
+      Console.WriteLine("SNAPSHOT_PROOF_RELOAD_COUNT:" + reloadFired);
+      Console.WriteLine("SNAPSHOT_PROOF_MONITOR_APP_NAME:" + monitor.CurrentValue.APP_NAME);
+
+      File.WriteAllText(schemaPath, "BROKEN_SYNTAX{{{not-a-valid-schema");
+      Thread.Sleep(2000);
+
+      using var scopeC = app.Services.CreateScope();
+      var requestC = scopeC.ServiceProvider.GetRequiredService<IOptionsSnapshot<VarlockAppOptions>>();
+      Console.WriteLine("SNAPSHOT_PROOF_SCOPE_C_AFTER_FAILED:" + JsonSerializer.Serialize(AppConfigSnapshot.From(requestC.Value, config)));
+      Console.WriteLine("SNAPSHOT_PROOF_FINAL_RELOAD_COUNT:" + reloadFired);
+    }
+    else
+    {
+      Console.WriteLine("SNAPSHOT_PROOF_TIMEOUT");
     }
   }
   finally

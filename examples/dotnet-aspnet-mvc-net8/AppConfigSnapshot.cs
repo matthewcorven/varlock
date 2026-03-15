@@ -38,4 +38,18 @@ public sealed record AppConfigSnapshot(
       !string.IsNullOrWhiteSpace(generated.SecretToken),
       configuration["USERSECRETS_ONLY"] ?? string.Empty);
   }
+
+  public static AppConfigSnapshot From(VarlockAppOptions options, IConfiguration configuration)
+  {
+    ArgumentNullException.ThrowIfNull(options);
+    ArgumentNullException.ThrowIfNull(configuration);
+
+    return new AppConfigSnapshot(
+      options.APP_NAME,
+      options.APP_PORT,
+      options.FEATURE_ENABLED,
+      configuration["APPSETTINGS_ONLY"] ?? string.Empty,
+      !string.IsNullOrWhiteSpace(configuration["SECRET_TOKEN"]),
+      configuration["USERSECRETS_ONLY"] ?? string.Empty);
+  }
 }

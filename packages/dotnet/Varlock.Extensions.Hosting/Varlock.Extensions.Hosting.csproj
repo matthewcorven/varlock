@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Varlock.Extensions.Hosting</AssemblyName>
+    <RootNamespace>Varlock.Extensions.Hosting</RootNamespace>
+    <PackageId>Varlock.Extensions.Hosting</PackageId>
+    <Description>HostApplicationBuilder helpers for Varlock configuration loading.</Description>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Varlock.Extensions.Configuration\Varlock.Extensions.Configuration.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

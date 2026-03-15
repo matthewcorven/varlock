@@ -45,3 +45,7 @@ Led review of P3-A1a (cross-platform CI parity) implementation. Identified two b
 Reassignments issued per reviewer lockout rule. P3-A1a sequencing (four sub-batches A1a/b/c/d) locked and awaiting Matthew's approval. Boundary review from Tuvok cleared P3-A1a as contract-safe.
 
 **Status:** Awaiting fixes and re-review.
+
+## P3-A1b Lead Review — APPROVE-CLOSE (2026-03-16)
+
+- 2026-03-16: P3-A1b approved-closed on first review pass. All four deliverables present and correct: (1) `Varlock.Extensions.Hosting` is a ~30-line pure delegation layer with two `HostApplicationBuilder.AddVarlock()` overloads matching the updated proposal surface. (2) Worker example properly uses `BackgroundService` with `IOptionsMonitor<T>` for reload proof in a long-lived hosted service. (3) `IOptionsSnapshot<T>` scoped-reload proof added to ASP.NET example — strongest possible demonstration with scope isolation across reload boundaries. (4) Proof script comprehensively expanded with worker build/dump/reload/reload-fail assertions plus snapshot assertions. Ledger updated honestly. No scope leakage. Minor follow-ons: `IHostBuilder` overloads deferred, `fail-fast: false` still pending, no dedicated hosting unit tests (acceptable for pure delegation). P3-A1b → DONE, P3-A1c → NEXT.

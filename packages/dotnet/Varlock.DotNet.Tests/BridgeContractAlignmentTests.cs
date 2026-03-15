@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System;
 using System.IO;
+using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Varlock.Extensions.Configuration;
 using Xunit;
@@ -229,6 +230,172 @@ public sealed class BridgeContractAlignmentTests
     {
       Environment.SetEnvironmentVariable("PATH", originalPath);
 
+      if (Directory.Exists(root))
+      {
+        Directory.Delete(root, recursive: true);
+      }
+    }
+  }
+
+  [Fact]
+  public void ResolveExecutable_on_windows_prefers_cmd_wrapper_over_js_script()
+  {
+    // This test validates that on Windows, the runtime looks for .cmd wrappers
+    // in the bin directories before falling back to .js scripts.
+    // This ensures that proof harnesses creating .cmd wrappers are found correctly.
+    if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+    {
+      // Skip on non-Windows platforms
+      return;
+    }
+
+    var root = Path.Combine(Path.GetTempPath(), $"varlock-dotnet-tests-{Guid.NewGuid():N}");
+
+    try
+    {
+      var workingDirectory = Path.Combine(root, "app");
+      Directory.CreateDirectory(workingDirectory);
+
+      // Create both .cmd and .js in package-local bin directory
+      var packageBinDirectory = Path.Combine(root, "node_modules", "varlock", "bin");
+      Directory.CreateDirectory(packageBinDirectory);
+
+      var cmdPath = Path.Combine(packageBinDirectory, "cli.cmd");
+      var jsPath = Path.Combine(packageBinDirectory, "cli.js");
+
+      File.WriteAllText(cmdPath, "@echo off\r\necho test");
+      File.WriteAllText(jsPath, "// test script");
+
+      var resolved = VarlockCliRuntime.ResolveExecutable(new VarlockLoadOptions
+      {
+        WorkingDirectory = workingDirectory,
+        EnablePathLookup = false,
+      });
+
+      // Should prefer .cmd over .js
+      Assert.Equal(cmdPath, resolved);
+
+      // Remove .cmd and verify it falls back to .js
+      File.Delete(cmdPath);
+
+      resolved = VarlockCliRuntime.ResolveExecutable(new VarlockLoadOptions
+      {
+        WorkingDirectory = workingDirectory,
+        EnablePathLookup = false,
+      });
+
+      Assert.Equal(jsPath, resolved);
+    }
+    finally
+    {
+      if (Directory.Exists(root))
+      {
+        Directory.Delete(root, recursive: true);
+      }
+    }
+  }
+
+  [Fact]
+  public void Load_executes_repo_local_js_entrypoint_without_explicit_executable_path()
+  {
+    var root = Path.Combine(Path.GetTempPath(), $"varlock dotnet tests {Guid.NewGuid():N}");
+
+    try
+    {
+      var workingDirectory = Path.Combine(root, "app");
+      Directory.CreateDirectory(workingDirectory);
+
+      var schemaPath = Path.Combine(workingDirectory, ".env.schema");
+      File.WriteAllText(schemaPath, "APP_NAME=repo-local-proof");
+
+      var markerPath = Path.Combine(root, ".varlock-repo-local-proof");
+      var repoExecutable = Path.Combine(root, "packages", "varlock", "bin", "cli.js");
+      Directory.CreateDirectory(Path.GetDirectoryName(repoExecutable)!);
+
+      var executableSource = """
+        #!/usr/bin/env node
+        import { writeFileSync } from 'node:fs';
+
+        writeFileSync(__MARKER_PATH__, 'executed\n');
+
+        const args = process.argv.slice(2);
+        const bridgeContractIndex = args.indexOf('--bridge-contract');
+        const bridgeContract = bridgeContractIndex >= 0 ? args[bridgeContractIndex + 1] : null;
+
+        if (bridgeContract === '0') {
+          console.log(JSON.stringify({
+            contractVersion: 1,
+            cliVersion: '0.0.0-test',
+            command: 'load',
+            format: 'json-full',
+            ok: false,
+            category: 'executable-version-mismatch',
+            message: 'Requested bridge contract version "0" is not supported by this varlock executable',
+            requestedContractVersion: '0',
+            supportedContractVersion: 1,
+          }));
+          process.exit(1);
+        }
+
+        console.log(JSON.stringify({
+          contractVersion: 1,
+          cliVersion: '0.0.0-test',
+          command: 'load',
+          format: 'json-full',
+          ok: true,
+          graph: {
+            basePath: __WORKING_DIRECTORY__,
+            config: {
+              APP_NAME: {
+                value: 'repo-local-proof',
+                isSensitive: false,
+              },
+            },
+            sources: [
+              {
+                label: '.env.schema',
+                enabled: true,
+                path: '.env.schema',
+              },
+            ],
+            settings: {
+              redactLogs: true,
+              preventLeaks: true,
+            },
+          },
+        }));
+        """
+        .Replace("__MARKER_PATH__", JsonSerializer.Serialize(markerPath), StringComparison.Ordinal)
+        .Replace("__WORKING_DIRECTORY__", JsonSerializer.Serialize(workingDirectory), StringComparison.Ordinal);
+
+      File.WriteAllText(repoExecutable, executableSource);
+      if (!OperatingSystem.IsWindows())
+      {
+        File.SetUnixFileMode(
+          repoExecutable,
+          UnixFileMode.UserRead
+          | UnixFileMode.UserWrite
+          | UnixFileMode.UserExecute
+          | UnixFileMode.GroupRead
+          | UnixFileMode.GroupExecute
+          | UnixFileMode.OtherRead
+          | UnixFileMode.OtherExecute);
+      }
+
+      var graph = new VarlockCliRuntime().Load(new VarlockLoadOptions
+      {
+        WorkingDirectory = workingDirectory,
+        EnablePathLookup = false,
+      });
+
+      Assert.Equal(1, graph.ContractVersion);
+      Assert.Equal(workingDirectory, graph.BasePath);
+      Assert.Equal("repo-local-proof", graph.Items["APP_NAME"].Value);
+      Assert.Contains(graph.Sources, source => source.Path == ".env.schema");
+      Assert.True(File.Exists(markerPath));
+    }
+    finally
+    {
       if (Directory.Exists(root))
       {
         Directory.Delete(root, recursive: true);

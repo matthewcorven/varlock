@@ -31,6 +31,12 @@ type AspNetPayload = {
   UserSecretsOnly: string;
 };
 
+type WorkerPayload = {
+  AppName: string;
+  AppPort: number;
+  FeatureEnabled: boolean;
+};
+
 type ExecutableHarness = {
   markerPath: string;
   cleanup: () => void;
@@ -117,6 +123,12 @@ function assertConsolePayload(payload: ConsolePayload, proofLabel: string) {
   );
 }
 
+function assertWorkerPayload(payload: WorkerPayload, proofLabel: string) {
+  assert(payload.AppName === 'varlock-worker', `${proofLabel} should resolve APP_NAME from Varlock.`);
+  assert(payload.AppPort === 4313, `${proofLabel} should coerce APP_PORT to a number.`);
+  assert(payload.FeatureEnabled === true, `${proofLabel} should coerce FEATURE_ENABLED to a boolean.`);
+}
+
 function createExecutableHarness(
   projectDir: string,
   executableSegments: Array<string>,
@@ -126,7 +138,17 @@ function createExecutableHarness(
   const markerPath = join(projectDir, markerFileName);
   const upstreamCliPath = join(repoRoot, 'packages', 'varlock', 'bin', 'cli.js');
 
-  const wrapperSource = `#!/usr/bin/env node
+  let wrapperSource: string;
+  if (isWindows) {
+    const escapedMarkerPath = markerPath.replaceAll('"', '""');
+    wrapperSource = `@echo off
+(
+  echo package-local
+) > "${escapedMarkerPath}"
+node "${upstreamCliPath.replaceAll('"', '""')}" %*
+`;
+  } else {
+    wrapperSource = `#!/usr/bin/env node
 const fs = require('node:fs');
 const { spawnSync } = require('node:child_process');
 
@@ -144,10 +166,14 @@ if (result.error) {
 
 process.exit(result.status ?? 1);
 `;
+  }
 
   fs.mkdirSync(dirname(wrapperPath), { recursive: true });
   fs.writeFileSync(wrapperPath, wrapperSource, 'utf8');
-  fs.chmodSync(wrapperPath, 0o755);
+
+  if (!isWindows) {
+    fs.chmodSync(wrapperPath, 0o755);
+  }
 
   return {
     markerPath,
@@ -181,7 +207,20 @@ function createPathHarness(projectDir: string): PathExecutableHarness {
 
     fs.writeFileSync(wrapperPath, wrapperSource, 'utf8');
   } else {
-    fs.symlinkSync(upstreamCliPath, wrapperPath);
+    try {
+      fs.symlinkSync(upstreamCliPath, wrapperPath);
+    } catch (error) {
+      if (
+        error instanceof Error
+        && 'code' in error
+        && error.code === 'EEXIST'
+      ) {
+        fs.rmSync(wrapperPath, { force: true });
+        fs.symlinkSync(upstreamCliPath, wrapperPath);
+      } else {
+        throw error;
+      }
+    }
   }
 
   return {
@@ -196,19 +235,17 @@ function createPathHarness(projectDir: string): PathExecutableHarness {
 }
 
 function createPackageLocalHarness(projectDir: string): ExecutableHarness {
-  return createExecutableHarness(
-    projectDir,
-    ['node_modules', 'varlock', 'bin', 'cli.js'],
-    '.varlock-package-local-proof',
-  );
+  const segments = isWindows
+    ? ['node_modules', 'varlock', 'bin', 'cli.cmd']
+    : ['node_modules', 'varlock', 'bin', 'cli.js'];
+  return createExecutableHarness(projectDir, segments, '.varlock-package-local-proof');
 }
 
 function createLocalBinHarness(projectDir: string): ExecutableHarness {
-  return createExecutableHarness(
-    projectDir,
-    ['node_modules', '.bin', 'varlock'],
-    '.varlock-local-bin-proof',
-  );
+  const segments = isWindows
+    ? ['node_modules', '.bin', 'varlock.cmd']
+    : ['node_modules', '.bin', 'varlock'];
+  return createExecutableHarness(projectDir, segments, '.varlock-local-bin-proof');
 }
 
 function setUserSecret(projectDir: string, key: string, value: string) {
@@ -348,6 +385,7 @@ Console.WriteLine(generated.AppName + ":" + AppConfigMetadata.PropertyBindings.C
 }
 
 const consoleProjectDir = join(repoRoot, 'examples', 'dotnet-console-net8');
+const workerProjectDir = join(repoRoot, 'examples', 'dotnet-worker-net8');
 const aspNetProjectDir = join(repoRoot, 'examples', 'dotnet-aspnet-mvc-net8');
 const aspNetGeneratedTypeDir = join(aspNetProjectDir, 'obj', 'Varlock');
 const aspNetGeneratedTypePath = join(aspNetGeneratedTypeDir, 'AppConfig.g.cs');
@@ -421,6 +459,15 @@ assert(
 assert(
   fs.existsSync(aspNetGeneratedTypePath),
   'proof:dotnet should generate the ASP.NET C# specimen at examples/dotnet-aspnet-mvc-net8/obj/Varlock/AppConfig.g.cs during dotnet build.',
+);
+
+assertCommandSucceeded(
+  'dotnet build dotnet-worker-net8',
+  runDotnet(workerProjectDir, ['build', '--nologo', '--verbosity', 'quiet']),
+);
+assert(
+  fs.existsSync(getBuildOutputPath(workerProjectDir, 'dotnet-worker-net8')),
+  'dotnet build proof should produce the worker example assembly under bin/Debug/net8.0.',
 );
 
 const aspNetGeneratedTypeSrc = fs.readFileSync(aspNetGeneratedTypePath, 'utf8');
@@ -526,6 +573,17 @@ assert(
 assert(aspNetPayload.SecretTokenPresent === true, 'ASP.NET example should surface Varlock-backed secret presence.');
 assert(aspNetPayload.UserSecretsOnly === '', 'ASP.NET baseline proof should not depend on a user-secrets payload.');
 
+const workerResult = runDotnet(workerProjectDir, [
+  'run',
+  '--no-build',
+  '--verbosity',
+  'quiet',
+  '--',
+  '--dump-config',
+]);
+const workerPayload = parseJsonOutput<WorkerPayload>('dotnet-worker-net8', workerResult);
+assertWorkerPayload(workerPayload, 'Worker example through HostApplicationBuilder.AddVarlock()');
+
 try {
   clearUserSecrets(aspNetProjectDir);
   setUserSecret(aspNetProjectDir, 'USERSECRETS_ONLY', 'loaded-from-user-secrets');
@@ -562,12 +620,12 @@ try {
 
 // --- Reload proof: successful reload fires configuration change notification ---
 
-function parseReloadProofLines(stdout: string): Map<string, string> {
+function parseTaggedLines(stdout: string, prefixes: Array<string>): Map<string, string> {
   const lines = stdout.split('\n').map((l) => l.trim()).filter(Boolean);
   const result = new Map<string, string>();
   for (const line of lines) {
     const colonIndex = line.indexOf(':');
-    if (colonIndex > 0 && line.startsWith('RELOAD_')) {
+    if (colonIndex > 0 && prefixes.some((prefix) => line.startsWith(prefix))) {
       result.set(line.substring(0, colonIndex), line.substring(colonIndex + 1));
     }
   }
@@ -590,7 +648,7 @@ assert(
   `Reload success proof should exit cleanly, got code ${reloadSuccessResult.exitCode}.\n${reloadSuccessResult.stdout}\n${reloadSuccessResult.stderr}`,
 );
 
-const reloadSuccessLines = parseReloadProofLines(reloadSuccessResult.stdout);
+const reloadSuccessLines = parseTaggedLines(reloadSuccessResult.stdout, ['RELOAD_']);
 
 assert(
   reloadSuccessLines.has('RELOAD_PROOF_INITIAL'),
@@ -651,7 +709,7 @@ assert(
   `Reload failure proof should exit cleanly, got code ${reloadFailResult.exitCode}.\n${reloadFailResult.stdout}\n${reloadFailResult.stderr}`,
 );
 
-const reloadFailLines = parseReloadProofLines(reloadFailResult.stdout);
+const reloadFailLines = parseTaggedLines(reloadFailResult.stdout, ['RELOAD_']);
 
 assert(
   reloadFailLines.has('RELOAD_FAIL_PROOF_INITIAL'),
@@ -696,6 +754,196 @@ assert(
 assert(
   reloadFailLines.get('RELOAD_FAIL_PROOF_MONITOR_APP_NAME') === 'varlock-web',
   'IOptionsMonitor<VarlockAppOptions>.CurrentValue.APP_NAME must remain unchanged after failed reload.',
+);
+
+const workerReloadResult = runDotnet(workerProjectDir, [
+  'run',
+  '--no-build',
+  '--verbosity',
+  'quiet',
+  '--',
+  '--reload-proof',
+]);
+
+assert(
+  workerReloadResult.exitCode === 0,
+  `Worker reload proof should exit cleanly, got code ${workerReloadResult.exitCode}.\n${workerReloadResult.stdout}\n${workerReloadResult.stderr}`,
+);
+
+const workerReloadLines = parseTaggedLines(workerReloadResult.stdout, ['WORKER_']);
+
+assert(
+  workerReloadLines.has('WORKER_RELOAD_PROOF_INITIAL'),
+  'Worker reload proof should emit WORKER_RELOAD_PROOF_INITIAL line.',
+);
+
+const workerReloadInitial = JSON.parse(workerReloadLines.get('WORKER_RELOAD_PROOF_INITIAL')!) as WorkerPayload;
+assertWorkerPayload(workerReloadInitial, 'Worker reload proof initial state');
+
+assert(
+  !workerReloadLines.has('WORKER_RELOAD_PROOF_TIMEOUT'),
+  'Worker reload proof should not time out. IOptionsMonitor<T>.OnChange must fire after a successful file change in the hosted service.',
+);
+
+assert(
+  workerReloadLines.has('WORKER_RELOAD_PROOF_RELOADED'),
+  'Worker reload proof should emit WORKER_RELOAD_PROOF_RELOADED line after file change triggers reload.',
+);
+
+const workerReloaded = JSON.parse(workerReloadLines.get('WORKER_RELOAD_PROOF_RELOADED')!) as WorkerPayload;
+assert(
+  workerReloaded.AppName === 'varlock-worker-reloaded',
+  'Worker reload proof should reflect the updated APP_NAME after a successful reload.',
+);
+assert(
+  workerReloaded.AppPort === 4313,
+  'Worker reload proof should preserve APP_PORT across successful reload.',
+);
+assert(
+  workerReloaded.FeatureEnabled === true,
+  'Worker reload proof should preserve FEATURE_ENABLED across successful reload.',
+);
+
+const workerReloadCount = parseInt(workerReloadLines.get('WORKER_RELOAD_PROOF_COUNT') ?? '0', 10);
+assert(
+  workerReloadCount >= 1,
+  'Worker reload proof should report at least one monitor notification after a successful reload.',
+);
+
+assert(
+  workerReloadLines.get('WORKER_RELOAD_PROOF_MONITOR_APP_NAME') === 'varlock-worker-reloaded',
+  'Worker reload proof should show IOptionsMonitor<VarlockWorkerOptions>.CurrentValue.APP_NAME as the reloaded value.',
+);
+
+const workerReloadFailResult = runDotnet(workerProjectDir, [
+  'run',
+  '--no-build',
+  '--verbosity',
+  'quiet',
+  '--',
+  '--reload-fail-proof',
+]);
+
+assert(
+  workerReloadFailResult.exitCode === 0,
+  `Worker reload failure proof should exit cleanly, got code ${workerReloadFailResult.exitCode}.\n${workerReloadFailResult.stdout}\n${workerReloadFailResult.stderr}`,
+);
+
+const workerReloadFailLines = parseTaggedLines(workerReloadFailResult.stdout, ['WORKER_']);
+
+assert(
+  !workerReloadFailLines.has('WORKER_RELOAD_FAIL_PROOF_TIMEOUT'),
+  'Worker reload failure proof should not time out while waiting for the failed reload signal.',
+);
+
+assert(
+  workerReloadFailLines.has('WORKER_RELOAD_FAIL_PROOF_INITIAL'),
+  'Worker reload failure proof should emit WORKER_RELOAD_FAIL_PROOF_INITIAL line.',
+);
+
+const workerReloadFailInitial = JSON.parse(workerReloadFailLines.get('WORKER_RELOAD_FAIL_PROOF_INITIAL')!) as WorkerPayload;
+assertWorkerPayload(workerReloadFailInitial, 'Worker reload failure proof initial state');
+
+assert(
+  workerReloadFailLines.has('WORKER_RELOAD_FAIL_PROOF_AFTER'),
+  'Worker reload failure proof should emit WORKER_RELOAD_FAIL_PROOF_AFTER line.',
+);
+
+const workerReloadFailAfter = JSON.parse(workerReloadFailLines.get('WORKER_RELOAD_FAIL_PROOF_AFTER')!) as WorkerPayload;
+assertWorkerPayload(workerReloadFailAfter, 'Worker reload failure proof last-known-good state');
+
+const workerReloadFailCount = parseInt(workerReloadFailLines.get('WORKER_RELOAD_FAIL_PROOF_COUNT') ?? '-1', 10);
+assert(
+  workerReloadFailCount === 0,
+  `Worker failed reload must not fire monitor notifications. Got ${workerReloadFailCount} notification(s).`,
+);
+
+assert(
+  workerReloadFailLines.get('WORKER_RELOAD_FAIL_PROOF_MONITOR_APP_NAME') === 'varlock-worker',
+  'Worker reload failure proof should keep IOptionsMonitor<VarlockWorkerOptions>.CurrentValue.APP_NAME at the last known good value.',
+);
+
+const snapshotProofResult = runDotnet(aspNetProjectDir, [
+  'run',
+  '--no-build',
+  '--no-launch-profile',
+  '--verbosity',
+  'quiet',
+  '--',
+  '--snapshot-proof',
+]);
+
+assert(
+  snapshotProofResult.exitCode === 0,
+  `Snapshot proof should exit cleanly, got code ${snapshotProofResult.exitCode}.\n${snapshotProofResult.stdout}\n${snapshotProofResult.stderr}`,
+);
+
+const snapshotLines = parseTaggedLines(snapshotProofResult.stdout, ['SNAPSHOT_']);
+
+assert(
+  snapshotLines.has('SNAPSHOT_PROOF_SCOPE_A_INITIAL'),
+  'Snapshot proof should emit SNAPSHOT_PROOF_SCOPE_A_INITIAL line.',
+);
+
+const snapshotScopeAInitial = JSON.parse(snapshotLines.get('SNAPSHOT_PROOF_SCOPE_A_INITIAL')!) as AspNetPayload;
+assert(
+  snapshotScopeAInitial.AppName === 'varlock-web',
+  'Snapshot proof initial scope should start with APP_NAME = varlock-web.',
+);
+
+assert(
+  !snapshotLines.has('SNAPSHOT_PROOF_TIMEOUT'),
+  'Snapshot proof should not time out while waiting for a successful reload.',
+);
+
+assert(
+  snapshotLines.has('SNAPSHOT_PROOF_SCOPE_B_AFTER'),
+  'Snapshot proof should emit SNAPSHOT_PROOF_SCOPE_B_AFTER line after a successful reload.',
+);
+
+const snapshotScopeBAfter = JSON.parse(snapshotLines.get('SNAPSHOT_PROOF_SCOPE_B_AFTER')!) as AspNetPayload;
+assert(
+  snapshotScopeBAfter.AppName === 'varlock-snapshot-reloaded',
+  'A new scope created after a successful reload should see the updated APP_NAME value.',
+);
+
+assert(
+  snapshotLines.has('SNAPSHOT_PROOF_SCOPE_A_STILL'),
+  'Snapshot proof should emit SNAPSHOT_PROOF_SCOPE_A_STILL line for the original scope.',
+);
+
+const snapshotScopeAStill = JSON.parse(snapshotLines.get('SNAPSHOT_PROOF_SCOPE_A_STILL')!) as AspNetPayload;
+assert(
+  snapshotScopeAStill.AppName === 'varlock-web',
+  'The original scope should keep its original IOptionsSnapshot<T> value after reload.',
+);
+
+const snapshotReloadCount = parseInt(snapshotLines.get('SNAPSHOT_PROOF_RELOAD_COUNT') ?? '0', 10);
+assert(
+  snapshotReloadCount >= 1,
+  'Snapshot proof should observe at least one successful reload notification.',
+);
+
+assert(
+  snapshotLines.get('SNAPSHOT_PROOF_MONITOR_APP_NAME') === 'varlock-snapshot-reloaded',
+  'Snapshot proof should show IOptionsMonitor<VarlockAppOptions>.CurrentValue.APP_NAME as the reloaded value.',
+);
+
+assert(
+  snapshotLines.has('SNAPSHOT_PROOF_SCOPE_C_AFTER_FAILED'),
+  'Snapshot proof should emit SNAPSHOT_PROOF_SCOPE_C_AFTER_FAILED line after a failed reload attempt.',
+);
+
+const snapshotScopeCAfterFailed = JSON.parse(snapshotLines.get('SNAPSHOT_PROOF_SCOPE_C_AFTER_FAILED')!) as AspNetPayload;
+assert(
+  snapshotScopeCAfterFailed.AppName === 'varlock-snapshot-reloaded',
+  'A new scope created after a failed reload should keep the last known good APP_NAME value.',
+);
+
+const snapshotFinalReloadCount = parseInt(snapshotLines.get('SNAPSHOT_PROOF_FINAL_RELOAD_COUNT') ?? '-1', 10);
+assert(
+  snapshotFinalReloadCount === snapshotReloadCount,
+  'Failed reload attempts must not add extra IOptionsMonitor<T>.OnChange notifications during snapshot proof.',
 );
 
 console.log('Varlock .NET proof slice passed.');

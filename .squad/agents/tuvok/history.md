@@ -51,6 +51,20 @@
 - 2026-03-16: Scope-state updates (now.md, progression.md) are accurate. P3-A1a is marked "IN PROGRESS" and does not claim completion. The P3-A1 decomposition into sub-batches (a through d) correctly sequences security-boundary work (P3-A1d) last. No support claims are overclaimed.
 - 2026-03-16: Final P3-A1a review pass — all prior findings resolved. CI now builds libs on all platforms before proof. `CreateProcessStartInfo()` detects `.js` on Windows and prepends `node`, matching the MSBuild targets' existing pattern. `FindExecutableInBinDirectory()` prefers `.cmd` over `.js` on Windows. New `Load_executes_repo_local_js_entrypoint_without_explicit_executable_path` test proves the full round-trip (resolve → handshake → load) with a temp fake CLI script, including a path-with-spaces test. Bridge contract v1, 7 error categories, and public API surface all untouched. APPROVED.
 
+## P3-A1b Contract Analysis (2026-03-16)
+
+- 2026-03-16: Tuvok completed P3-A1b contract analysis for `Varlock.Extensions.Hosting` package, Worker Service example, and `IOptionsSnapshot<T>` proof. Full analysis written to `.squad/decisions/inbox/tuvok-p3a1b-contract-analysis.md`. APPROVED FOR IMPLEMENTATION.
+- 2026-03-16: `Varlock.Extensions.Hosting` minimum API is exactly two `HostApplicationBuilder.AddVarlock()` overloads that delegate to `builder.Configuration.AddVarlock()`. Zero new contracts, zero new bridge interaction, zero DI registrations. The package is pure convenience sugar (~30-40 lines of production code).
+- 2026-03-16: `IServiceCollection.AddVarlock()` proposed in `dotnet-support.md` line 376 — DEFERRED. No clear semantics without `IConfigurationBuilder` access. Overclaim risk. If future work needs `IVarlockRuntime` in DI, that belongs in a purpose-built extension.
+- 2026-03-16: `ReloadOnChange` default MUST remain `false` in the hosting package. Changing it would create a behavioral split between `builder.Configuration.AddVarlock()` and `builder.AddVarlock()`, violating least surprise.
+- 2026-03-16: Worker Service example exercises existing `VarlockConfigurationProvider` reload semantics in `BackgroundService` context. No new reload behavior, no new error categories, no custom hosted-service lifecycle. Provider disposal handled by `IConfiguration` root disposal during host shutdown — no Worker-specific code needed.
+- 2026-03-16: `IOptionsSnapshot<T>` is entirely Microsoft.Extensions.Options infrastructure — zero Varlock code changes. Proof must demonstrate per-scope isolation (two requests spanning a reload see different values), NOT "per-request reload." Documentation claim: "reflects the latest successful configuration state per scope/request."
+- 2026-03-16: Hosting package dependency chain: `Varlock.Extensions.Hosting` → `Varlock.Extensions.Configuration` → `Varlock.DotNet`. Must NOT reference `Varlock.DotNet` directly. Package targets `netstandard2.0` with `Microsoft.Extensions.Hosting.Abstractions` dependency.
+
+## P3-A1b Final Review (2026-03-16)
+
+- 2026-03-16: Tuvok completed final P3-A1b contract review. All four mandatory constraints from the contract analysis are satisfied: (1) exactly two `HostApplicationBuilder.AddVarlock()` overloads that delegate to `builder.Configuration.AddVarlock()`, (2) `IServiceCollection.AddVarlock()` deferred and removed from proposal, (3) `ReloadOnChange` default unchanged, (4) `IOptionsSnapshot<T>` proved as per-scope isolation not per-request reload. Worker example exercises existing contracts without extending them. Proposal ledger updates are honest — Worker Service and `IOptionsSnapshot<T>` rows moved to proven, remaining items stay planned. No new error categories, diagnostics, security claims, or plugin boundaries. APPROVED.
+
 ## P3-A1 Boundary & Contract Analysis (2026-03-15)
 
 Performed comprehensive boundary, security, and contract gap analysis for P3-A1:

@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-     "@anthropic/github-mcp-server": {
+    "@anthropic/github-mcp-server": {
       "command": "npx",
       "args": [
         "-y",

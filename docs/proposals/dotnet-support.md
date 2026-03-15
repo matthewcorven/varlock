@@ -357,14 +357,12 @@ public static class VarlockConfigurationExtensions
 
 Purpose:
 
-- convenience helpers for ASP.NET Core and Generic Host
-- service registration
-- optional status/diagnostics services
+- convenience helpers for `HostApplicationBuilder` / Generic Host apps
+- host-builder sugar that preserves `Varlock.Extensions.Configuration` semantics
 
 Target:
 
 - `netstandard2.0`
-- optionally multi-target newer frameworks for convenience overloads
 
 Candidate surface:
 
@@ -373,7 +371,6 @@ public static class VarlockHostingExtensions
 {
     public static HostApplicationBuilder AddVarlock(this HostApplicationBuilder builder);
     public static HostApplicationBuilder AddVarlock(this HostApplicationBuilder builder, Action<VarlockConfigurationSource> configure);
-    public static IServiceCollection AddVarlock(this IServiceCollection services);
 }
 ```
 
@@ -783,9 +780,9 @@ Each example should prove:
 - `reloadOnChange` behavior where applicable
 - logging/redaction where applicable
 
-Current repository proof slice ships `examples/dotnet-console-net8/` and `examples/dotnet-aspnet-mvc-net8/`.
-Those examples prove direct low-level runtime loading, startup configuration-provider layering over `appsettings.json`, and runtime `ReloadOnChange` behavior including successful reload notification, failed reload last-known-good preservation, and change-token semantics.
-Worker-service hosting, `IOptionsSnapshot<T>` request-scope semantics, `dotnet watch` parity, functions, legacy, and hosted-helper claims remain planned and should not be inferred from these specimens.
+Current repository proof slice ships `examples/dotnet-console-net8/`, `examples/dotnet-worker-net8/`, and `examples/dotnet-aspnet-mvc-net8/`.
+Those examples prove direct low-level runtime loading, `HostApplicationBuilder.AddVarlock()` convenience for Generic Host usage, startup configuration-provider layering over `appsettings.json`, runtime `ReloadOnChange` behavior including successful reload notification and failed reload last-known-good preservation, and request-scoped `IOptionsSnapshot<T>` semantics.
+`dotnet watch` parity, functions, legacy, and broader hosted-helper claims remain planned and should not be inferred from these specimens.
 
 ## Support-Matrix Ledger
 
@@ -799,7 +796,7 @@ It is intentionally a proof-planning table, not a claim that the listed examples
 | --- | --- | --- | --- | --- |
 | Console app direct runtime usage | `examples/dotnet-console-net8/` | `bun run proof:dotnet` console bridge check | non-hosted, uses low-level APIs instead of `IConfiguration` | proven |
 | ASP.NET Core MVC provider usage | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` ASP.NET provider check | provider ordering over `appsettings` with reload support; `ReloadOnChange` proven for successful reload, failed reload last-known-good, and configuration change-token notification semantics | proven |
-| Worker Service / Generic Host usage | `examples/dotnet-worker-net8/` | worker `IOptionsMonitor<T>` reload test | should prove long-lived reload behavior | planned |
+| Worker Service / Generic Host usage | `examples/dotnet-worker-net8/` | `bun run proof:dotnet` worker reload-proof and reload-fail-proof checks | proves long-lived `IOptionsMonitor<T>` reload behavior in a `BackgroundService` through `HostApplicationBuilder.AddVarlock()` | proven |
 | Azure Functions isolated worker usage | `examples/dotnet-functions-isolated-net8/` | functions isolated startup smoke test | must document coexistence with `local.settings.json` | planned |
 | Windows Forms legacy/non-hosted usage | `examples/dotnet-winforms-net48/` | legacy desktop bridge smoke test | minimum supported legacy target still open | planned |
 | Blazor Server usage | `examples/dotnet-blazor-server-net8/` | blazor server hosting smoke test | should prove server-side config access only | planned |
@@ -815,12 +812,12 @@ It is intentionally a proof-planning table, not a claim that the listed examples
 | Built-in local `node_modules/.bin` executable lookup | `examples/dotnet-console-net8/` | `bun run proof:dotnet` local-bin wrapper check | a checked-in proof-only harness drops `node_modules/.bin/varlock` into the example at test time and asserts that branch runs before repo-local fallback when the package-local layout is absent | proven |
 | Opt-in `PATH` executable lookup | `examples/dotnet-console-net8/` | `bun run proof:dotnet` path lookup check | an env-guarded proof-only harness prepends a temporary CLI entry to `PATH` and sets `VARLOCK_DOTNET_PROOF_FORCE_PATH_LOOKUP=1`, which disables local lookup for that proof run without changing default example behavior | proven |
 | `dotnet watch` runtime reload behavior | `examples/dotnet-aspnet-mvc-net8/` | watch/reload coalescing test | must show no pathological rebuild loops | planned |
-| Explicit `dotnet build` example flow | `examples/dotnet-console-net8/` and `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` explicit `dotnet build` check | proves clean MSBuild compilation for the checked-in startup/runtime examples only; watch, generated-file loops, and IntelliSense observations remain planned | proven |
+| Explicit `dotnet build` example flow | `examples/dotnet-console-net8/`, `examples/dotnet-worker-net8/`, and `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` explicit `dotnet build` check | proves clean compilation for the checked-in startup/runtime examples only; watch, generated-file loops, and IntelliSense observations remain planned | proven |
 | User Secrets coexistence | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` ASP.NET user-secrets coexistence check | `WebApplicationBuilder` loads User Secrets before `AddVarlock(...)`, so the proof keeps User Secrets-only keys while showing Varlock overrides overlapping keys by provider order | proven |
 | `local.settings.json` coexistence | `examples/dotnet-functions-isolated-net8/` | azure functions config layering test | functions-specific only | planned |
 | `IOptions<T>` binding | `examples/dotnet-aspnet-mvc-net8/` | options binding test | should cover user-authored and generated POCOs where supported | planned |
-| `IOptionsSnapshot<T>` scoped reload | `examples/dotnet-aspnet-mvc-net8/` | snapshot reload test | request-scoped semantics must be explicit | planned |
-| `IOptionsMonitor<T>` long-lived reload | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` reload-proof and reload-fail-proof checks; C# `ReloadTests` | proven via DI-injected `IOptionsMonitor<VarlockAppOptions>` in the ASP.NET example reload-proof and reload-fail-proof modes; the proof shows `OnChange` fires on successful reload and does not fire on failed reload, and that `CurrentValue` reflects the last successful state; dedicated worker-service long-lived injection proof remains planned | proven |
+| `IOptionsSnapshot<T>` scoped reload | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` snapshot-proof check | request-scoped semantics are proven by keeping one scope alive across a successful reload and then creating later scopes after both successful and failed reload attempts | proven |
+| `IOptionsMonitor<T>` long-lived reload | `examples/dotnet-worker-net8/` and `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` reload-proof and reload-fail-proof checks; C# `ReloadTests` | proven via DI-injected `IOptionsMonitor<T>` in both ASP.NET and Worker hosted flows; the proofs show `OnChange` fires on successful reloads, does not fire on failed reloads, and that `CurrentValue` reflects the last successful state | proven |
 | C# type generation | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` C# generation check | `proof:dotnet` invokes `dotnet build`, which runs `varlock typegen` during MSBuild, verifies the generated file exists at `obj/Varlock/AppConfig.g.cs`, and asserts the configured namespace and class name; generation is deterministic and incremental; the proof also packs `Varlock.MSBuild` and builds a temporary `PackageReference` consumer with no manual imports to prove the NuGet asset story | proven |
 | Serilog redaction | `examples/dotnet-aspnet-mvc-net8/` | Serilog redaction test | only first-class for Serilog in v1 | planned |
 | Non-Serilog fallback redaction helpers | `examples/dotnet-console-net8/` | runtime helper redaction test | must show what is manual rather than automatic | planned |
@@ -842,7 +839,7 @@ The package set should not be considered first-class until it is exercised acros
 - macOS
 - Linux
 
-Current repository automation for this first proof follow-up slice only exercises the console and ASP.NET specimens in one Linux CI lane through `bun run proof:dotnet`, including an explicit `dotnet build` check for both checked-in examples before the runtime assertions.
+Current repository automation for this proof slice exercises the console, worker, and ASP.NET specimens in one Linux CI lane through `bun run proof:dotnet`. It includes explicit `dotnet build` checks for each checked-in example before the runtime assertions, plus worker reload proofs and the ASP.NET `--snapshot-proof` path.
 The broader platform matrix remains planned and should not be treated as proven yet.
 
 At minimum:
@@ -967,7 +964,7 @@ Phase 1 exit criteria:
 Phase 2 exit criteria:
 
 - ~~the watch and reload specimen exists and demonstrates atomic reload plus last-known-good behavior~~ **done:** `ReloadOnChange` provider implementation with atomic swap, last-known-good preservation, debounced file watching, and proof in `bun run proof:dotnet`
-- hosted examples prove `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>` semantics (partial: `IOptionsMonitor<T>` reload proven via DI injection in ASP.NET example; `IOptionsSnapshot<T>` request-scoped proof and standalone worker-service proof planned)
+- hosted examples prove `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>` semantics (`IOptionsSnapshot<T>` request-scoped proof now lives in the ASP.NET example; standalone long-lived `IOptionsMonitor<T>` proof now lives in the worker example)
 - `dotnet watch` and IDE-driven workflows are documented from real observed behavior, not expectation (not yet proven; `dotnet watch` parity not claimed)
 
 ### Phase 3: logging and wider platform coverage
@@ -1016,7 +1013,7 @@ The `.NET` support initiative is only done when the project satisfies all of the
 
 - `Varlock.DotNet` exists and exposes a stable low-level runtime bridge API.
 - `Varlock.Extensions.Configuration` exists and integrates with `IConfigurationBuilder` using standard .NET patterns.
-- `Varlock.Extensions.Hosting` exists and provides clean host/service registration helpers for ASP.NET Core and Generic Host scenarios.
+- `Varlock.Extensions.Hosting` exists and provides clean host-builder helpers for Generic Host scenarios without introducing a second configuration path.
 - `Varlock.SourceGeneration` exists in at least the initial CLI-generated form, with a clear evolution path to richer analyzer/source-generator support.
 - `Varlock.MSBuild` exists and provides build integration without requiring users to hand-roll targets.
 - `Varlock.Serilog` exists and provides Serilog-specific redaction ergonomics.

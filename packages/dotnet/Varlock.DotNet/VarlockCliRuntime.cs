@@ -583,6 +583,34 @@ public sealed class VarlockCliRuntime : IVarlockRuntime
     return builder.ToString();
   }
 
+  private static ProcessStartInfo CreateProcessStartInfo(
+    string executablePath,
+    string arguments,
+    string workingDirectory)
+  {
+    var fileName = executablePath;
+    var resolvedArguments = arguments;
+
+    if (IsWindows() && string.Equals(Path.GetExtension(executablePath), ".js", StringComparison.OrdinalIgnoreCase))
+    {
+      fileName = "node";
+      resolvedArguments = string.IsNullOrWhiteSpace(arguments)
+        ? QuoteArgument(executablePath)
+        : string.Join(" ", QuoteArgument(executablePath), arguments);
+    }
+
+    return new ProcessStartInfo
+    {
+      FileName = fileName,
+      Arguments = resolvedArguments,
+      WorkingDirectory = workingDirectory,
+      UseShellExecute = false,
+      RedirectStandardOutput = true,
+      RedirectStandardError = true,
+      CreateNoWindow = true,
+    };
+  }
+
   private sealed class ProcessResult
   {
     public ProcessResult(string standardOutput, string standardError, int exitCode)
@@ -667,10 +695,11 @@ public sealed class VarlockCliRuntime : IVarlockRuntime
     var directory = new DirectoryInfo(workingDirectory);
     while (directory is not null)
     {
-      var packageExecutablePath = Path.Combine(directory.FullName, "node_modules", ExecutableName, "bin", "cli.js");
-      if (File.Exists(packageExecutablePath))
+      var binDirectory = Path.Combine(directory.FullName, "node_modules", ExecutableName, "bin");
+      var executable = FindExecutableInBinDirectory(binDirectory);
+      if (executable is not null)
       {
-        return packageExecutablePath;
+        return executable;
       }
 
       directory = directory.Parent;
@@ -701,10 +730,11 @@ public sealed class VarlockCliRuntime : IVarlockRuntime
   {
     foreach (var searchRoot in EnumerateSearchRoots(workingDirectory))
     {
-      var developmentExecutablePath = Path.Combine(searchRoot, "packages", ExecutableName, "bin", "cli.js");
-      if (File.Exists(developmentExecutablePath))
+      var binDirectory = Path.Combine(searchRoot, "packages", ExecutableName, "bin");
+      var executable = FindExecutableInBinDirectory(binDirectory);
+      if (executable is not null)
       {
-        return developmentExecutablePath;
+        return executable;
       }
     }
 
@@ -762,6 +792,33 @@ public sealed class VarlockCliRuntime : IVarlockRuntime
     return null;
   }
 
+  private static string? FindExecutableInBinDirectory(string binDirectory)
+  {
+    if (!Directory.Exists(binDirectory))
+    {
+      return null;
+    }
+
+    if (IsWindows())
+    {
+      // On Windows, prefer .cmd wrapper over .js script
+      var cmdPath = Path.Combine(binDirectory, "cli.cmd");
+      if (File.Exists(cmdPath))
+      {
+        return cmdPath;
+      }
+    }
+
+    // On all platforms, fall back to .js script
+    var jsPath = Path.Combine(binDirectory, "cli.js");
+    if (File.Exists(jsPath))
+    {
+      return jsPath;
+    }
+
+    return null;
+  }
+
   private static string? FindExecutableInDirectory(string directory, string executableName)
   {
     if (!Directory.Exists(directory))
@@ -771,8 +828,20 @@ public sealed class VarlockCliRuntime : IVarlockRuntime
 
     if (IsWindows())
     {
+      // On Windows, prefer .cmd wrapper, then others
+      var cmdPath = Path.Combine(directory, executableName + ".cmd");
+      if (File.Exists(cmdPath))
+      {
+        return cmdPath;
+      }
+
       foreach (var extension in WindowsExecutableExtensions)
       {
+        if (extension == ".cmd")
+        {
+          continue; // Already checked above
+        }
+
         var withExtension = Path.Combine(directory, executableName + extension);
         if (File.Exists(withExtension))
         {
@@ -793,16 +862,7 @@ public sealed class VarlockCliRuntime : IVarlockRuntime
     VarlockBridgeErrorCategory startupFailureCategory,
     string startupFailureMessage)
   {
-    var processStartInfo = new ProcessStartInfo
-    {
-      FileName = executablePath,
-      Arguments = arguments,
-      WorkingDirectory = workingDirectory,
-      UseShellExecute = false,
-      RedirectStandardOutput = true,
-      RedirectStandardError = true,
-      CreateNoWindow = true,
-    };
+    var processStartInfo = CreateProcessStartInfo(executablePath, arguments, workingDirectory);
 
     ApplyEnvironment(processStartInfo, environmentVariables);
 

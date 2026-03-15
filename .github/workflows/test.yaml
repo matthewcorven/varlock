@@ -6,7 +6,18 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          # Full suite on Linux; proof-only on Windows/macOS
+          - os: ubuntu-latest
+            full_suite: true
+          - os: windows-latest
+            full_suite: false
+          - os: macos-latest
+            full_suite: false
 
     steps:
       - uses: actions/checkout@v6
@@ -16,9 +27,6 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
-      # this caching step is kind of a wash
-      # downloading the cache adds a few seconds
-      # and then installing is a bit faster
       - name: Cache bun dependencies
         uses: actions/cache@v5
         with:
@@ -35,12 +43,22 @@ jobs:
       - name: Enable turborepo build cache
         uses: rharkor/caching-for-turbo@v2.3.11
 
-      # ------------------------------------------------------------
+      # Full lint/build/test suite on Linux only
       - name: ESLint
+        if: ${{ matrix.full_suite }}
         run: bun run lint
       - name: Build libraries
+        if: ${{ matrix.full_suite }}
         run: bun run build:libs
       - name: Run tests
+        if: ${{ matrix.full_suite }}
         run: bun run test:ci
+
+      # Build libraries on non-Linux platforms to support proof:dotnet
+      - name: Build libraries (non-Linux)
+        if: ${{ !matrix.full_suite }}
+        run: bun run build:libs
+
+      # .NET proof runs on all platforms
       - name: Run .NET proof slice
         run: bun run proof:dotnet
