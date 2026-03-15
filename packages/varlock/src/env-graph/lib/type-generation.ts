@@ -315,7 +315,7 @@ export type EnvSchemaAsStrings = {
 }
 
 function getTypeGenItems(graph: EnvGraph) {
-  const items: Array<TypeGenItemInfo> = [];
+  const items: Array<Promise<TypeGenItemInfo>> = [];
   for (const itemKey of graph.sortedConfigKeys) {
     const configItem = graph.configSchema[itemKey];
     if (!configItem.defsForTypeGeneration.length) continue;

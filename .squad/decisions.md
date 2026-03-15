@@ -176,6 +176,32 @@
 - Scope: MCP server configuration across both environments
 - Rationale: User request — captured for team memory
 
+### 2026-03-15: P1-A2 Completion Contract and Phase 1 Exit Clarity
+
+- Initiative: `dotnet-support`
+- Node: `P1-A2`
+- Source: Picard
+- Date: 2026-03-15
+- Decision: P1-A2 node-level scope is complete. All explicitly accepted proof rows are proven; no deferred items remain orphaned.
+- Proof status: All three proof rows (explicit `dotnet build`, User Secrets coexistence, machine-readable diagnostics) proven and verified.
+- Phase 1 exit gap resolution: WinForms legacy target (`net48`) belongs in P3-A1 as "wider platform proof"; `Varlock.MSBuild` belongs in P2-B1 per existing team decisions.
+- Operative Phase 1 exit criteria (after deferrals): C# generation specimen with binder validation (P1-B1 ✅), executable distribution specimen for local dev and CI (P1-A1 ✅), contract fixtures backing low-level bridge tests (P1-A2 ✅), console and ASP.NET MVC examples proving initial direct and provider-based usage (P0-C3 + P1-A2 ✅).
+- Ledger housekeeping: C# type generation row should be updated to `proven` citing the ASP.NET example and P1-B1 decision.
+- Board action: P1-A2 should be marked `DONE` in `.squad/progression.md`.
+
+### 2026-03-15: P1-A2 Blocker Ledger — No Blockers, Proceed to Execution
+
+- Initiative: `dotnet-support`
+- Node: `P1-A2`
+- Source: Ralph
+- Date: 2026-03-15T12:00:00Z
+- Verdict: P1-A2 is blocked: **NO**. Proceed with autonomous execution on bounded scope.
+- Critical exit criteria: All met — explicit dotnet build for both examples ✓, User Secrets coexistence ✓, machine-readable diagnostics alignment ✓, P1-B1 example-backed binder validation ✓.
+- High-priority partial (non-blocking follow-up): Support-matrix ledger row synchronization requires formal review/update of `dotnet-support-ledger.yml` but does not gate execution.
+- Intentional deferrals (all documented): Watch-mode behavior → P2-A1, IDE IntelliSense → P2-B1, `IOptions<T>` full semantics → P2-A1, wider platform coverage → P3-A1, MSBuild incremental integration → P2-B1. None are blockers.
+- Phase-gate checklist: Prerequisites (P0-C1 through P1-A1) done ✓; critical proof rows green ✓; build validation passing ✓; User Secrets test passing ✓; shared fixtures canonical ✓; binder validation passing ✓; design deferrals documented ✓; no critical design gaps ✓.
+- Autonomous scope cleared: Formal ledger row update (O'Brien follow-up) and decision record archival (if needed) are documentation-only, non-blocking tasks.
+
 ## Governance
 
 - All meaningful changes require team consensus
