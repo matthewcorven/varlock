@@ -141,6 +141,15 @@
 - Board: `.squad/progression.md` is the stable progression reference for the current `.NET` initiative.
 - Why: next-step prompts should stay grounded in a visible progression map with minimal additional process.
 
+### 2026-03-15: P1-B1 example-backed generated-type binder proof
+
+- Initiative: `dotnet-support`
+- Node: `P1-B1`
+- Source: Geordi via Copilot
+- Decision: `P1-B1` is now considered done for the current slice because `bun run proof:dotnet` generates the ASP.NET example's C# specimen from `@generateTypes(lang=cs, ...)`, validates deterministic namespace/type-name overrides, compiles the example, and exercises binder-based projection through generated metadata and a normal configuration-binder flow.
+- Proof path: `examples/dotnet-aspnet-mvc-net8/.env.schema` + `examples/dotnet-aspnet-mvc-net8/Generated/AppConfig.g.cs` + `examples/dotnet-aspnet-mvc-net8/AppConfigSnapshot.cs` + `scripts/test-dotnet-proof.ts`.
+- Boundaries: this does not claim MSBuild-triggered generation; that remains planned under `P2-B1`.
+
 ## Governance
 
 - All meaningful changes require team consensus

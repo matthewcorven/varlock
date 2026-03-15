@@ -424,10 +424,10 @@ support_matrix:
       caveat: proves last-known-good preservation
       proof_status: planned
     - id: dx-csharp-generation
-      example: examples/dotnet-console-net8/
-      test: generated C# golden-output test
-      caveat: fixture-backed C# generation and decorator-write tests now exist in packages/varlock, but the example app does not yet consume generated output, so binder proof remains planned
-      proof_status: planned
+      example: examples/dotnet-aspnet-mvc-net8/
+      test: bun run proof:dotnet generated-type binder check
+      caveat: proof now covers checked-in fixture parity plus example-backed generation and binder validation; MSBuild-automated generation remains planned under P2-B1
+      proof_status: proven
     - id: dx-serilog-redaction
       example: examples/dotnet-aspnet-mvc-net8/
       test: Serilog redaction test
@@ -509,11 +509,13 @@ proof_artifacts:
     - id: csharp-generation-specimen
       owner: Geordi
       phase_required_by: phase-1
-      proof_status: planned
+      proof_status: proven
       current_slice_groundwork:
         - a representative schema, checked-in .g.cs output, and lang=cs decorator-write coverage now exist under packages/varlock/src/env-graph/test/fixtures/typegen-cs/
         - vitest covers both the golden C# output and generateTypesIfNeeded(lang=cs) write path
-        - compiled binder validation and example-backed generated-type proof remain planned
+        - bun run proof:dotnet now generates examples/dotnet-aspnet-mvc-net8/Generated/AppConfig.g.cs via @generateTypes(lang=cs, ...) and validates namespace/type-name overrides before build/run checks
+        - the ASP.NET proof path now binds the generated AppConfig type through AppConfigMetadata key-to-property projection plus the standard configuration binder flow
+        - MSBuild-triggered generation remains planned under P2-B1
       must_include:
         - representative schema covering nested keys, scalars, and sensitive metadata
         - generated .g.cs output

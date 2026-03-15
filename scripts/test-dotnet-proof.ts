@@ -65,6 +65,20 @@ function runDotnet(projectDir: string, args: Array<string>, envOverrides: NodeJS
   };
 }
 
+function runBun(workingDir: string, args: Array<string>): CommandResult {
+  const result = spawnSync('bun', args, {
+    cwd: workingDir,
+    encoding: 'utf-8',
+    env: process.env,
+  });
+
+  return {
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? '',
+    exitCode: result.status ?? 1,
+  };
+}
+
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
     throw new Error(message);
@@ -219,6 +233,27 @@ function clearUserSecrets(projectDir: string) {
 
 const consoleProjectDir = join(repoRoot, 'examples', 'dotnet-console-net8');
 const aspNetProjectDir = join(repoRoot, 'examples', 'dotnet-aspnet-mvc-net8');
+const aspNetGeneratedTypePath = join(aspNetProjectDir, 'Generated', 'AppConfig.g.cs');
+
+fs.mkdirSync(dirname(aspNetGeneratedTypePath), { recursive: true });
+assertCommandSucceeded(
+  'varlock typegen dotnet-aspnet-mvc-net8',
+  runBun(aspNetProjectDir, ['../../packages/varlock/bin/cli.js', 'typegen']),
+);
+assert(
+  fs.existsSync(aspNetGeneratedTypePath),
+  'proof:dotnet should generate the ASP.NET C# specimen at examples/dotnet-aspnet-mvc-net8/Generated/AppConfig.g.cs before build validation.',
+);
+
+const aspNetGeneratedTypeSrc = fs.readFileSync(aspNetGeneratedTypePath, 'utf8');
+assert(
+  aspNetGeneratedTypeSrc.includes('namespace DotnetAspNetMvcNet8.Generated'),
+  'proof:dotnet should generate the ASP.NET specimen with the configured DotnetAspNetMvcNet8.Generated namespace.',
+);
+assert(
+  aspNetGeneratedTypeSrc.includes('public sealed partial class AppConfig'),
+  'proof:dotnet should generate the ASP.NET specimen with the configured AppConfig type name.',
+);
 
 assertCommandSucceeded(
   'dotnet build dotnet-console-net8',
