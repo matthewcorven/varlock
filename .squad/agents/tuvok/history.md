@@ -33,3 +33,39 @@
 ## P2-B1 Contract Review (2026-03-15T16:54:02Z)
 
 - 2026-03-15T16:54:02Z: Tuvok completed P2-B1 contract-stability pass. Reload work preserves public API surface stability (`VarlockConfigurationSource` additions are additive only). Bridge envelope shapes remain unchanged; all 7 existing error categories reusable in reload path. Contract boundaries preserved: last-known-good preservation, atomic swap semantics, change-token fire rules, and watch-set recomputation all validated against P2-A1 proof fixtures. No new error categories; existing `BridgeContractAlignmentTests` assertions remain valid. Approved for closure.
+
+## P3-A1 Boundary & Security Gap Analysis (2026-03-15)
+
+- 2026-03-15: Tuvok completed P3-A1 gap inventory across public/private config, diagnostics, security boundaries, and support claims. Full analysis written to `.squad/decisions/inbox/tuvok-p3a1-boundary-gaps.md`.
+- 2026-03-15: The Blazor WASM public-config-only boundary is the hardest security contract in P3-A1. Current type generation emits ALL properties including sensitive metadata (`SensitiveKeys[]`, `PropertyBindings[].IsSensitive`). For WASM, generated output must provably EXCLUDE sensitive items and their values, not merely mark them. This is a generation-time gate, not a runtime check, and requires a joint design decision with Geordi before the example can be built.
+- 2026-03-15: `RedactLogs` and `PreventLeaks` are parsed from bridge metadata and stored as booleans on `VarlockResolvedGraph`, but no .NET code acts on them. The JS runtime patches console output and HTTP responses; the .NET side passes the flags through without enforcement. This is the correct v1 stance per the proposal's Security Behavior Scope, but it means the security-boundary specimen must explicitly demonstrate what is NOT automatic.
+- 2026-03-15: No `Varlock.Serilog` package exists. The proposal's Phase 3 exit criteria require it. Its public API surface (`WithVarlockMetadata()`, `WithVarlockRedaction()`) needs a contract analysis before implementation to prevent the API from implying broader redaction guarantees than Serilog destructuring actually provides.
+- 2026-03-15: Plugin support documentation does not exist in the .NET packages. The proposal requires documenting supported plugin packaging, discovery modes, executable layouts, and how plugin failures surface. The `plugin-load-failed` bridge fixture proves the failure path but no positive-path plugin example exists. Plugin documentation must be written before any plugin-backed secret resolution example can be claimed as "proven".
+- 2026-03-15: Worker Service, Azure Functions isolated, and Blazor Server examples are safe to build now using existing `AddVarlock()` + bridge APIs. No new .NET package code is needed for these three. They exercise existing contracts in new hosting contexts.
+- 2026-03-15: The `examples/README.md` correctly notes planned features as planned, not proven. The package READMEs (`Varlock.DotNet/README.md`, `Varlock.Extensions.Configuration/README.md`) are minimal and do not mention security caveats. When these packages are documented for consumers, the security boundary (Serilog-only redaction, metadata-only PreventLeaks, no automatic HTTP interception) must be stated plainly.
+
+## P3-A1a Contract Review (2026-03-16)
+
+- 2026-03-16: Tuvok reviewed P3-A1a diff (CI matrix expansion, platform-adaptive proof harness, scope-state updates). No contract or security regression found. Bridge contract v1, 7 error categories, and public API surface are all untouched. The proof harness changes are purely platform-adaptation (Windows `.cmd` wrappers, EEXIST symlink handling, chmod skip).
+- 2026-03-16: Flagged CI build dependency: `proof:dotnet` on Windows/macOS runs without `build:libs`, but the ASP.NET example's MSBuild target (`VarlockGenerateTypes`) invokes `node packages/varlock/bin/cli.js typegen`, which imports from `../dist/cli/cli-executable.js`. The `dist/` directory is gitignored and only produced by `build:libs`. On a clean CI checkout without `build:libs`, the proof will fail on Windows/macOS. This is an operational issue, not a contract regression — the failure is visible and honest, not silent.
+- 2026-03-16: Scope-state updates (now.md, progression.md) are accurate. P3-A1a is marked "IN PROGRESS" and does not claim completion. The P3-A1 decomposition into sub-batches (a through d) correctly sequences security-boundary work (P3-A1d) last. No support claims are overclaimed.
+- 2026-03-16: Final P3-A1a review pass — all prior findings resolved. CI now builds libs on all platforms before proof. `CreateProcessStartInfo()` detects `.js` on Windows and prepends `node`, matching the MSBuild targets' existing pattern. `FindExecutableInBinDirectory()` prefers `.cmd` over `.js` on Windows. New `Load_executes_repo_local_js_entrypoint_without_explicit_executable_path` test proves the full round-trip (resolve → handshake → load) with a temp fake CLI script, including a path-with-spaces test. Bridge contract v1, 7 error categories, and public API surface all untouched. APPROVED.
+
+## P3-A1 Boundary & Contract Analysis (2026-03-15)
+
+Performed comprehensive boundary, security, and contract gap analysis for P3-A1:
+
+**Key Findings:**
+1. **Blazor WASM public-config boundary (BLOCKING):** Needs `publicOnly` generation flag design (joint with Geordi)
+2. **Security enforcement (DOCUMENTED):** Correct v1 stance (metadata-only, Serilog-only). Needs three sub-proofs: Serilog, non-Serilog fallback, WASM boundary
+3. **Diagnostics:** Stable; minor Serilog enrichment contract needed
+4. **Plugin behavior:** Documentation missing; no new categories needed
+5. **Support claims:** 5 unproven app types identified (Worker, Functions, Blazor variants, WinForms)
+
+**Blocked Design Decisions (Before P3-A1b/c/d):**
+1. Blazor WASM public-only generation boundary (Geordi + Tuvok)
+2. Varlock.Serilog API surface (Tuvok contract → Data implementation)
+
+**P3-A1a Boundary Review:** No contract regression. Approved as contract-safe.
+
+**Status:** P3-A1a boundary cleared; queued for P3-A1b design work (parallel start).

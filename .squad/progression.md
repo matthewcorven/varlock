@@ -22,9 +22,12 @@ flowchart LR
   P1A1 --> P1A2["P1-A2\nBroader proof matrix\nDONE"]
   P1B1 --> P2B1["P2-B1\nMSBuild integration\nDONE"]
   P1A2 --> P2A1["P2-A1\nReload/options/hosting helpers\nDONE"]
-  P2A1 --> P3A1["P3-A1\nWider platform proof\nNEXT"]
-  P2B1 --> P3A1
-  P3A1 --> P4A1["P4-A1\nAnalyzer/native-runtime decisions\nDEFERRED"]
+  P2A1 --> P3A1a["P3-A1a\nCross-platform CI parity\nDONE"]
+  P2B1 --> P3A1a
+  P3A1a --> P3A1b["P3-A1b\nHosting + Worker example\nNEXT"]
+  P3A1b --> P3A1c["P3-A1c\nFramework examples\nNOT STARTED"]
+  P3A1c --> P3A1d["P3-A1d\nSerilog + security boundary\nNOT STARTED"]
+  P3A1d --> P4A1["P4-A1\nAnalyzer/native-runtime decisions\nDEFERRED"]
 
   classDef done fill:#d1fae5,stroke:#047857,color:#064e3b;
   classDef next fill:#fef3c7,stroke:#b45309,color:#78350f;
@@ -32,8 +35,9 @@ flowchart LR
   classDef idle fill:#f3f4f6,stroke:#6b7280,color:#111827;
   classDef deferred fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d;
 
-  class P0C1,P0C2,P0C3,P1A1,P1B1,P1A2,P2A1,P2B1 done;
-  class P3A1 next;
+  class P0C1,P0C2,P0C3,P1A1,P1B1,P1A2,P2A1,P2B1,P3A1a done;
+  class P3A1b next;
+  class P3A1c,P3A1d idle;
   class P4A1 deferred;
 ```
 
@@ -47,5 +51,8 @@ flowchart LR
 - `P1-A2`: Broader proof matrix expansion after acquisition hardening.
 - `P2-A1`: Reload, options, and hosting-helper work.
 - `P2-B1`: MSBuild integration for generated C# output.
-- `P3-A1`: Wider platform and framework proof coverage.
+- `P3-A1a`: Cross-platform CI parity (Windows, macOS, Linux proof for existing examples).
+- `P3-A1b`: Hosting package and Worker Service example.
+- `P3-A1c`: Azure Functions, Blazor Server, Blazor WASM, WinForms framework examples.
+- `P3-A1d`: Serilog package, security-boundary specimen, and support-matrix ledger completion.
 - `P4-A1`: Deferred analyzer or native-runtime decisions.

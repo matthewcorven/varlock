@@ -19,7 +19,29 @@
 - 2026-03-15: P2-A1 complete. Next node is P2-B1 (MSBuild integration). Rationale: reload is stable, proof passes, no blockers remain. Phase gate alignment demands MSBuild completion before P3-A1 convergence. Decision written to `.squad/decisions/inbox/picard-next-node-after-p2a1.md`.
 - 2026-03-15: P2-A1 closeout finalized. Orchestration log and session log written. Decisions merged from inbox into `decisions.md`. Progression board updated to mark P2-B1 as `next`. P2-B1 scope documented (MSBuild integration, generated C# to obj/generated, ASP.NET example proof). No blockers for P2-B1 commencement. Ready for Matthew's acknowledgment to delegate P2-B1 work.
 - 2026-03-15: P2-B1 first cut reviewed and accepted. Geordi's `Varlock.MSBuild` slice is contract-respecting, deterministic, and proof-ready. Core findings: (1) Incremental proof is powerful — validating timestamp preservation (not just content equality) catches rebuild-loop regressions. (2) Design-time guards prevent IDE bloat — `DesignTimeBuild` guard is a critical MSBuild pattern when mixing code generation with IDE operations. (3) Fallback chains are resilient — reusing P1-A1's executable discovery in MSBuild targets scales well. (4) Tight scope pays off — deferring optional validation, watch, and packaging allows this slice to be small and proof-ready in a single pass. P2-B1 marked `in progress`; both Geordi and O'Brien can proceed in parallel with no phase blockers.
+- 2026-03-16: P3-A1 decomposed into four ordered sub-batches (A1a through A1d) because the full Phase 3 scope (CI parity, hosting, 5 new examples, Serilog, security boundary, ledger completion) is too broad for one autonomous run. Key sequencing insight: cross-platform CI parity (P3-A1a) must come first because platform-specific bugs in executable resolution or path handling would block every subsequent example. This follows the established pattern: prove infrastructure before building on top of it.
+- 2026-03-16: P3-A1 carries significant deferred work from earlier phases — `Varlock.Extensions.Hosting` (P2-A1 deferral), Worker Service example (P2-A1/P2-B1 deferral), WinForms legacy target (P1 deferral), `IOptionsSnapshot<T>` scoped proof (P2-A1 deferral). These deferrals were correct at the time but they stack up at the convergence point. Future initiatives should consider whether a convergence node can absorb all upstream deferrals or whether a separate "deferred cleanup" node is needed.
 
 ## P2-B1 Closure Review (2026-03-15T16:54:02Z)
 
 - 2026-03-15T16:54:02Z: Picard completed P2-B1 phase-gate review. Evidence: real NuGet packageability proven (pack → consume → build → generate → bind chain); post-commit validation green (`dotnet test --filter ReloadTests`, `bun run proof:dotnet`); asset structure canonical (build/ + buildTransitive/ paths); proposal ledger updated. Scope boundaries honest: README documents no bundled executable, separate validation step, or watch behavior — all deferred to P3-A1. Decision: **APPROVE-CLOSE.** P2-B1 complete. Both P2-A1 and P2-B1 closed; P3-A1 (wider platform proof: Windows, macOS, CI parity) now unblocked.
+
+## P3-A1a First Review (2026-03-16)
+
+- 2026-03-16: P3-A1a lead review REJECTED. Two blocking issues found: (1) CI workflow runs proof:dotnet on Windows/macOS without building the JS libraries first — the varlock CLI dist is a build artifact, not tracked in git, so proof will fail immediately. (2) Proof harness creates `.cmd` wrappers for the package-local path on Windows, but the .NET runtime hard-codes `cli.js` for that lookup, so the harness is never found. Additionally, a pre-existing escalation surfaced: `VarlockCliRuntime.RunProcess` passes `.js` paths directly to `ProcessStartInfo.FileName` with `UseShellExecute=false`, which can't execute `.js` files on Windows. MSBuild targets already handle this (prepend `node`), but the C# runtime doesn't. Reviewer lockout applied: O'Brien revises test.yaml (Geordi's artifact), Data revises proof script and runtime (O'Brien's artifact). Key lesson: cross-platform CI expansion must be tested on actual CI runners, not just local machines where build artifacts already exist from prior runs.
+
+## P3-A1a Final Review — APPROVE-CLOSE (2026-03-16)
+
+- 2026-03-16: All three previously-blocking issues resolved. (1) CI workflow now builds libs on all platforms before proof:dotnet. (2) `FindExecutableInBinDirectory` prefers `.cmd` on Windows, matching proof harnesses. (3) `CreateProcessStartInfo` routes `.js` files through `node` on Windows with proper `QuoteArgument` quoting — mirrors what MSBuild targets already did. New `Load_executes_repo_local_js_entrypoint_without_explicit_executable_path` test covers the full resolution-to-execution chain with a mock CLI, including marker-file proof that the correct entrypoint ran. Scope stayed inside P3-A1a: no new packages, no new examples, no P4-A1 leakage. Minor recommendation logged: consider `fail-fast: false` on the matrix strategy in a follow-up so platform failures don't cancel the Linux full-suite job.
+
+## P3-A1a Lead Review (2026-03-16)
+
+Led review of P3-A1a (cross-platform CI parity) implementation. Identified two blocking issues and one escalation, assigned to O'Brien and Data for revision:
+
+1. **CI workflow:** `build:libs` gated to Linux-only, causing immediate failure on Windows/macOS
+2. **Proof harness:** Package-local harnessing creates `.cmd` instead of `.js`, failing discovery
+3. **Runtime:** Pre-existing `.js` execution gap on Windows (no `node` prefix)
+
+Reassignments issued per reviewer lockout rule. P3-A1a sequencing (four sub-batches A1a/b/c/d) locked and awaiting Matthew's approval. Boundary review from Tuvok cleared P3-A1a as contract-safe.
+
+**Status:** Awaiting fixes and re-review.

@@ -22,6 +22,19 @@
 - 2026-03-15: P2-B1 kickoff: produced first MSBuild typegen cut wiring `varlock typegen` into MSBuild with opt-in `.props` / `.targets`, generating C# into `obj/Varlock/`, and proving no rewrite on unchanged second build. Decision documented in `decisions.md`.
 - 2026-03-15: Shipping validation for the paired P2-A1/P2-B1 slice is green on targeted ReloadTests, `bun run proof:dotnet`, and a follow-up `dotnet build -p:DesignTimeBuild=true` against the ASP.NET example; claim deterministic MSBuild generation and design-time compile inclusion only, with `dotnet watch` still explicitly unproven.
 
+## Learnings (Continued)
+
+- 2026-03-15: P3-A1a implementation: `.github/workflows/test.yaml` refactored to matrix strategy across three OS (ubuntu-latest, windows-latest, macos-latest). ESLint/build/tests remain Linux-only via conditional `if: matrix.full-suite`; `.NET` proof runs on all platforms. Zero package changes, zero proof harness changes. Locally validated on Linux: `bun run proof:dotnet` still passing.
+- 2026-03-15: Cross-platform CI parity ready for merge and GitHub Actions execution. Known blockers (Windows .exe discovery, macOS binary availability) are proof-harness concerns owned by O'Brien, not workflow syntax. CI matrix syntax valid and minimal.
+
+---
+
+## Learnings (Original Session Boundary)
+- 2026-03-15: P3-A1 build slice is deterministic and low-risk: CI matrix expansion (Windows + macOS jobs), net48 console example using direct VarlockRuntime API, proof script platform detection for executable naming and conditional example runs. No changes to core MSBuild packages (props/targets already platform-agnostic).
+- 2026-03-15: net48 example cannot use HostApplicationBuilder or IHost; must use legacy non-async pattern and direct `VarlockRuntime.Load()`. This validates netstandard2.0 targeting, not modern hosting parity.
+- 2026-03-15: P3-A1 does not include analyzer/native-runtime work, dotnet watch/IDE-only behaviors, WinForms/Worker/Functions app examples, or Blazor WebAssembly variants; those remain explicitly deferred per proposal and Picard's charter boundaries.
+- 2026-03-15: Proof script platform detection strategy: `process.platform === 'win32'` includes net48 example (Windows only), others use net8. Deterministic validation (second build unchanged, `.g.cs` hash match) applies to all platforms. User secrets / reload proofs stay ASP.NET-only, already proven platform-agnostic.
+
 ---
 
 ## 2026-03-15 — Product Commit (P2-B1 First Cut)
@@ -38,3 +51,11 @@
 **Next Phase:** Proceed with packageability work (NuGet `Varlock.MSBuild`). O'Brien proof lane proceeds in parallel.
 
 **Orchestration Log:** `.squad/orchestration-log/2026-03-15T16:20:33Z-geordi-product-commit.md`
+
+## P3-A1a CI Matrix Decision (2026-03-15)
+
+Defined CI matrix strategy for P3-A1a: expand `.github/workflows/test.yaml` to run `.NET` proof across three OS platforms (Ubuntu, Windows, macOS) using GitHub Actions matrix. Full lint/build/test remain Linux-only; proof runs unconditionally on all platforms.
+
+Build-owned scope is narrow and sound: no package changes, no new APIs. Implementation by O'Brien exposed critical bug (Issue 1: missing `build:libs` on non-Linux runners). Geordi's scope definition remains valid; workflow fix assigned to O'Brien.
+
+**Status:** Awaiting O'Brien's workflow fix. P3-A1a scope unaffected.

@@ -9,6 +9,8 @@
 ## Learnings
 
 <!-- Append learnings below -->
+- 2026-03-16: The `.NET` bridge must preserve lookup order but change launch hosting on Windows when the resolved Varlock executable ends in `.js`; with `UseShellExecute=false`, repo-local and package-local JS entrypoints need `node "<cli.js>" ...` rather than direct execution, and a proof test should use a path containing spaces so quoting regressions fail loudly.
+- **2026-03-15: P3-A1 Inventory Complete.** The wider-platform proof node is unblocked with a clear gap analysis: 2 of 7 required example platforms proven (console, ASP.NET MVC), 5 pending (Worker, Functions, Blazor Server, Blazor WASM, WinForms). The bridge runtime is solid; all new work is examples and proof tests. Key dependencies: Serilog scope decision (likely defer to Phase 4), Blazor WASM public-config generation design (Geordi ownership), and platform priority callout (Matthew decision). Recommend phased execution: Worker + Functions (Phase A), Blazor (Phase B pending WASM design), WinForms (Phase C), ledger closure (Phase D). No new runtime packages required unless Serilog or unexpected Hosting patterns emerge from examples.
 - The first `.NET` bridge slice should stop at startup-only `IVarlockRuntime` plus `IConfigurationProvider` integration; pulling in hosting helpers or reload semantics before the bridge contract is stable mixes too many failure modes.
 - 2026-03-13: Picard fixed the slice boundary so the bridge skeleton should not start before Tuvok's contract fixtures and O'Brien's executable-acquisition specimen are concrete, and the first delivery must stay honest to the proof scope those artifacts support.
 - 2026-03-13: The startup configuration provider should flatten structured Varlock values into ordinary `IConfiguration` child paths and avoid synthetic JSON shadow entries, so binder behavior stays predictable while the CLI contract hardens.
@@ -28,3 +30,24 @@
 - 2026-03-13: The smallest honest PATH proof is an env-guarded console-example seam that disables local lookup only for `bun run proof:dotnet`, letting a temporary PATH wrapper prove the opt-in branch without changing default example behavior or silently broadening runtime semantics.
 - 2026-03-13: After the env-guarded PATH seam landed and fresh `dotnet test ... --filter ResolveExecutable` plus `bun run proof:dotnet` validation passed, the stale proof-planning inbox note was superseded by the checked-in repo state and the canonical P1-A1 lookup surface is now fully proven through repo-local, package-local, local `.bin`, and opt-in PATH acquisition.
 - 2026-03-13: The smallest honest P1-A2 expansion on the current startup/runtime slice is User Secrets coexistence on the existing ASP.NET MVC example, because WebApplicationBuilder already loads User Secrets in Development and the proof only needs to show User Secrets-only keys survive while `AddVarlock(...)` still overrides overlapping keys by provider order.
+
+## P3-A1a Runtime Fixes (2026-03-16)
+
+Fixed two critical P3-A1a blocking issues:
+
+1. **Windows JS Entrypoint Hosting Decision:** When resolved executable path ends in `.js` on Windows, prefix with `node` in `VarlockCliRuntime.RunProcess`. Rationale: preserves executable-resolution honesty; matches MSBuild bridge pattern.
+   - Verification: `dotnet test` + `bun run proof:dotnet` both pass locally
+   - Regression test added for `.js` path with spaces (Windows quoting)
+
+2. **Proof Harness `.js` vs `.cmd` Fix (Issue 2):** Package-local harness must create Node.js-executable wrappers (`.js`) on all platforms, not batch files (`.cmd`) on Windows. Runtime's `FindNodeModulesPackageExecutable` is hard-coded to search for `.js`.
+   - Assigned from O'Brien via Picard reviewer lockout
+   - Status: Fix in progress
+
+## P3-A1 Inventory & Phasing (2026-03-15)
+
+Provided implementation guidance for P3-A1:
+- Mapped 5 unproven app-type examples (Worker, Functions, Blazor variants, WinForms)
+- Recommended four-phase execution: Phase A (Worker/Functions foundation), Phase B (Blazor, requires design), Phase C (WinForms legacy), Phase D (closure)
+- Identified 4 critical decisions needed before P3-A1b starts (platform priority, Serilog scope, snapshot proof, CI matrix timing)
+
+**Status:** P3-A1a fixes pending; P3-A1 phasing documented and ready for Matthew's decisions.

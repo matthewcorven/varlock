@@ -164,11 +164,22 @@ Ralph must add reload mechanics to VarlockConfigurationProvider while preserving
 
 6. **Proof harnesses are executable specs:** If the console example payload shape changes, the test script breaks. If bridge error mapping changes, the fixture-based assertions fail. These are your guardrails. Test them first before implementation.
 
+## Lessons Learned (P3-A1 Application)
+
+7. **Generation-time security boundaries are harder than runtime boundaries:** For Blazor WASM, sensitivity must be enforced at code-generation time, not runtime. The generated file IS the public surface. If `SensitiveKeys[]` metadata appears in a WASM bundle, it is a leak regardless of runtime checks. Always ask: "Where does this generated artifact end up?" before approving a generation contract.
+
+8. **Metadata flags without consumers are overclaim risks:** `RedactLogs` and `PreventLeaks` exist as parsed bridge properties in .NET, but nothing reads them. When documenting, say "bridge metadata for consumer use" not "protection feature." A flag that nobody acts on is information, not enforcement.
+
+9. **New package API surfaces need contract analysis BEFORE implementation:** `Varlock.Serilog` must have its public API shape defined and reviewed before Data writes code. The API name (`WithVarlockRedaction`) implies a guarantee; the contract analysis determines what that guarantee actually is (property-match destructuring, not substring scanning).
+
+10. **Positive-path tests are as important as failure-path fixtures:** The bridge has thorough failure fixtures (all 7 categories) but plugin-backed success paths have no .NET fixture. A support claim needs both a failure test and a success test. "It doesn't crash on failure" is not the same as "it works."
+
 ## Related Decisions
 
 - **P1-A1 executable lookup and handshake hardening** — defines executable resolution order and bridge handshake semantics that reload reuses
 - **P1-A1 lookup proof harnesses** — defines proof-script approach; reload proof extends, does not replace
 - **First CLI bridge contract slice** — defines 7 error categories and envelope shape; reload must honor these
+- **P3-A1 boundary gap analysis** — defines Blazor WASM public-config boundary contract, Serilog API contract, and overclaim audit findings
 
 ## Coordinator Notes
 

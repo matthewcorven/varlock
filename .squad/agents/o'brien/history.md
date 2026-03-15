@@ -29,6 +29,9 @@
 - 2026-03-14: Changed `context-mode` MCP server from PATH-based direct invocation to `npx -y context-mode` for consistency with all other MCP servers, enabling package-based distribution and future version pinning; updated both live `.copilot/mcp-config.json` and all example configs in templates and package docs while preserving uncommitted edits.
 - 2026-03-15: Proof audit for P1-B1 autonomous completion via Ralph: verified P1-B1 proof slice materially complete with `bun run proof:dotnet` generating ASP.NET example's C# specimen, validating deterministic namespace/type-name overrides, and exercising binder-based projection through generated metadata and configuration-binder flow.
 - 2026-03-15: P2-B1 proof-lane scoping in advance of Geordi's MSBuild package implementation; shadowing from proof/docs/CI side without blocking core work. Key insight: P2-B1 deepens the already-proven "explicit `dotnet build` example flow" row by proving **generated-file integration** within the MSBuild pipeline. Proof obligations: assert generated files land in `obj/Varlock/` after build, validate generated C# structure, check incremental caching behavior, prove optional validation surfaces as MSBuild diagnostics, and keep watch-mode/IntelliSense/complex binder validation explicitly deferred. MSBuild package owns property definitions and incremental wiring; proof owns assertions and ledger synchronization.
+- 2026-03-15: P3-A1a cross-platform harness fixes: refactored `scripts/test-dotnet-proof.ts` to generate platform-specific wrapper code (`.cmd` batch files on Windows, Node.js shebang scripts on Unix), guard chmod by platform, handle symlink retry on Unix, and ensure batch wrappers write marker files. All path operations use `path.join()` and `path.delimiter` for cross-platform safety. `bun run proof:dotnet` passes on macOS; Windows/Linux validation pending in CI via Geordi's matrix lanes.
+
+
 
 
 
@@ -49,3 +52,22 @@
 **Next Phase:** Begin proof checklist completion + CI wiring. Parallel with Geordi packageability.
 
 **Orchestration Log:** `.squad/orchestration-log/2026-03-15T16:20:33Z-o'brien-docs-approval.md`
+
+## P3-A1a Cross-Platform Implementation (2026-03-15–16)
+
+Attempted initial P3-A1a implementation: CI matrix expansion and proof harness platform support for Windows and macOS. Implementation exposed two blocking issues on Picard lead review:
+
+1. **Issue 1 (reassigned to O'Brien):** `build:libs` must run before `proof:dotnet` on all platforms. Added `fail-fast: false` to matrix.
+2. **Issue 2 (reassigned to Data):** Proof harness created `.cmd` files, but runtime expects `.js` for package-local discovery.
+
+**Cross-Platform Proof Harness Decisions (2026-03-15):**
+- Split wrapper generation by platform (`.cmd` on Windows, Node.js scripts on Unix)
+- Harness segment paths use platform-specific extensions
+- Batch file marker writing implemented
+- Symlink fallback with retry on Unix
+- chmod only on non-Windows
+- Path handling via existing `path` module
+
+Awaiting Data's fixes and then re-review by Picard.
+
+**Status:** Issue 1 pending fix; Issue 2 reassigned to Data.
