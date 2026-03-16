@@ -2773,5 +2773,50 @@ The `publicOnly` option flows through the full decorator pipeline:
 - Geordi's P3-A1c publicOnly+WinForms implementation decision
 - O'Brien's P3-A1c proof prep (Wave 2 now unblocked)
 
+---
+
+## 2026-03-16: P3-A1d Security-Boundary Contract
+
+- Initiative: `dotnet-support`
+- Source: Tuvok
+- Decision: Locks the narrowest true security-boundary contract for .NET v1 with exactly two new public APIs: `WithVarlockRedaction()` and `VarlockRedactionHelper.Redact()`.
+- Serilog scope: Destructuring policy that replaces sensitive values with `[REDACTED]` via exact case-sensitive key matching. Does NOT intercept string-template parameters, console, MEL, or non-Serilog pipelines.
+- Non-Serilog helper: Manual per-value redaction in `Varlock.DotNet`. No automatic interception. Caller must explicitly invoke `VarlockRedactionHelper.Redact()`.
+- Metadata enrichment: `WithVarlockMetadata()` appends `VarlockRedactLogs` boolean to log events. This is metadata-only; it does not cause redaction.
+- Forbidden language: Do NOT use "protection" for either API. Do NOT claim "automatic" redaction for non-Serilog path. Do NOT claim `PreventLeaks` is "enforced" in v1.
+- Deferred: Reload-aware Serilog re-registration, MEL integration, HTTP middleware, configurable redaction placeholder.
+- Proof obligations: Unit tests for destructuring redaction, metadata enrichment, and helper fallback. ASP.NET MVC example shows Serilog destructuring. Console example shows manual helper AND unredacted raw output (proves nothing automatic).
+
+---
+
+## 2026-03-16: P3-A1d Design Review & Phase 3 Closeout Plan
+
+- Initiative: `dotnet-support`
+- Source: Picard
+- Decision: Design review issues PROCEED verdict. P3-A1a, P3-A1b, P3-A1c are APPROVE-CLOSED. Remaining work is P3-A1d: Serilog package, security-boundary specimen, ledger completion.
+- Minimum batch: `Varlock.Serilog` at `packages/dotnet/Varlock.Serilog/` (netstandard2.0, depends on Serilog + Varlock.DotNet). `VarlockRedactionHelper` in `Varlock.DotNet`. ASP.NET MVC Serilog example. Console non-Serilog fallback example. Proof harness exercises both paths. Support-matrix ledger complete. Proposal Phase 3 exit criteria updated.
+- Acceptance criteria (10): Varlock.Serilog exists. VarlockRedactionHelper exists. ASP.NET MVC example proven. Console example proven. `bun run proof:dotnet` exercises both, all pass. No remaining "planned" ledger rows for Phase 3. Phase 3 exit criteria updated. Tuvok approves language. Serilog vs. non-Serilog distinction concrete. WASM public-only boundary maintained.
+- Gating: Tuvok's contract lock before implementation. Standard reviewer lockout (if rejected, other agent revises). Picard final review requires all three streams (Tuvok, Data, O'Brien) to pass independently.
+
+---
+
+## 2026-03-16: P3-A1d Redaction Implementation
+
+- Initiative: `dotnet-support`
+- Source: Data
+- Decision: Implementation complete. `Varlock.Serilog` ships with exactly two locked extension methods. `WithVarlockRedaction()` uses private `IDestructuringPolicy` snapshots sensitive-key set at registration time, applies exact case-sensitive replacement to destructured properties and `IDictionary` string keys. Plain scalar message-template parameters remain outside. `WithVarlockMetadata()` uses private enricher appending `VarlockRedactLogs` boolean from captured graph snapshot. `VarlockRedactionHelper.Redact()` in `Varlock.DotNet` is manual non-Serilog fallback using same exact key lookup with literal `"[REDACTED]"`.
+
+---
+
+## 2026-03-16: Phase 3 APPROVE-CLOSE
+
+- Initiative: `dotnet-support`
+- Source: Picard
+- Decision: Final lead review issued APPROVE-CLOSE for Phase 3 complete. All 10 acceptance criteria met. Tuvok's locked security-boundary contract satisfied. No scope leakage detected.
+- Deliverable verification: `Varlock.Serilog` exists with exact API surface (netstandard2.0, Serilog + Varlock.DotNet dependencies). `VarlockRedactionHelper` in `Varlock.DotNet` with manual `Redact()` method. ASP.NET MVC demonstrates Serilog destructuring redaction. Console demonstrates non-Serilog manual redaction and raw leak (proving nothing automatic). `bun run proof:dotnet` exercises both paths, all assertions pass (32 tests total).
+- Support-matrix complete: Four P3-A1c rows proven (Azure Functions, Blazor Server, WinForms, WASM public-only). Two P3-A1d rows proven (Serilog destructuring, non-Serilog fallback). Phase 3 exit criteria all struck through with proof references.
+- Scope leakage: Zero analyzer, source-gen, or native-runtime references. `publicOnly` changes are P3-A1c carry-forward. Remaining planned rows (3: `dotnet watch`, `IOptions<T>`, plugin resolution) correctly marked deferred.
+- Phase 3 status: APPROVED-CLOSED. Phase 4 DEFERRED (no active implementation).
+
 
 ---

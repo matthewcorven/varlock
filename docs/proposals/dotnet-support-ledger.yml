@@ -430,14 +430,14 @@ support_matrix:
       proof_status: proven
     - id: dx-serilog-redaction
       example: examples/dotnet-aspnet-mvc-net8/
-      test: Serilog redaction test
-      caveat: first-class only for Serilog in v1
-      proof_status: planned
+      test: bun run proof:dotnet ASP.NET --serilog-proof check
+      caveat: Serilog-specific destructuring redaction only; exact case-sensitive key matches inside {@obj} are redacted to [REDACTED], and scalar params remain raw
+      proof_status: proven
     - id: dx-non-serilog-fallback
       example: examples/dotnet-console-net8/
-      test: runtime helper redaction test
-      caveat: shows what is manual rather than automatic
-      proof_status: planned
+      test: bun run proof:dotnet console redaction-helper check
+      caveat: manual per-value redaction helper only; helper output uses [REDACTED] with exact case-sensitive key matching, and raw console output is unchanged unless the helper is called
+      proof_status: proven
     - id: dx-plugin-backed-resolution
       example: examples/dotnet-console-net8/ or dedicated plugin fixture app
       test: plugin-backed bridge test
@@ -471,7 +471,7 @@ testing_matrix:
     - IOptions<T> binding tests
     - IOptionsSnapshot<T> reload tests
     - IOptionsMonitor<T> reload tests
-    - Serilog redaction tests
+    - Serilog-specific destructuring redaction tests
     - example-app smoke tests
 
 proof_artifacts:
@@ -1177,7 +1177,7 @@ clause_rows:
       proposal_refs:
         - path: docs/proposals/dotnet-support.md
           lines: [82, 82]
-      statement: "`varlock scan`: no `.NET`-native wrapper package in v1; teams should invoke the existing `varlock scan` CLI directly in repository and CI workflows when this protection is required"
+      statement: "`varlock scan`: no `.NET`-native wrapper package in v1; teams should invoke the existing `varlock scan` CLI directly in repository and CI workflows when repository-wide scanning is required"
     - id: "success-model-current-varlock-product-surface-mapping-for-dotnet-v1-javascript-runtime-bootstrap-l0083"
       owner: "Picard"
       kind: "bullet"
@@ -3679,7 +3679,7 @@ clause_rows:
       proposal_refs:
         - path: docs/proposals/dotnet-support.md
           lines: [728, 728]
-      statement: "a documented recommendation for when users should call the raw `varlock scan` CLI directly because the scenario is repository protection rather than in-process application configuration"
+      statement: "a documented recommendation for when users should call the raw `varlock scan` CLI directly because the scenario is repository-wide scanning rather than in-process application configuration"
     - id: "msbuild-integration-l0730"
       owner: "Geordi"
       kind: "heading"
@@ -4127,13 +4127,13 @@ clause_rows:
         - "Developer-experience intersection ledger"
       proposal_refs:
         - path: docs/proposals/dotnet-support.md
-          lines: [817, 817]
-      statement: "Serilog redaction"
+          lines: [826, 826]
+      statement: "Serilog-specific destructuring redaction"
       table_cells:
         - "`examples/dotnet-aspnet-mvc-net8/`"
-        - "Serilog redaction test"
-        - "only first-class for Serilog in v1"
-        - "planned"
+        - "`bun run proof:dotnet` ASP.NET `--serilog-proof` check"
+        - "proven only for Serilog: `WithVarlockRedaction(graph)` redacts exact, case-sensitive sensitive-key matches during `{@obj}` destructuring with `[REDACTED]`, `WithVarlockMetadata(graph)` adds `VarlockRedactLogs`, and scalar message-template parameters remain raw"
+        - "proven"
     - id: "support-matrix-ledger-developer-experience-intersection-ledger-non-serilog-fallback-redaction-he-l0818"
       owner: "O'Brien"
       kind: "table_row"
@@ -4142,13 +4142,13 @@ clause_rows:
         - "Developer-experience intersection ledger"
       proposal_refs:
         - path: docs/proposals/dotnet-support.md
-          lines: [818, 818]
-      statement: "Non-Serilog fallback redaction helpers"
+          lines: [827, 827]
+      statement: "Manual per-value redaction helper"
       table_cells:
         - "`examples/dotnet-console-net8/`"
-        - "runtime helper redaction test"
-        - "must show what is manual rather than automatic"
-        - "planned"
+        - "`bun run proof:dotnet` console redaction-helper check"
+        - "proven via manual `VarlockRedactionHelper.Redact(graph, key, value)` output with `[REDACTED]` and exact case-sensitive key matching; raw console output is unchanged unless the helper is called for that value"
+        - "proven"
     - id: "support-matrix-ledger-developer-experience-intersection-ledger-plugin-backed-secret-resolution-l0819"
       owner: "O'Brien"
       kind: "table_row"
@@ -4157,7 +4157,7 @@ clause_rows:
         - "Developer-experience intersection ledger"
       proposal_refs:
         - path: docs/proposals/dotnet-support.md
-          lines: [819, 819]
+          lines: [828, 828]
       statement: "Plugin-backed secret resolution"
       table_cells:
         - "`examples/dotnet-console-net8/` or dedicated plugin fixture app"
@@ -4335,8 +4335,8 @@ clause_rows:
         - "Testing Matrix"
       proposal_refs:
         - path: docs/proposals/dotnet-support.md
-          lines: [849, 849]
-      statement: "6. Serilog redaction tests"
+          lines: [860, 860]
+      statement: "6. Serilog-specific destructuring redaction tests"
     - id: "testing-matrix-7-example-app-smoke-tests-l0850"
       owner: "O'Brien"
       kind: "numbered"
@@ -6281,8 +6281,8 @@ clause_rows:
         - "10. Test coverage spans the entire support contract"
       proposal_refs:
         - path: docs/proposals/dotnet-support.md
-          lines: [1126, 1126]
-      statement: "Automated tests cover Serilog redaction behavior."
+          lines: [1138, 1138]
+      statement: "Automated tests cover Serilog-specific destructuring redaction behavior."
     - id: "definition-of-done-10-test-coverage-spans-the-entire-support-contract-example-app-smoke-tests-ex-l1127"
       owner: "O'Brien"
       kind: "bullet"

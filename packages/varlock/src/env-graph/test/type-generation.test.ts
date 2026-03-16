@@ -668,6 +668,20 @@ describe('type generation', () => {
       expect(src).toBe(readFixture('typegen-cs', 'CustomizedAppConfig.g.cs'));
     });
 
+    test('publicOnly=true matches the checked-in public-only C# specimen', async () => {
+      const g = await loadGraph({
+        envFile: readFixture('typegen-cs', 'specimen.env.schema'),
+      });
+
+      const items: Array<TypeGenItemInfo> = [];
+      for (const key of g.sortedConfigKeys) {
+        items.push(await g.configSchema[key].getTypeGenInfo());
+      }
+
+      const src = await generateCsTypesSrc(items, { publicOnly: true });
+      expect(src).toBe(readFixture('typegen-cs', 'PublicOnlyConfig.g.cs'));
+    });
+
     test('includes dependency-free binding metadata for later binder integration', async () => {
       const g = await loadGraph({
         envFile: readFixture('typegen-cs', 'specimen.env.schema'),
@@ -736,6 +750,97 @@ describe('type generation', () => {
       } finally {
         if (fs.existsSync(outputPath)) fs.rmSync(outputPath);
       }
+    });
+
+    test('generateTypesIfNeeded publicOnly=true excludes sensitive items from C# output', async () => {
+      const g = await loadGraph({
+        envFile: outdent`
+          # @defaultSensitive=false
+          # ---
+          PUBLIC_KEY=public-value       # @public
+          # @sensitive
+          SECRET_KEY=secret-value
+        `,
+      });
+
+      const infos = await getTypeGenInfoMap(g);
+      const items = Object.values(infos);
+
+      const publicOnlySrc = await generateCsTypesSrc(items, { publicOnly: true });
+
+      // Public key should be present
+      expect(publicOnlySrc).toContain('public string PublicKey');
+      // Secret key should be absent
+      expect(publicOnlySrc).not.toContain('SecretKey');
+      // SensitiveKeys array should be absent
+      expect(publicOnlySrc).not.toContain('SensitiveKeys');
+      // PropertyBinding class should be absent (includes IsSensitive property)
+      expect(publicOnlySrc).not.toContain('PropertyBinding');
+      expect(publicOnlySrc).not.toContain('IsSensitive');
+      // PropertyKeys should still be present
+      expect(publicOnlySrc).toContain('PropertyKeys');
+    });
+
+    test('generateTypesIfNeeded publicOnly=false includes sensitive items and metadata', async () => {
+      const g = await loadGraph({
+        envFile: outdent`
+          # @defaultSensitive=false
+          # ---
+          PUBLIC_KEY=public-value       # @public
+          # @sensitive
+          SECRET_KEY=secret-value
+        `,
+      });
+
+      const infos = await getTypeGenInfoMap(g);
+      const items = Object.values(infos);
+
+      const fullSrc = await generateCsTypesSrc(items, { publicOnly: false });
+
+      // Both keys should be present
+      expect(fullSrc).toContain('public string PublicKey');
+      expect(fullSrc).toContain('public string SecretKey');
+      // SensitiveKeys array should be present
+      expect(fullSrc).toContain('SensitiveKeys');
+      expect(fullSrc).toContain('"SECRET_KEY"');
+      // PropertyBinding class should be present
+      expect(fullSrc).toContain('PropertyBinding');
+      expect(fullSrc).toContain('IsSensitive');
+    });
+
+    test('generateTypesIfNeeded publicOnly=true throws when all items are sensitive', async () => {
+      const g = await loadGraph({
+        envFile: outdent`
+          # @defaultSensitive=true
+          # ---
+          SECRET_ONE=secret-1
+          SECRET_TWO=secret-2
+        `,
+      });
+
+      const infos = await getTypeGenInfoMap(g);
+      const items = Object.values(infos);
+
+      await expect(generateCsTypesSrc(items, { publicOnly: true })).rejects.toThrow(
+        'all items are sensitive; public-only generation would produce an empty type',
+      );
+    });
+
+    test('generateTypesIfNeeded publicOnly accepts boolean only', async () => {
+      const g = await loadGraph({
+        envFile: outdent`
+          # @defaultSensitive=false
+          # ---
+          ITEM=value
+        `,
+      });
+
+      const infos = await getTypeGenInfoMap(g);
+      const items = Object.values(infos);
+
+      await expect(generateCsTypesSrc(items, { publicOnly: 'true' as any })).rejects.toThrow(
+        '`publicOnly` must be a boolean',
+      );
     });
   });
 

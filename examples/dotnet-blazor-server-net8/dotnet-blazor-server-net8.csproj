@@ -4,21 +4,23 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
     <RollForward>Major</RollForward>
-    <UserSecretsId>varlock-dotnet-aspnet-mvc-net8-proof</UserSecretsId>
+    <RootNamespace>DotnetBlazorServerNet8</RootNamespace>
     <VarlockEnabled>true</VarlockEnabled>
     <VarlockSchemaPath>.env.schema</VarlockSchemaPath>
-    <VarlockGeneratedFile>$(BaseIntermediateOutputPath)Varlock/AppConfig.g.cs</VarlockGeneratedFile>
+    <VarlockGeneratedFile>$(BaseIntermediateOutputPath)Varlock/BlazorConfig.g.cs</VarlockGeneratedFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../packages/dotnet/Varlock.DotNet/Varlock.DotNet.csproj" />
     <ProjectReference Include="../../packages/dotnet/Varlock.Extensions.Configuration/Varlock.Extensions.Configuration.csproj" />
-    <ProjectReference Include="../../packages/dotnet/Varlock.Serilog/Varlock.Serilog.csproj" />
-    <PackageReference Include="Serilog" Version="2.12.0" />
-    <Compile Remove="Generated/**/*.g.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update=".env.schema">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <Import Project="../../packages/dotnet/Varlock.MSBuild/build/Varlock.MSBuild.targets"

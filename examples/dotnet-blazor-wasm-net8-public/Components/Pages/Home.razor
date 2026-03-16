@@ -1,0 +1,41 @@
+@page "/"
+@using DotnetBlazorWasmNet8Public.Generated
+@inject VarlockPublicConfig Config
+
+<h1>Varlock Blazor WASM (Public Config Only)</h1>
+
+<p>This page demonstrates public-only configuration in a WASM bundle.</p>
+
+<dl>
+  <dt>App Name:</dt>
+  <dd>@Config.AppName</dd>
+  
+  <dt>App Port:</dt>
+  <dd>@Config.AppPort</dd>
+  
+  <dt>Feature Enabled:</dt>
+  <dd>@Config.FeatureEnabled</dd>
+</dl>
+
+<div class="alert">
+  <p><strong>Security Note:</strong> This WASM app uses <code>publicOnly=true</code> generation.</p>
+  <ul>
+    <li>Only non-sensitive values from <code>.env.schema</code> are present in the generated <code>.g.cs</code></li>
+    <li>The <code>API_KEY</code> item (marked <code>@@sensitive</code>) is excluded from generation</li>
+    <li>No Varlock runtime bridge or CLI invocation occurs in this WASM bundle</li>
+    <li>The generated POCO is the <strong>only</strong> Varlock artifact in the client bundle</li>
+  </ul>
+</div>
+
+<style>
+  .alert {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: #f0f0f0;
+    border-left: 4px solid #0066cc;
+  }
+  .alert ul {
+    margin: 0.5rem 0 0 0;
+    padding-left: 1.5rem;
+  }
+</style>

@@ -22,6 +22,17 @@ type ConsolePayload = {
   sourceLabels: Array<string>;
 };
 
+type ConsoleRedactionHelperPayload = {
+  secretIsSensitive: boolean;
+  rawSecret: string;
+  helperRedactedSecret: string;
+  helperCaseMismatchSecret: string;
+  rawAppName: string;
+  helperAppName: string;
+  redactLogs: boolean;
+  preventLeaks: boolean;
+};
+
 type AspNetPayload = {
   AppName: string;
   AppPort: number;
@@ -31,10 +42,42 @@ type AspNetPayload = {
   UserSecretsOnly: string;
 };
 
+type AspNetSerilogPayload = {
+  graphRedactLogs: boolean;
+  eventRedactLogs: boolean;
+  destructuredSecretToken: string;
+  destructuredAppName: string;
+  destructuredCaseMismatchSecretToken: string;
+  scalarSecretToken: string;
+};
+
 type WorkerPayload = {
   AppName: string;
   AppPort: number;
   FeatureEnabled: boolean;
+};
+
+type FunctionsPayload = {
+  AppName: string;
+  AppPort: number;
+  FeatureEnabled: boolean;
+  FunctionsOnlyKey?: string;
+};
+
+type BlazorPayload = {
+  AppName: string;
+  AppPort: number;
+  FeatureEnabled: boolean;
+};
+
+type WinFormsPayload = {
+  appName: string;
+  httpPort: number;
+  featureEnabled: boolean;
+  secretIsSensitive: boolean;
+  redactLogs: boolean;
+  preventLeaks: boolean;
+  sourceLabels: Array<string>;
 };
 
 type ExecutableHarness = {
@@ -58,8 +101,8 @@ type PackedPackage = {
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const isWindows = process.platform === 'win32';
 
-function getBuildOutputPath(projectDir: string, assemblyName: string) {
-  return join(projectDir, 'bin', 'Debug', 'net8.0', `${assemblyName}.dll`);
+function getBuildOutputPath(projectDir: string, assemblyName: string, targetFramework = 'net8.0', extension = 'dll') {
+  return join(projectDir, 'bin', 'Debug', targetFramework, `${assemblyName}.${extension}`);
 }
 
 function runDotnet(projectDir: string, args: Array<string>, envOverrides: NodeJS.ProcessEnv = {}): CommandResult {
@@ -110,6 +153,19 @@ function parseJsonOutput<T>(name: string, result: CommandResult): T {
   }
 }
 
+function parseTaggedLines(stdout: string, prefixes: Array<string>): Map<string, string> {
+  const lines = stdout.split('\n').map((l) => l.trim()).filter(Boolean);
+  const result = new Map<string, string>();
+  for (const line of lines) {
+    const colonIndex = line.indexOf(':');
+    if (colonIndex > 0 && prefixes.some((prefix) => line.startsWith(prefix))) {
+      result.set(line.substring(0, colonIndex), line.substring(colonIndex + 1));
+    }
+  }
+
+  return result;
+}
+
 function assertConsolePayload(payload: ConsolePayload, proofLabel: string) {
   assert(payload.appName === 'varlock-console', `${proofLabel} should resolve APP_NAME from Varlock.`);
   assert(payload.httpPort === 4310, `${proofLabel} should coerce HTTP_PORT to a number.`);
@@ -120,6 +176,45 @@ function assertConsolePayload(payload: ConsolePayload, proofLabel: string) {
   assert(
     payload.sourceLabels.some((label) => label.includes('.env.schema')),
     `${proofLabel} should report the schema source in its resolved graph.`,
+  );
+}
+
+function assertConsoleRedactionHelperPayload(payload: ConsoleRedactionHelperPayload) {
+  assert(payload.secretIsSensitive === true, 'Console redaction-helper proof should preserve sensitive metadata.');
+  assert(payload.rawSecret === 'console-secret-value', 'Console redaction-helper proof should emit the raw secret when no helper is applied.');
+  assert(payload.helperRedactedSecret === '[REDACTED]', 'Console redaction-helper proof should use the literal [REDACTED] when the helper is called with an exact sensitive key.');
+  assert(payload.helperRedactedSecret !== payload.rawSecret, 'Console redaction-helper proof should distinguish helper-redacted output from raw output.');
+  assert(payload.helperCaseMismatchSecret === payload.rawSecret, 'Console redaction-helper proof should use exact case-sensitive key matching only.');
+  assert(payload.rawAppName === 'varlock-console', 'Console redaction-helper proof should emit raw non-sensitive values unchanged.');
+  assert(payload.helperAppName === 'varlock-console', 'Console redaction-helper proof should leave non-sensitive values unchanged when the helper is called.');
+  assert(payload.redactLogs === true, 'Console redaction-helper proof should surface RedactLogs from the graph.');
+  assert(payload.preventLeaks === true, 'Console redaction-helper proof should surface PreventLeaks from the graph.');
+}
+
+function assertAspNetPayload(payload: AspNetPayload, proofLabel: string, expectedUserSecretsOnly = '') {
+  assert(payload.AppName === 'varlock-web', `${proofLabel} should let Varlock override APP_NAME from appsettings.`);
+  assert(payload.AppPort === 4311, `${proofLabel} should let Varlock override APP_PORT from appsettings.`);
+  assert(payload.FeatureEnabled === true, `${proofLabel} should let Varlock override FEATURE_ENABLED from appsettings.`);
+  assert(
+    payload.AppSettingsOnly === 'retained-from-appsettings',
+    `${proofLabel} should keep unrelated appsettings keys intact.`,
+  );
+  assert(payload.SecretTokenPresent === true, `${proofLabel} should surface Varlock-backed secret presence.`);
+  assert(payload.UserSecretsOnly === expectedUserSecretsOnly, `${proofLabel} should preserve the expected User Secrets-only value.`);
+}
+
+function assertAspNetSerilogPayload(payload: AspNetSerilogPayload) {
+  assert(payload.graphRedactLogs === true, 'ASP.NET Serilog proof should observe graph.RedactLogs from the loaded graph.');
+  assert(payload.eventRedactLogs === payload.graphRedactLogs, 'ASP.NET Serilog proof should enrich VarlockRedactLogs metadata without mutating it.');
+  assert(payload.destructuredSecretToken === '[REDACTED]', 'ASP.NET Serilog proof should use the literal [REDACTED] for exact, case-sensitive sensitive-key matches during destructuring.');
+  assert(payload.destructuredAppName === 'varlock-web', 'ASP.NET Serilog proof should leave non-sensitive destructured values unchanged.');
+  assert(
+    payload.destructuredCaseMismatchSecretToken === 'web-secret-value',
+    'ASP.NET Serilog proof should use exact case-sensitive key matching rather than redacting mismatched keys.',
+  );
+  assert(
+    payload.scalarSecretToken === 'web-secret-value',
+    'ASP.NET Serilog proof should show that scalar message-template parameters remain raw.',
   );
 }
 
@@ -387,6 +482,12 @@ Console.WriteLine(generated.AppName + ":" + AppConfigMetadata.PropertyBindings.C
 const consoleProjectDir = join(repoRoot, 'examples', 'dotnet-console-net8');
 const workerProjectDir = join(repoRoot, 'examples', 'dotnet-worker-net8');
 const aspNetProjectDir = join(repoRoot, 'examples', 'dotnet-aspnet-mvc-net8');
+const functionsProjectDir = join(repoRoot, 'examples', 'dotnet-functions-isolated-net8');
+const blazorProjectDir = join(repoRoot, 'examples', 'dotnet-blazor-server-net8');
+const winFormsProjectDir = join(repoRoot, 'examples', 'dotnet-winforms-net48');
+const wasmProjectDir = join(repoRoot, 'examples', 'dotnet-blazor-wasm-net8-public');
+const wasmGeneratedTypeDir = join(wasmProjectDir, 'obj', 'Varlock');
+const wasmGeneratedTypePath = join(wasmGeneratedTypeDir, 'VarlockPublicConfig.g.cs');
 const aspNetGeneratedTypeDir = join(aspNetProjectDir, 'obj', 'Varlock');
 const aspNetGeneratedTypePath = join(aspNetGeneratedTypeDir, 'AppConfig.g.cs');
 
@@ -470,6 +571,42 @@ assert(
   'dotnet build proof should produce the worker example assembly under bin/Debug/net8.0.',
 );
 
+assertCommandSucceeded(
+  'dotnet build dotnet-functions-isolated-net8',
+  runDotnet(functionsProjectDir, ['build', '--nologo', '--verbosity', 'quiet']),
+);
+assert(
+  fs.existsSync(getBuildOutputPath(functionsProjectDir, 'dotnet-functions-isolated-net8')),
+  'dotnet build proof should produce the functions example assembly under bin/Debug/net8.0.',
+);
+
+assertCommandSucceeded(
+  'dotnet build dotnet-blazor-server-net8',
+  runDotnet(blazorProjectDir, ['build', '--nologo', '--verbosity', 'quiet']),
+);
+assert(
+  fs.existsSync(getBuildOutputPath(blazorProjectDir, 'dotnet-blazor-server-net8')),
+  'dotnet build proof should produce the blazor example assembly under bin/Debug/net8.0.',
+);
+
+assertCommandSucceeded(
+  'dotnet build dotnet-winforms-net48',
+  runDotnet(winFormsProjectDir, ['build', '--nologo', '--verbosity', 'quiet']),
+);
+assert(
+  fs.existsSync(getBuildOutputPath(winFormsProjectDir, 'dotnet-winforms-net48', 'net48', 'exe')),
+  'dotnet build proof should produce the winforms example assembly under bin/Debug/net48.',
+);
+
+assertCommandSucceeded(
+  'dotnet build dotnet-blazor-wasm-net8-public',
+  runDotnet(wasmProjectDir, ['build', '--nologo', '--verbosity', 'quiet']),
+);
+assert(
+  fs.existsSync(wasmGeneratedTypePath),
+  'dotnet build proof should generate the WASM public-only C# specimen at examples/dotnet-blazor-wasm-net8-public/obj/Varlock/VarlockPublicConfig.g.cs during dotnet build.',
+);
+
 const aspNetGeneratedTypeSrc = fs.readFileSync(aspNetGeneratedTypePath, 'utf8');
 assert(
   aspNetGeneratedTypeSrc.includes('namespace DotnetAspNetMvcNet8.Generated'),
@@ -500,6 +637,21 @@ assert(
 const consoleResult = runDotnet(consoleProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
 const consolePayload = parseJsonOutput<ConsolePayload>('dotnet-console-net8', consoleResult);
 assertConsolePayload(consolePayload, 'Console example through repo-local lookup');
+
+const consoleRedactionHelperResult = runDotnet(consoleProjectDir, [
+  'run',
+  '--no-build',
+  '--no-launch-profile',
+  '--verbosity',
+  'quiet',
+  '--',
+  '--redaction-helper-proof',
+]);
+const consoleRedactionHelperPayload = parseJsonOutput<ConsoleRedactionHelperPayload>(
+  'dotnet-console-net8 redaction-helper',
+  consoleRedactionHelperResult,
+);
+assertConsoleRedactionHelperPayload(consoleRedactionHelperPayload);
 
 const packageLocalHarness = createPackageLocalHarness(consoleProjectDir);
 try {
@@ -562,16 +714,39 @@ const aspNetResult = runDotnet(aspNetProjectDir, [
   '--dump-config',
 ]);
 const aspNetPayload = parseJsonOutput<AspNetPayload>('dotnet-aspnet-mvc-net8', aspNetResult);
+assertAspNetPayload(aspNetPayload, 'ASP.NET baseline proof');
 
-assert(aspNetPayload.AppName === 'varlock-web', 'ASP.NET example should let Varlock override APP_NAME from appsettings.');
-assert(aspNetPayload.AppPort === 4311, 'ASP.NET example should let Varlock override APP_PORT from appsettings.');
-assert(aspNetPayload.FeatureEnabled === true, 'ASP.NET example should let Varlock override FEATURE_ENABLED from appsettings.');
+const aspNetOptionsResult = runDotnet(aspNetProjectDir, [
+  'run',
+  '--no-build',
+  '--no-launch-profile',
+  '--verbosity',
+  'quiet',
+  '--',
+  '--options-proof',
+]);
+const aspNetOptionsPayload = parseJsonOutput<AspNetPayload>('dotnet-aspnet-mvc-net8 options', aspNetOptionsResult);
+assertAspNetPayload(aspNetOptionsPayload, 'ASP.NET options proof');
+
+const aspNetSerilogResult = runDotnet(aspNetProjectDir, [
+  'run',
+  '--no-build',
+  '--no-launch-profile',
+  '--verbosity',
+  'quiet',
+  '--',
+  '--serilog-proof',
+]);
+assertCommandSucceeded('dotnet-aspnet-mvc-net8 --serilog-proof', aspNetSerilogResult);
+
+const aspNetSerilogLines = parseTaggedLines(aspNetSerilogResult.stdout, ['SERILOG_PROOF']);
 assert(
-  aspNetPayload.AppSettingsOnly === 'retained-from-appsettings',
-  'ASP.NET example should keep unrelated appsettings keys intact.',
+  aspNetSerilogLines.has('SERILOG_PROOF'),
+  'ASP.NET Serilog proof should emit a SERILOG_PROOF line.',
 );
-assert(aspNetPayload.SecretTokenPresent === true, 'ASP.NET example should surface Varlock-backed secret presence.');
-assert(aspNetPayload.UserSecretsOnly === '', 'ASP.NET baseline proof should not depend on a user-secrets payload.');
+
+const aspNetSerilogPayload = JSON.parse(aspNetSerilogLines.get('SERILOG_PROOF')!) as AspNetSerilogPayload;
+assertAspNetSerilogPayload(aspNetSerilogPayload);
 
 const workerResult = runDotnet(workerProjectDir, [
   'run',
@@ -583,6 +758,104 @@ const workerResult = runDotnet(workerProjectDir, [
 ]);
 const workerPayload = parseJsonOutput<WorkerPayload>('dotnet-worker-net8', workerResult);
 assertWorkerPayload(workerPayload, 'Worker example through HostApplicationBuilder.AddVarlock()');
+
+const functionsResult = runDotnet(functionsProjectDir, [
+  'run',
+  '--no-build',
+  '--verbosity',
+  'quiet',
+  '--',
+  '--dump-config',
+]);
+const functionsPayload = parseJsonOutput<FunctionsPayload>('dotnet-functions-isolated-net8', functionsResult);
+
+assert(functionsPayload.AppName === 'varlock-functions', 'Functions example should resolve APP_NAME from Varlock.');
+assert(functionsPayload.AppPort === 7071, 'Functions example should coerce APP_PORT to a number.');
+assert(functionsPayload.FeatureEnabled === true, 'Functions example should coerce FEATURE_ENABLED to a boolean.');
+assert(
+  typeof functionsPayload.FunctionsOnlyKey === 'string',
+  'Functions example should preserve local.settings.json keys alongside Varlock configuration.',
+);
+
+const blazorResult = runDotnet(blazorProjectDir, [
+  'run',
+  '--no-build',
+  '--verbosity',
+  'quiet',
+  '--',
+  '--dump-config',
+]);
+const blazorPayload = parseJsonOutput<BlazorPayload>('dotnet-blazor-server-net8', blazorResult);
+
+assert(blazorPayload.AppName === 'varlock-blazor-server', 'Blazor Server example should resolve APP_NAME from Varlock.');
+assert(blazorPayload.AppPort === 5280, 'Blazor Server example should coerce APP_PORT to a number.');
+assert(blazorPayload.FeatureEnabled === true, 'Blazor Server example should coerce FEATURE_ENABLED to a boolean.');
+
+// --- Proof: WinForms legacy bridge (non-hosted direct runtime) ---
+
+if (isWindows) {
+  const winFormsResult = runDotnet(winFormsProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet', '--', '--dump-config']);
+  const winFormsPayload = parseJsonOutput<WinFormsPayload>('dotnet-winforms-net48', winFormsResult);
+
+  assert(winFormsPayload.appName === 'varlock-winforms', 'WinForms example should resolve APP_NAME from Varlock.');
+  assert(winFormsPayload.httpPort === 4311, 'WinForms example should coerce HTTP_PORT to a number.');
+  assert(winFormsPayload.featureEnabled === true, 'WinForms example should coerce FEATURE_ENABLED to a boolean.');
+  assert(winFormsPayload.secretIsSensitive === true, 'WinForms example should preserve sensitive metadata.');
+  assert(winFormsPayload.redactLogs === true, 'WinForms example should surface RedactLogs from the graph.');
+  assert(winFormsPayload.preventLeaks === true, 'WinForms example should surface PreventLeaks from the graph.');
+  assert(
+    winFormsPayload.sourceLabels.some((label) => label.includes('.env.schema')),
+    'WinForms example should report the schema source in its resolved graph.',
+  );
+} else {
+  console.log('WinForms runtime proof skipped (Windows-only).');
+}
+
+// --- Proof: Blazor WASM public-only generation boundary ---
+
+const wasmGeneratedTypeSrc = fs.readFileSync(wasmGeneratedTypePath, 'utf8');
+
+// Public-only boundary validation: sensitive metadata must not appear in generated type
+assert(
+  !wasmGeneratedTypeSrc.includes('SensitiveKeys'),
+  'WASM public-only generated type must not contain SensitiveKeys array.',
+);
+assert(
+  !wasmGeneratedTypeSrc.includes('PropertyBinding'),
+  'WASM public-only generated type must not contain PropertyBinding class.',
+);
+assert(
+  !wasmGeneratedTypeSrc.includes('IsSensitive'),
+  'WASM public-only generated type must not contain IsSensitive metadata.',
+);
+assert(
+  !wasmGeneratedTypeSrc.includes('API_KEY'),
+  'WASM public-only generated type must not contain the sensitive API_KEY property.',
+);
+
+// Public-only type must still have non-sensitive properties
+assert(
+  wasmGeneratedTypeSrc.includes('public string AppName'),
+  'WASM public-only generated type should contain the non-sensitive AppName property.',
+);
+assert(
+  wasmGeneratedTypeSrc.includes('public double AppPort'),
+  'WASM public-only generated type should contain the non-sensitive AppPort property.',
+);
+assert(
+  wasmGeneratedTypeSrc.includes('public bool FeatureEnabled'),
+  'WASM public-only generated type should contain the non-sensitive FeatureEnabled property.',
+);
+
+// PropertyKeys metadata (safe for public bundles) must still be present
+assert(
+  wasmGeneratedTypeSrc.includes('PropertyKeys'),
+  'WASM public-only generated metadata must contain PropertyKeys dictionary.',
+);
+assert(
+  wasmGeneratedTypeSrc.includes('["AppName"] = "APP_NAME"'),
+  'WASM public-only PropertyKeys must map public property names to original env keys.',
+);
 
 try {
   clearUserSecrets(aspNetProjectDir);
@@ -602,36 +875,12 @@ try {
   });
   const aspNetUserSecretsPayload = parseJsonOutput<AspNetPayload>('dotnet-aspnet-mvc-net8 user-secrets', aspNetUserSecretsResult);
 
-  assert(
-    aspNetUserSecretsPayload.UserSecretsOnly === 'loaded-from-user-secrets',
-    'ASP.NET example should preserve user-secrets-only keys when Varlock is added at startup.',
-  );
-  assert(
-    aspNetUserSecretsPayload.AppName === 'varlock-web',
-    'ASP.NET example should let Varlock override overlapping APP_NAME values from User Secrets by provider order.',
-  );
-  assert(
-    aspNetUserSecretsPayload.AppSettingsOnly === 'retained-from-appsettings',
-    'ASP.NET user-secrets proof should still retain unrelated appsettings values.',
-  );
+  assertAspNetPayload(aspNetUserSecretsPayload, 'ASP.NET user-secrets proof', 'loaded-from-user-secrets');
 } finally {
   clearUserSecrets(aspNetProjectDir);
 }
 
 // --- Reload proof: successful reload fires configuration change notification ---
-
-function parseTaggedLines(stdout: string, prefixes: Array<string>): Map<string, string> {
-  const lines = stdout.split('\n').map((l) => l.trim()).filter(Boolean);
-  const result = new Map<string, string>();
-  for (const line of lines) {
-    const colonIndex = line.indexOf(':');
-    if (colonIndex > 0 && prefixes.some((prefix) => line.startsWith(prefix))) {
-      result.set(line.substring(0, colonIndex), line.substring(colonIndex + 1));
-    }
-  }
-
-  return result;
-}
 
 const reloadSuccessResult = runDotnet(aspNetProjectDir, [
   'run',

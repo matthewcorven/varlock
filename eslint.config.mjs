@@ -52,6 +52,7 @@ export default tseslint.config(
       '**/.astro',
       '**/.next',
       '**/out',
+      '**/.tmp',
       '**/next-env.d.ts',
       '.magent',
     ],

@@ -1,0 +1,19 @@
+@page "/"
+@inject IOptionsSnapshot<VarlockBlazorOptions> Options
+
+<h1>Varlock Blazor Server</h1>
+
+<p>This page demonstrates server-side configuration access through IOptionsSnapshot.</p>
+
+<dl>
+  <dt>App Name:</dt>
+  <dd>@Options.Value.AppName</dd>
+  
+  <dt>App Port:</dt>
+  <dd>@Options.Value.AppPort</dd>
+  
+  <dt>Feature Enabled:</dt>
+  <dd>@Options.Value.FeatureEnabled</dd>
+</dl>
+
+<p><small>Configuration is resolved server-side only. Client JavaScript has no direct access to these values.</small></p>

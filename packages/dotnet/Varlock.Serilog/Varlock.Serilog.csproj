@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Varlock.Serilog</AssemblyName>
+    <RootNamespace>Varlock.Serilog</RootNamespace>
+    <PackageId>Varlock.Serilog</PackageId>
+    <Description>Serilog-specific redaction and metadata helpers for Varlock's resolved graph.</Description>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Varlock.DotNet\Varlock.DotNet.csproj" />
+    <PackageReference Include="Serilog" Version="2.12.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

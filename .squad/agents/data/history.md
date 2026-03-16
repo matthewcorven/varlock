@@ -77,3 +77,5 @@ Implemented two unblocked P3-A1c framework examples:
 Also validated Geordi's publicOnly implementation against contract requirements. Both examples build successfully. Proof harness integration by O'Brien pending.
 
 **Status:** COMPLETE
+
+- **2026-03-15T23:08:17Z (P3-A1d Serilog & Redaction):** Data completed implementation of `Varlock.Serilog` package (netstandard2.0, depends on Serilog + Varlock.DotNet). Implemented exact-match-only `WithVarlockRedaction()` destructuring policy (snapshots sensitive-key set at registration time, applies case-sensitive replacement to destructured properties and IDictionary keys). Implemented `WithVarlockMetadata()` enricher appending `VarlockRedactLogs` metadata property. Implemented `VarlockRedactionHelper.Redact()` in Varlock.DotNet for manual non-Serilog fallback (returns `[REDACTED]` for sensitive keys, passthrough otherwise). Integrated both into ASP.NET MVC example. Unit tests: 5 new `VarlockSerilogExtensionsTests` covering destructuring redaction, passthrough, empty graph, metadata enrichment, helper fallback — all passing (32 total tests). Picard approved all deliverables. **P3-A1d APPROVE-CLOSED. Phase 3 complete.**

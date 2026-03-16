@@ -1,27 +1,23 @@
 ---
-updated_at: 2026-03-15T19:19:26.522Z
-focus_area: P3-A1d Security boundary
+updated_at: 2026-03-15T22:11:14.786Z
+focus_area: Phase 3 complete
 active_issues: []
 ---
 
 # What We're Focused On
 
-**P3-A1a** ("Cross-platform CI parity"), **P3-A1b** ("Hosting + Worker"), and **P3-A1c** ("Remaining framework examples") are **done**. P3-A1c is approved-closed with honest proof: Azure Functions isolated, Blazor Server, Blazor WASM public-only generation boundary, and WinForms `net48` are all implemented and proven in the support ledger.
+**Phase 3 is now complete.** **P3-A1a** ("Cross-platform CI parity"), **P3-A1b** ("Hosting + Worker"), **P3-A1c** ("Remaining framework examples"), and **P3-A1d** ("Security Boundary + Ledger Completion") are all approved-closed with proof artifacts and narrowed support-ledger language.
 
-The active slice is now **P3-A1d** ("Security Boundary + Ledger Completion"). Scope from the P3-A1 sequencing decision:
+What Phase 3 now proves:
 
-1. `packages/dotnet/Varlock.Serilog/` — Serilog-specific redaction helpers targeting `netstandard2.0`
-2. Security-boundary specimen — Serilog redaction example, non-Serilog fallback helpers, and the already-proven Blazor WASM public-only boundary
-3. Non-Serilog fallback redaction helper proof in the console example
-4. Final support-matrix completion for the remaining planned security/logging rows
-5. Proposal updates documenting Phase 3 exit criteria as met
+1. Cross-platform CI parity for the `.NET` proof slice
+2. Hosted and worker `.NET` configuration-provider flows
+3. Azure Functions isolated, Blazor Server, Blazor WASM public-only generation boundary, and WinForms `net48`
+4. `packages/dotnet/Varlock.Serilog/` with Serilog-specific destructuring redaction and metadata enrichment
+5. Manual non-Serilog fallback redaction via `VarlockRedactionHelper.Redact(...)`
+6. An explicit security boundary that names what is automatic, what is manual, and what is unsupported in v1
 
-Routing:
-- **Tuvok** — Serilog contract, security-boundary wording, and overclaim prevention
-- **Data** — `Varlock.Serilog` implementation and any runtime/helper seams
-- **O'Brien** — proof harness, examples, docs, and final ledger completion
-- **Picard** — final acceptance and phase-exit review
+There is **no active implementation slice open right now**. **Phase 4** remains deferred until explicitly opened.
 
-Prerequisite met: P3-A1c ✅
-
-P4-A1 remains deferred.
+Next possible focus if authorized:
+- **P4-A1** — native evolution and plugin expansion
