@@ -88,3 +88,29 @@ Also validated Geordi's publicOnly implementation against contract requirements.
 - 2026-03-16: Picard accepted E1 (CLI Bridge Limits Audit) as-is. Measured latency data (15 startup, 8 reload on macOS) is authoritative despite cross-platform caveat. Core finding (process-spawn dominance, ~160–180ms startup floor, ~550ms reload floor) is architectural, not platform-specific. Cross-platform benchmarking deferred conditionally: "if needed before native-runtime investment, create dedicated CI benchmark lane first." Decision grounds native-runtime NO-GO verdict.
 
 - 2026-03-16: P4-B1 Wave 1 W1-4, W1-5, W1-6 completion: Completed three .NET integration guides (getting-started, configuration, typed-options). All guides grounded in existing proof applications and capture explicit scope decisions: executable acquisition order (repo-local → package-local → binary → PATH fallback), coexistence as primary narrative (not replacement), reload semantics honesty (300ms debounce, 550ms floor), generated type naming (PascalCase rule), and no shared navigation edits. Submitted inbox decision capturing design rationale and DoD closure. Wave 1 marked DONE.
+
+## 2026-03-20: Picard Editorial Review — Wave 2 Docs Closure
+
+### Fix Summary
+
+Applied three minimal editorial corrections to O'Brien's Wave 2 docs slice, blocked by Picard on:
+
+1. **Future directions clarity** (`distribution.mdx` line 139): Reframed native runtime, full Roslyn source generation, plugins, and analyzers from "Planned for future releases" to "Possible future directions" — these are deferred / NO-GO for v1, not scheduled features. Added explicit language that they "would require justified demand or a future phase decision."
+
+2. **Configuration precedence ordering** (`Varlock.Extensions.Configuration/README.md` line 33): Fixed precedence chain to match Wave 1's `configuration.mdx`: `appsettings.json` → `appsettings.{Environment}.json` → Varlock → User Secrets → environment variables. Original incorrectly placed `appsettings.{Environment}.json` after Varlock.
+
+3. **Version compatibility wording** (`distribution.mdx` line 55): Clarified version coupling to describe the bridge/contract handshake honestly instead of implying exact package-version matching. Noted that matching major versions is the core mechanism; patch differences often compatible. Removed overclaimed "requires version X.Y.Z or compatible" phrasing.
+
+### Files Changed
+- `packages/varlock-website/src/content/docs/integrations/dotnet/distribution.mdx`
+- `packages/dotnet/Varlock.Extensions.Configuration/README.md`
+
+### Pattern Notes
+- All three fixes were scoped editorial clarifications; no structural changes.
+- Wave 1 `configuration.mdx` served as the canonical precedence reference.
+- Bridge contract handshake is the honest mechanism; version strings are a surface detail.
+
+
+## P4-B1 Wave 2 O'Brien Slice Editorial Closure (2026-03-16)
+
+- 2026-03-16: Data completed editorial revision of O'Brien's P4-B1 Wave 2 slice per Picard's 3 blockers. Changes applied: (1) distribution.mdx §139 — rewrote "Planned for future releases" to "Possible future directions" with explicit note that items are not committed for v1 or any specific future release; (2) Extensions.Configuration README §33 — corrected precedence ordering to match Wave 1 canonical (appsettings.json → appsettings.{Environment}.json → Varlock → User Secrets → env vars); (3) distribution.mdx §55 — clarified contract-version handshake as the core coupling mechanism, not exact semver matching, and noted major-version alignment as typical practice. Reviewer lockout enforced: Data, not O'Brien, applied fixes. All blockers resolved; slice ready for Picard follow-up re-check and final APPROVE verdict.

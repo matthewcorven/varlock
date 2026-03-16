@@ -3288,3 +3288,139 @@ All 9 items are independent leaf nodes with no predecessors:
 5. `dotnet watch` / IDE behavior documented from E2 evidence
 6. Package READMEs expanded to user-facing quality
 7. At least one doc page under `packages/varlock-website/src/content/docs/` for .NET
+
+## 2026-03-16: P4-B1 Wave 2 O'Brien Slice Review (Picard)
+
+**Date:** 2026-03-16  
+**Initiative:** dotnet-support  
+**Node:** P4-B1 Wave 2 (W2-2, W2-3)  
+**Source:** Picard (reviewer-gate pass)  
+**Verdict:** APPROVE with 3 required follow-ups
+
+### Scope Reviewed
+
+- **W2-2:** README expansion for all 6 .NET packages (`Varlock.DotNet`, `Varlock.Extensions.Configuration`, `Varlock.Extensions.Hosting`, `Varlock.MSBuild`, `Varlock.Serilog`, `Varlock.SourceGeneration`)
+- **W2-3:** Distribution/release documentation (`distribution.mdx`)
+
+### What Is Covered and Sound
+
+1. All 6 package READMEs present, correctly scoped, and aligned with accepted P4 governance
+2. `Varlock.SourceGeneration` README honestly describes thin-wrapper status — no Roslyn overclaim
+3. `Varlock.MSBuild` README properly documents deferred features ("What this package does not do yet")
+4. `Varlock.Serilog` README correctly limits scope to destructuring redaction with exact key matching
+5. Distribution doc covers NuGet packages, executable acquisition, versioning, and update guidance
+6. No missing packages — the 6-package set matches the proposal's package layout exactly
+
+### Required Follow-Ups (Before Commit)
+
+#### 1. Distribution doc: "Planned for future releases" contradicts NO-GO decisions
+
+**File:** `packages/varlock-website/src/content/docs/integrations/dotnet/distribution.mdx` (lines 139–146)
+
+The section lists native runtime, Roslyn source generator, expanded plugin ecosystem, and analyzers as "Planned for future releases." All of these were explicitly decided NO-GO in P4-A1 evaluation. Presenting them as "planned" undermines governance integrity.
+
+**Required fix:** Reword to "Possible future directions" or "Deferred — not currently planned." Include language like "These features were evaluated and deferred pending justified demand. See the [proposal](/proposals/dotnet-support/) for re-open criteria."
+
+#### 2. Extensions.Configuration README: Precedence ordering contradicts Wave 1 docs
+
+**File:** `packages/dotnet/Varlock.Extensions.Configuration/README.md` (lines 36–43)
+
+The README claims:
+1. appsettings.json → 2. Varlock → 3. appsettings.{Environment}.json → 4. Environment variables
+
+The Wave 1 `configuration.mdx` correctly shows:
+1. appsettings.json → 2. appsettings.{Environment}.json → 3. Varlock → 4. User Secrets → 5. Environment variables
+
+**Required fix:** Align the README ordering with the established Wave 1 configuration.mdx precedence.
+
+#### 3. Distribution doc: Version compatibility mechanism
+
+**File:** `packages/varlock-website/src/content/docs/integrations/dotnet/distribution.mdx` (lines 57–59)
+
+Claims "Version 1.2.0 of Varlock.Extensions.Configuration requires varlock CLI version 1.2.0 or compatible" and implies exact version matching. The actual mechanism is contract-version handshake (contract version 1), not exact semver matching.
+
+**Required fix:** Clarify that compatibility is based on bridge contract version, not exact package version. Recommend keeping versions aligned as best practice, but explain the handshake mechanism.
+
+### Non-Blocking Observations
+
+- `Varlock.Extensions.Hosting` README examples look identical to `Extensions.Configuration` — a sentence explaining what the Hosting package adds beyond Configuration would help, but is not blocking
+- `Varlock.Serilog` README code example (line 31–39) with `.First()` cast is fragile as illustration but not technically wrong
+- The slice is keepable as-is while Geordi's Wave 2 lane completes — the required follow-ups are editorial, not structural
+
+### Reviewer Lockout
+
+Per standard protocol: if revisions are needed, a **different agent** (not O'Brien) should make the 3 editorial fixes. O'Brien authored the slice; someone else revises.
+
+## 2026-03-16: Data: O'Brien Wave 2 Docs Editorial Closure
+
+**Date:** 2026-03-16  
+**Status:** ✅ CLOSED — Picard's three editorial issues applied independently. O'Brien locked out of revision cycle; fix completed by Data.
+
+### Changes Made
+
+#### 1. Future Directions Reframing (distribution.mdx §139)
+- **Before:** "Planned for future releases" (implied scheduled features)
+- **After:** "Possible future directions" with explicit note: "not committed for v1 or any specific future release, but represent areas that could be valuable given justified demand or a formal phase decision"
+- **Rationale:** Aligns with P4 scope deferred items. Native runtime, full Roslyn codegen, plugins, and analyzers are NO-GO for Wave 2; reframing prevents roadmap misread.
+
+#### 2. Configuration Precedence Fix (README.md §33)
+- **Before:** appsettings.json → Varlock → appsettings.{Environment}.json → env vars
+- **After:** appsettings.json → appsettings.{Environment}.json → Varlock → User Secrets → env vars
+- **Canonical reference:** Wave 1's `configuration.mdx` (lines 12–18)
+- **Rationale:** Environment-specific overrides must stack *before* Varlock so Varlock sits at correct precedence layer.
+
+#### 3. Version Compatibility Honesty (distribution.mdx §55)
+- **Before:** Implied exact version matching as the coupling mechanism
+- **After:** Named the **contract handshake** as the core mechanism; noted major version alignment; clarified patch differences often compatible
+- **Rationale:** Describes bridge truthfully without overclaiming coupling semantics.
+
+### Bridge / Contract Semantics
+
+The version compatibility section now accurately reflects Varlock bridge design:
+- **Handshake:** On startup, the bridge validates that CLI and .NET package speak a compatible protocol.
+- **Failure:** If incompatible, the error is clear and actionable.
+- **Version strings:** Used to signal protocol generations; matching major versions is sufficient in most cases.
+
+This is cleaner for operators and avoids the false precision of "1.2.0 requires exactly 1.2.0."
+
+### Alignment with Accepted Decisions
+
+- **P4 Wave 2 scope:** Native runtime, Roslyn codegen, etc. remain deferred (not committed).
+- **Wave 1 precedence model:** Configuration layering is now consistent across docs.
+- **Bridge design:** Version handshake is the honest mechanism, not package version equality.
+
+### Files Modified
+1. `packages/varlock-website/src/content/docs/integrations/dotnet/distribution.mdx`
+2. `packages/dotnet/Varlock.Extensions.Configuration/README.md`
+
+### Review Complete
+All three findings addressed; docs aligned with P4 and Wave 1 ground truth.
+
+## 2026-03-16: P4-B1 Wave 2 W2-1 Type Generation Guide (Geordi)
+
+**Date:** 2026-03-16  
+**Status:** DONE
+
+### Decision
+
+Publish the Wave 2 type-generation guide as the canonical user-facing explanation of the current `.NET` build-backed C# generation flow. Recommend `Varlock.SourceGeneration` as the consumer entry point, document `Varlock.MSBuild` as the underlying implementation, and anchor examples on `obj/Varlock/*.g.cs` with explicit `auto=false`.
+
+### Why
+
+- It matches the landed thin `Varlock.SourceGeneration` wrapper instead of implying Roslyn behavior that does not exist.
+- It keeps the build graph story consistent with the accepted watch/IDE guidance: real build first, design-time reuse afterward.
+- It makes the path-alignment contract explicit: `@generateTypes(..., path=...)` and `VarlockGeneratedFile` must resolve to the same physical file.
+
+### Guardrails
+
+- No Roslyn source-generator claim
+- No analyzer-diagnostics claim
+- No separate validate-on-build claim for `VarlockValidateOnBuild`
+- No special `dotnet watch` story beyond the documented build-backed flow
+- Repo-local manual `<Import>` examples are proof wiring, not the normal packaged consumer setup
+
+### Validation
+
+- `bun run --filter @varlock/website build` completed successfully
+- Site output included `/integrations/dotnet/type-generation/index.html`
+
