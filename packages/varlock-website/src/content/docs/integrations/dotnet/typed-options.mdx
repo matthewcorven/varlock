@@ -15,7 +15,7 @@ In your `.env.schema`, use the `@generateTypes` directive:
 /**
  * @env-spec
  * @defaultSensitive false
- * @generateTypes(lang=cs, typeName=VarlockConfig, path=Generated/VarlockConfig.g.cs)
+ * @generateTypes(lang=cs, typeName=VarlockConfig, path=obj/Varlock/VarlockConfig.g.cs, auto=false)
  */
 
 APP_NAME = @string @default("my-app")
@@ -27,27 +27,23 @@ API_KEY = @string @sensitive
 Parameters:
 - **lang=cs** — Generate C# (required for .NET)
 - **typeName=VarlockConfig** — Name of the generated class (use PascalCase)
-- **path=Generated/VarlockConfig.g.cs** — Output path relative to your project root
+- **path=obj/Varlock/VarlockConfig.g.cs** — Output path relative to your project root
+- **auto=false** — Keep C# emission on the build-backed MSBuild path
 
 ### Generate the code
 
-Run the schema validation (which happens at build time and startup):
+In `.NET`, C# generation is driven by a real build through `Varlock.SourceGeneration` / `Varlock.MSBuild`. After enabling that build integration, run:
 
 ```bash
-varlock load --format json-full
-```
-
-The first time you add `@generateTypes`, a rebuild will generate the file:
-
-```bash
-dotnet clean
 dotnet build
 ```
+
+For the package setup, `VarlockGeneratedFile` alignment rule, and `dotnet watch` / IDE behavior, see [Type generation & MSBuild integration](/integrations/dotnet/type-generation/).
 
 Your generated file appears at the path you specified:
 
 ```csharp
-// Generated/VarlockConfig.g.cs
+// obj/Varlock/VarlockConfig.g.cs
 public sealed class VarlockConfig
 {
   public string AppName { get; }
@@ -330,8 +326,9 @@ If you're building a Blazor WebAssembly app, you can generate only public config
  * @generateTypes(
  *   lang=cs,
  *   typeName=VarlockPublicConfig,
- *   path=Generated/VarlockPublicConfig.g.cs,
- *   publicOnly=true
+ *   path=obj/Varlock/VarlockPublicConfig.g.cs,
+ *   publicOnly=true,
+ *   auto=false
  * )
  */
 
@@ -352,9 +349,11 @@ Generated types are created during the normal .NET build process. No extra steps
 dotnet build
 ```
 
-This happens during a **real build**, not during design-time project evaluation. On a fresh clone or after cleaning `obj/`, run `dotnet build` once before expecting IntelliSense to resolve the generated type. For the exact `dotnet watch` / IDE behavior, see [Watch mode & IDE builds](/integrations/dotnet/watch-and-ide/).
+This happens during a **real build**, not during design-time project evaluation. On a fresh clone or after cleaning `obj/`, run `dotnet build` once before expecting IntelliSense to resolve the generated type. For the exact `dotnet watch` / IDE behavior, see [dotnet watch & IDE builds](/integrations/dotnet/watch-and-ide/).
 
-The generated file is placed in the path you specified in `@generateTypes(path=...)`. 
+Design-time IDE evaluation does **not** run Varlock type generation by itself. It reuses the last successful generated file, which is why the first real build matters.
+
+The generated file is placed in the path you specified in `@generateTypes(path=...)`. That path should resolve to the same physical file as `VarlockGeneratedFile`, with `obj/Varlock/*.g.cs` as the recommended shape.
 
 If you use a path in the `obj/` directory (recommended for generated files), it's automatically excluded from source control and cleaned on `dotnet clean`.
 
@@ -388,5 +387,6 @@ If binding fails with a type error, check that your schema types match your opti
 
 - **[Configuration & coexistence](/integrations/dotnet/configuration/)** — Understand how Varlock works with appsettings and other sources
 - **[Getting started](/integrations/dotnet/getting-started/)** — Start from the beginning
+- **[Type generation & MSBuild integration](/integrations/dotnet/type-generation/)** — Set up the build-backed generation flow and keep paths aligned
 - **[Watch mode & IDE builds](/integrations/dotnet/watch-and-ide/)** — See how schema edits, runtime reload, and design-time compile fit together
 - **[Schema reference](/reference/schema-language/)** — Full syntax for `@generateTypes` and other directives

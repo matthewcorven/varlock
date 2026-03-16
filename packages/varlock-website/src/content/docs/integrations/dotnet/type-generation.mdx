@@ -1,0 +1,141 @@
+---
+title: Type generation & MSBuild integration
+description: Generate deterministic C# during dotnet build with Varlock.SourceGeneration and Varlock.MSBuild
+---
+
+Varlock's current `.NET` type-generation story is intentionally **build-backed**: a real build runs `varlock typegen`, writes a `.g.cs` file into `obj/Varlock/`, and includes that file in compilation. `Varlock.SourceGeneration` is the stable package name for that flow today; it currently layers the `Varlock.MSBuild` targets rather than shipping a Roslyn source generator.
+
+## What to install
+
+This guide assumes you already have the `varlock` executable available. If not, start with [Getting started](/integrations/dotnet/getting-started/).
+
+For generated C# in a consuming app, install:
+
+```bash
+dotnet add package Varlock.SourceGeneration
+```
+
+`Varlock.SourceGeneration` brings in `Varlock.MSBuild`. In a normal NuGet-based project, that is enough for the `.props` and `.targets` to load automatically.
+
+You may still see manual `<Import ...>` entries in repository examples. Those are repo-local proof fixtures that point directly at checked-out package sources before packing; they are **not** the normal consumer setup.
+
+## Declare the generated file in your schema
+
+Use `@generateTypes` in `.env.schema` and point it at an intermediate output path:
+
+```javascript
+/**
+ * @env-spec
+ * @generateTypes(
+ *   lang=cs,
+ *   namespace=MyApp.Generated,
+ *   typeName=AppConfig,
+ *   path=obj/Varlock/AppConfig.g.cs,
+ *   auto=false
+ * )
+ */
+
+APP_NAME = @string @default("my-app")
+APP_PORT = @integer @default(5000)
+DATABASE_URL = @string @required
+```
+
+Recommended pieces:
+
+- `lang=cs` enables C# generation
+- `typeName=AppConfig` keeps the generated root type explicit
+- `path=obj/Varlock/AppConfig.g.cs` keeps generated output in the intermediate build tree
+- `auto=false` keeps this on the build-backed path instead of asking other CLI flows to emit C#
+
+## Turn on the MSBuild target
+
+In your `.csproj`, enable Varlock and point the build target at the same physical file:
+
+```xml
+<PropertyGroup>
+  <VarlockEnabled>true</VarlockEnabled>
+  <VarlockSchemaPath>.env.schema</VarlockSchemaPath>
+  <VarlockGeneratedFile>$(BaseIntermediateOutputPath)Varlock/AppConfig.g.cs</VarlockGeneratedFile>
+</PropertyGroup>
+```
+
+Only `VarlockEnabled` is strictly required for the default flow, but most projects should make `VarlockGeneratedFile` explicit once they choose a custom type name or path.
+
+### Path-alignment rule
+
+`@generateTypes(..., path=...)` and `VarlockGeneratedFile` do **not** need to look textually identical, but they must resolve to the same file.
+
+For example, these match correctly:
+
+- schema: `path=obj/Varlock/AppConfig.g.cs`
+- project: `$(BaseIntermediateOutputPath)Varlock/AppConfig.g.cs`
+
+If they drift, the build fails intentionally so you do not compile against a stale or misplaced generated file.
+
+## What `dotnet build` does
+
+With `VarlockEnabled=true`, the current build flow is:
+
+1. Resolve the working directory and schema path
+2. Resolve the Varlock executable from `VarlockExecutablePath`, local lookup, or `PATH`
+3. Run `varlock typegen --path "<absolute-schema-path>"`
+4. Verify the expected `.g.cs` file was actually produced
+5. Add that file to `@(Compile)` before `CoreCompile`
+
+This target is wired with explicit MSBuild `Inputs` and `Outputs`, so unchanged builds do not keep rewriting the generated file. The generated file is also marked as auto-generated and left under `obj/`, which keeps it out of source control and out of the normal hand-authored source tree.
+
+## Common MSBuild properties
+
+| Property | Default | What it controls |
+| --- | --- | --- |
+| `VarlockEnabled` | `false` | Opts the targets in |
+| `VarlockSchemaPath` | `.env.schema` | Schema path, resolved from `VarlockWorkingDirectory` |
+| `VarlockGeneratedFile` | `$(BaseIntermediateOutputPath)Varlock/VarlockConfig.g.cs` | Expected generated C# file |
+| `VarlockWorkingDirectory` | `$(MSBuildProjectDirectory)` | Base directory for schema resolution and CLI execution |
+| `VarlockExecutablePath` | unset | Explicit path to the `varlock` executable |
+| `VarlockEnableLocalExecutableLookup` | `true` | Enables repo-local and `node_modules` lookup |
+| `VarlockEnablePathLookup` | `true` | Allows `PATH` fallback if local lookup fails |
+| `VarlockGenerateTypes` | `true` | Lets you disable generation while leaving the package installed |
+| `VarlockValidateOnBuild` | `false` | Reserved today; does **not** add a separate validation pass yet |
+
+## `dotnet watch` and IDE behavior
+
+Type generation and runtime reload are different mechanisms:
+
+- **schema or `@generateTypes(...)` edits** are build edits, so expect rebuild and restart behavior
+- **value-file edits** are runtime reload territory when you enabled `ReloadOnChange = true`
+- **design-time IDE evaluation** reuses the last successful generated file; it does not run the CLI on its own
+
+On a fresh clone, or after `dotnet clean` / deleting `obj/`, run:
+
+```bash
+dotnet build
+```
+
+once before expecting generated types to resolve in IntelliSense.
+
+For the full watch-mode breakdown, see [dotnet watch & IDE builds](/integrations/dotnet/watch-and-ide/).
+
+## Public-only browser builds
+
+For Blazor WebAssembly or similar browser-delivered builds, you can use `publicOnly=true` in `@generateTypes(...)` so sensitive items never appear in the emitted C# type.
+
+That is still a **build-time filtering step**, not runtime protection. The generated file simply omits sensitive properties and sensitivity metadata. See [Typed options & code generation](/integrations/dotnet/typed-options/) for the consumption side.
+
+## What this does not claim
+
+The current `Varlock.SourceGeneration` + `Varlock.MSBuild` slice does **not** claim:
+
+- a Roslyn source generator
+- analyzer diagnostics from `.env.schema`
+- generated types before the first successful real build
+- a build-without-CLI fallback
+- a separate validate-on-build implementation when `VarlockValidateOnBuild` is set
+- special `dotnet watch` behavior beyond the build-backed flow described here
+
+## See also
+
+- [Getting started](/integrations/dotnet/getting-started/)
+- [Typed options & code generation](/integrations/dotnet/typed-options/)
+- [dotnet watch & IDE builds](/integrations/dotnet/watch-and-ide/)
+- [Troubleshooting](/integrations/dotnet/troubleshooting/)

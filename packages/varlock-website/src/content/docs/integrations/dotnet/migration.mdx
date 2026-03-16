@@ -150,7 +150,7 @@ For better IDE support and compile-time safety, generate a C# type from your sch
 ### 1. Enable type generation in `.env.schema`
 
 ```yaml
-# @generateTypes(lang=cs, output=src/Generated/Config.g.cs)
+# @generateTypes(lang=cs, path=obj/Varlock/Config.g.cs)
 
 APP_NAME @string
 APP_PORT @int
@@ -446,7 +446,7 @@ See [Executable acquisition and versioning](./getting-started.mdx) for setup det
 
 1. Ensure `.env.schema` includes the `@generateTypes()` decorator:
    ```yaml
-   # @generateTypes(lang=cs, output=src/Generated/Config.g.cs)
+   # @generateTypes(lang=cs, path=obj/Varlock/Config.g.cs)
    ```
 
 2. Build the project:
@@ -456,7 +456,7 @@ See [Executable acquisition and versioning](./getting-started.mdx) for setup det
 
 3. Check the output path for the generated file:
    ```bash
-   ls -la src/Generated/Config.g.cs
+   ls -la obj/Varlock/Config.g.cs
    ```
 
 See [Type generation guide](./type-generation.mdx) for details.

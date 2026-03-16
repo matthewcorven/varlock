@@ -1,0 +1,184 @@
+---
+title: Distribution and release
+description: .NET package distribution, versioning, and release process for Varlock
+---
+
+Varlock's .NET packages are distributed through NuGet and follow standard .NET release practices. This guide explains the distribution story, versioning strategy, and how to stay updated.
+
+## NuGet package distribution
+
+All Varlock .NET packages are published to [NuGet.org](https://www.nuget.org) and can be installed using standard `dotnet add` or package manager commands.
+
+### Available packages
+
+| Package | Purpose | Latest |
+| --- | --- | --- |
+| **Varlock.DotNet** | Low-level CLI bridge primitives | [NuGet](https://www.nuget.org/packages/Varlock.DotNet) |
+| **Varlock.Extensions.Configuration** | `IConfigurationBuilder` integration (recommended) | [NuGet](https://www.nuget.org/packages/Varlock.Extensions.Configuration) |
+| **Varlock.Extensions.Hosting** | `HostApplicationBuilder` integration for modern hosted apps | [NuGet](https://www.nuget.org/packages/Varlock.Extensions.Hosting) |
+| **Varlock.MSBuild** | Build-time C# type generation | [NuGet](https://www.nuget.org/packages/Varlock.MSBuild) |
+| **Varlock.SourceGeneration** | Source-generation wrapper (uses MSBuild today) | [NuGet](https://www.nuget.org/packages/Varlock.SourceGeneration) |
+| **Varlock.Serilog** | Serilog redaction and metadata enrichment | [NuGet](https://www.nuget.org/packages/Varlock.Serilog) |
+
+Install any package using:
+
+```bash
+dotnet add package Varlock.Extensions.Configuration
+```
+
+## Executable distribution
+
+The .NET packages rely on the `varlock` CLI executable to function. The CLI is distributed separately and can be obtained in several ways.
+
+### CLI installation options
+
+1. **npm/Bun (recommended for development)**
+   ```bash
+   npm install --save-dev varlock
+   # or
+   bun add --dev varlock
+   ```
+   The .NET bridge automatically discovers the CLI at `node_modules/.bin/varlock` or `node_modules/varlock/bin/cli.js`.
+
+2. **Standalone binary**
+   Download pre-built binaries for your platform from the [Varlock releases page](https://github.com/dmno-dev/varlock/releases). Available for:
+   - macOS (Intel and Apple Silicon)
+   - Linux (x64, arm64)
+   - Windows (x64)
+
+3. **System package manager**
+   Future releases will provide packages for popular package managers (Homebrew, Chocolatey, etc.). Check [Installation guide](/installation/) for current options.
+
+4. **Repository development**
+   If you're developing inside the Varlock repository, the .NET bridge automatically discovers the CLI at `packages/varlock/bin/cli.js`.
+
+### Executable version compatibility
+
+The .NET packages are versioned in lockstep with the `varlock` CLI. The bridge performs a **contract handshake** on startup to ensure compatibility between the .NET package and the CLI executable.
+
+If a version mismatch is detected—for example, if the CLI is too old to speak the current bridge protocol—the bridge fails with a clear, actionable error. This ensures you know immediately when your CLI and packages are out of sync.
+
+**Best practice for CI:** Pin both the .NET packages and the CLI version in your lock files (`.csproj` package versions and `package-lock.json` or `bun.lock`) to avoid mismatches in your environments. Matching major versions is the core mechanism—patch version differences are often compatible within the same contract.
+
+## Versioning and release schedule
+
+All Varlock .NET packages follow [Semantic Versioning](https://semver.org):
+
+- **Major (1.x.0)** — Breaking changes to the public API or bridge contract
+- **Minor (1.2.0)** — New features, backward-compatible changes
+- **Patch (1.2.1)** — Bug fixes, backward-compatible improvements
+
+The .NET packages are released together and versioned in lockstep with the main Varlock CLI. Each release includes:
+
+1. Updated .NET packages on NuGet
+2. Updated CLI executable (binaries and npm packages)
+3. Documentation updates in the website
+4. Changelog entries in `CHANGELOG.md`
+
+### Release cadence
+
+Varlock follows a regular release schedule. Check the [releases page](https://github.com/dmno-dev/varlock/releases) for version history and upcoming releases.
+
+## Staying updated
+
+### Check for updates
+
+Use `dotnet outdated` to check for package updates:
+
+```bash
+dotnet outdated
+```
+
+Or use the NuGet package manager:
+
+```bash
+dotnet add package Varlock.Extensions.Configuration --version latest
+```
+
+### Update your packages
+
+To update all Varlock .NET packages to the latest version:
+
+```bash
+dotnet add package Varlock.DotNet
+dotnet add package Varlock.Extensions.Configuration
+dotnet add package Varlock.Extensions.Hosting
+dotnet add package Varlock.MSBuild
+dotnet add package Varlock.SourceGeneration
+dotnet add package Varlock.Serilog
+```
+
+Also update the `varlock` CLI:
+
+```bash
+npm update varlock
+# or
+bun update varlock
+```
+
+### Breaking changes
+
+When a major version bump occurs, review:
+
+1. **Package release notes** on NuGet
+2. **GitHub releases page** for detailed changelogs
+3. **[Migration guide](/integrations/dotnet/migration/)** for upgrade instructions
+
+## v1 scope and planned features
+
+The current v1 slice of Varlock .NET support includes:
+
+- ✅ CLI bridge for configuration loading
+- ✅ `IConfigurationBuilder` integration
+- ✅ `IOptions<T>`, `IOptionsSnapshot<T>`, `IOptionsMonitor<T>` support
+- ✅ Build-time C# type generation via MSBuild
+- ✅ Serilog redaction for sensitive values
+- ✅ Cross-platform support (Windows, macOS, Linux)
+- ✅ Modern .NET targets (.NET 6+) and legacy Windows desktop (.NET Framework 4.8)
+
+### Possible future directions
+
+The following are **not** committed for v1 or any specific future release, but represent areas that could be valuable given justified demand or a formal phase decision:
+
+- Native `.NET` runtime implementation (eliminating CLI bridge dependency)
+- Full Roslyn source generator with integrated IDE support
+- Advanced validation and diagnostics at build time
+- Expanded plugin ecosystem for .NET
+- Native `.NET` analyzers for schema validation at edit time
+
+See the [proposal](/proposals/dotnet-support/) for detailed scope boundaries and deferred considerations.
+
+## Support and troubleshooting
+
+### Common issues
+
+**"varlock executable not found"**
+- Install the `varlock` CLI: `npm install --save-dev varlock`
+- Or download a standalone binary and set `ExecutablePath` explicitly
+
+**"Version mismatch: CLI version 1.2.0, package expects 1.2.1"**
+- Update both the CLI and packages to the same version
+- Rebuild your application: `dotnet clean && dotnet build`
+
+**Package not found on NuGet**
+- Ensure you're using the correct package name (case-sensitive)
+- Check that your `.csproj` doesn't have a custom package source configured
+
+### Get help
+
+- **[Troubleshooting & diagnostics](/integrations/dotnet/troubleshooting/)** — Detailed error category reference and inspection workflows
+- **GitHub issues** — Report bugs or request features on [github.com/dmno-dev/varlock](https://github.com/dmno-dev/varlock)
+- **Discussions** — Ask questions on GitHub Discussions
+
+## Release notes and changelog
+
+View detailed release notes and version history:
+
+- **[GitHub Releases](https://github.com/dmno-dev/varlock/releases)** — Complete changelog for all versions
+- **[NuGet package history](https://www.nuget.org/packages/Varlock.Extensions.Configuration)** — Version timeline for each package
+
+## Next steps
+
+- **[Getting started](/integrations/dotnet/getting-started/)** — Set up Varlock in your project
+- **[Installation guide](/installation/)** — Download and install the CLI
+- **[Migration guide](/integrations/dotnet/migration/)** — Upgrade from previous versions
