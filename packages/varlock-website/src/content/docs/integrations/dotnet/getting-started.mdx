@@ -1,0 +1,264 @@
+---
+title: Getting started with .NET
+description: Set up Varlock in your .NET project with the configuration provider
+---
+
+Varlock integrates with .NET through a CLI bridge that runs the Varlock engine and exposes its configuration through standard `IConfiguration`, `IOptions<T>`, and `IOptionsMonitor<T>` patterns.
+
+## Prerequisites
+
+- **Node.js 22+** installed (required for the `varlock` CLI executable)
+- **.NET 6+** (tested with .NET 6, 7, 8, 10)
+- **Bun** (for development; optional for consuming the integration)
+
+## Installation
+
+### 1. Install the Varlock CLI
+
+The .NET packages need access to the `varlock` CLI executable. Choose one of the following:
+
+#### Option A: Local development (repo-local lookup)
+
+If you're developing inside a Varlock repository, the .NET bridge will automatically find the CLI at `packages/varlock/bin/cli.js`.
+
+#### Option B: Package-local lookup via npm/Bun
+
+Install `varlock` as a dev dependency in your project:
+
+```bash
+npm install --save-dev varlock
+# or
+bun add --dev varlock
+```
+
+The .NET bridge will discover it at `node_modules/.bin/varlock`.
+
+#### Option C: Standalone binary
+
+Install `varlock` as a system-wide or project-local binary using the [installation guide](/installation/), then reference it explicitly via `ExecutablePath`:
+
+```csharp
+builder.Configuration.AddVarlock(source =>
+{
+  source.ExecutablePath = "/usr/local/bin/varlock";
+});
+```
+
+#### Option D: Add to PATH
+
+If `varlock` is on your system PATH, the bridge will find it as a fallback.
+
+### 2. Install the .NET packages
+
+Add the main Varlock package to your project:
+
+```bash
+dotnet add package Varlock.Extensions.Configuration
+```
+
+This package includes `Varlock.DotNet` as a dependency and provides `IConfigurationBuilder` integration.
+
+For **Generic Host / Worker Service** scenarios, also add:
+
+```bash
+dotnet add package Varlock.Extensions.Hosting
+```
+
+For **Serilog** integration (optional):
+
+```bash
+dotnet add package Varlock.Serilog
+```
+
+### 3. Create a `.env.schema` file
+
+In your project root, create a `.env.schema` file:
+
+```bash
+varlock init
+```
+
+This will scan your project and create a schema with sensible defaults. You can then customize it to define your environment variables:
+
+```javascript
+/**
+ * @env-spec
+ * @defaultSensitive false
+ */
+
+// Application settings
+APP_NAME = @string @default("my-app")
+APP_PORT = @integer @default(5000)
+
+// Database connection
+DATABASE_URL = @string @required
+
+// API keys (marked as sensitive)
+API_KEY = @string @sensitive
+```
+
+## Basic usage
+
+### In an ASP.NET Core app
+
+```csharp
+using Varlock.Extensions.Configuration;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add Varlock to the configuration pipeline
+// This reads and validates the .env.schema file
+builder.Configuration.AddVarlock(source =>
+{
+  // By default, Varlock uses the ContentRootPath to find .env.schema
+  // (optional) Enable automatic reload when the schema changes
+  source.ReloadOnChange = true;
+});
+
+// Now appsettings.json is loaded first, then Varlock
+// Keys in Varlock override keys from appsettings when they overlap
+builder.Services.AddControllersWithViews();
+
+var app = builder.Build();
+app.Run();
+```
+
+### In a Worker Service / Generic Host app
+
+For long-lived applications that need configuration reload support, use the Hosting package:
+
+```csharp
+using Varlock.Extensions.Hosting;
+
+var builder = Host.CreateApplicationBuilder(args);
+
+// AddVarlock() delegates to the configuration provider but works cleanly
+// with HostApplicationBuilder
+builder.AddVarlock(source =>
+{
+  source.ReloadOnChange = true;
+});
+
+builder.Services.AddHostedService<MyBackgroundService>();
+
+var host = builder.Build();
+await host.RunAsync();
+```
+
+### Accessing configuration at runtime
+
+Use standard .NET configuration patterns:
+
+```csharp
+// Injected IConfiguration
+public class MyService
+{
+  private readonly IConfiguration _config;
+
+  public MyService(IConfiguration config)
+  {
+    _config = config;
+  }
+
+  public void UseConfig()
+  {
+    string appName = _config["APP_NAME"];
+    string dbUrl = _config["DATABASE_URL"];
+  }
+}
+
+// IOptions<T> for scoped access
+public class MyController : ControllerBase
+{
+  private readonly IOptionsSnapshot<MyAppOptions> _options;
+
+  public MyController(IOptionsSnapshot<MyAppOptions> options)
+  {
+    _options = options;
+  }
+
+  public IActionResult Get()
+  {
+    var appName = _options.Value.AppName;
+    return Ok(new { appName });
+  }
+}
+
+// IOptionsMonitor<T> for long-lived access with reload notifications
+public class MyBackgroundService : BackgroundService
+{
+  private readonly IOptionsMonitor<MyAppOptions> _options;
+
+  public MyBackgroundService(IOptionsMonitor<MyAppOptions> options)
+  {
+    _options = options;
+  }
+
+  protected override async Task ExecuteAsync(CancellationToken ct)
+  {
+    // Subscribe to changes
+    _options.OnChange(newValue =>
+    {
+      Console.WriteLine($"Config reloaded: {newValue.AppName}");
+    });
+
+    // Use CurrentValue at any time
+    Console.WriteLine($"Current app name: {_options.CurrentValue.AppName}");
+
+    await Task.Delay(Timeout.Infinite, ct);
+  }
+}
+```
+
+## How coexistence works
+
+By default, Varlock is added **after** `appsettings.json` in the configuration pipeline:
+
+1. **appsettings.json** is loaded first
+2. **Varlock** is loaded second, overriding any duplicate keys
+3. **User Secrets** (in Development) are loaded and override everything else
+
+This means:
+- Any key defined in Varlock overrides the same key from appsettings
+- Keys unique to appsettings (like logging settings) remain available
+- User Secrets take final precedence when present
+
+To change the precedence or have Varlock be optional:
+
+```csharp
+builder.Configuration.AddVarlock(source =>
+{
+  source.Precedence = VarlockPrecedence.BeforeExisting; // Load first instead
+  source.Optional = true; // Don't fail if .env.schema is missing
+});
+```
+
+## What's validated at startup
+
+When your app starts, Varlock will:
+
+1. **Find and load your `.env.schema`** — If the file is missing and the source is not optional, startup fails
+2. **Load your `.env` file** — If it exists in the same directory
+3. **Run validation and coercion** — Keys are type-checked, defaults are applied, sensitive values are marked
+4. **Check for required keys** — If any `@required` key is missing, startup fails with a clear error
+
+If validation fails, you'll see a detailed error message pointing to the schema line that caused the problem.
+
+## Error messages
+
+Common startup errors:
+
+| Error | Cause | Fix |
+| --- | --- | --- |
+| "varlock executable not found" | CLI not discovered in any lookup path | Install `varlock` as a dependency or via package manager |
+| "@required key missing: DATABASE_URL" | Required key not in `.env` | Add the key to `.env` |
+| "Type mismatch: expected integer, got 'abc'" | Coercion failed | Fix the value in `.env` or the type in `.env.schema` |
+| "Cannot find varlock executable" (Windows) | Node.js not available | Ensure Node.js 22+ is installed |
+
+For offline environments or restricted networks, see [Offline setup](/integrations/dotnet/offline/).
+
+## Next steps
+
+- **[Configuration & coexistence](/integrations/dotnet/configuration/)** — Understand how Varlock works alongside appsettings, User Secrets, and other config sources
+- **[Typed access](/integrations/dotnet/typed-options/)** — Generate C# types from your schema for fully type-safe configuration
+- **[Examples](/guides/examples/)** — See working proof applications for ASP.NET, Worker Services, and Azure Functions

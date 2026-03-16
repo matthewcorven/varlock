@@ -1,0 +1,289 @@
+---
+title: Configuration & coexistence
+description: How Varlock integrates with appsettings, User Secrets, local.settings.json, and other config sources
+---
+
+Varlock is designed to coexist peacefully with your existing .NET configuration sources. This guide explains the precedence model, how configuration is loaded at startup, how reload works, and how to troubleshoot coexistence issues.
+
+## Configuration provider order
+
+When you add Varlock to your configuration pipeline, the order matters:
+
+```csharp
+builder.Configuration
+  .AddJsonFile("appsettings.json")           // 1. Base settings
+  .AddJsonFile($"appsettings.{env}.json")   // 2. Environment-specific
+  .AddVarlock()                              // 3. Varlock overrides
+  .AddUserSecrets<Program>()                 // 4. User Secrets override everything
+  .AddEnvironmentVariables();                // 5. Process env vars override all
+```
+
+**The rule:** The last provider added wins when keys overlap.
+
+### Default behavior
+
+If you call `AddVarlock()` without manually building the configuration, Varlock is added after `appsettings.json` by default. This means Varlock keys override appsettings values when they share the same key.
+
+### Changing precedence
+
+To make Varlock load **before** appsettings instead:
+
+```csharp
+builder.Configuration.AddVarlock(source =>
+{
+  source.Precedence = VarlockPrecedence.BeforeExisting;
+});
+```
+
+Now appsettings will override Varlock. Only do this if your team considers appsettings the authoritative source.
+
+## Startup behavior
+
+### Successful startup
+
+When your app starts with `AddVarlock()`:
+
+1. Varlock finds your `.env.schema` (usually in the project root)
+2. Varlock loads your `.env` file (if it exists)
+3. Varlock validates all keys against the schema
+4. Varlock adds itself to `IConfiguration`
+5. `IOptionsSnapshot<T>` and `IOptionsMonitor<T>` can now access Varlock values
+6. Your app continues starting normally
+
+### If schema validation fails
+
+If any validation error occurs (required key missing, type mismatch, etc.), the entire app startup **fails immediately** with a clear error message. This is intentional—configuration errors should not be silently ignored.
+
+```
+Error: Validation error in .env.schema at line 12:
+Required key 'DATABASE_URL' not found in .env
+```
+
+### If the schema file is missing
+
+If `.env.schema` doesn't exist and the source is **not optional**, startup fails:
+
+```csharp
+builder.Configuration.AddVarlock(); // Fails if .env.schema missing
+```
+
+To make it optional:
+
+```csharp
+builder.Configuration.AddVarlock(source =>
+{
+  source.Optional = true; // Use empty config if schema missing
+});
+```
+
+## Reload on change
+
+Varlock supports automatic configuration reload when your `.env.schema` or `.env` file changes. This is useful during development:
+
+```csharp
+builder.Configuration.AddVarlock(source =>
+{
+  source.ReloadOnChange = true;
+});
+```
+
+### How reload works
+
+1. **Watch for changes** — Varlock watches the `.env.schema` file and any imported sources (environment-specific files, etc.)
+2. **Debounce** — Multiple changes are coalesced into a single reload cycle with a 300ms debounce
+3. **Re-validate** — Varlock re-runs the full CLI bridge and validation
+4. **Atomic swap** — If validation succeeds, the entire configuration dictionary is replaced atomically
+5. **Notify subscribers** — `IOptionsMonitor<T>.OnChange(...)` callbacks fire with the new values
+6. **Failed reload** — If validation fails during reload, the previous successful state is preserved and no change notification fires
+
+### Reload notifications
+
+To react to successful configuration changes:
+
+```csharp
+public class MyService
+{
+  private readonly IOptionsMonitor<MyConfig> _options;
+
+  public MyService(IOptionsMonitor<MyConfig> options)
+  {
+    _options = options;
+    
+    // Subscribe to changes
+    _options.OnChange(newConfig =>
+    {
+      Console.WriteLine($"Config reloaded! New AppName: {newConfig.AppName}");
+    });
+  }
+
+  public void CheckConfig()
+  {
+    // Always read CurrentValue to get the latest
+    var appName = _options.CurrentValue.AppName;
+  }
+}
+```
+
+### Failed reload behavior
+
+If a reload fails (e.g., someone adds an invalid key to `.env`), Varlock will:
+
+- Keep the previous **last-known-good** configuration state
+- **Not** fire any change notifications
+- Log the validation error
+
+This ensures your app continues running with valid configuration instead of crashing on a bad edit.
+
+## User Secrets coexistence
+
+User Secrets are a .NET feature for storing sensitive values during development without committing them to the repository. Varlock coexists cleanly with User Secrets:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration
+  .AddVarlock()        // Varlock keys override appsettings
+  .AddUserSecrets();   // User Secrets override Varlock
+```
+
+Example:
+- **appsettings.json**: `"API_KEY": "production-key"`
+- **Varlock (.env)**: `API_KEY=dev-key`
+- **User Secrets**: `API_KEY=my-local-secret`
+
+Result: `API_KEY` will be `my-local-secret` because User Secrets are added last.
+
+To keep Varlock sensitive keys out of logs, use [Serilog integration](/integrations/dotnet/typed-options/#serilog-redaction).
+
+## Azure Functions & local.settings.json
+
+Azure Functions isolate their configuration from `appsettings.json` by design. If you're using Varlock with Azure Functions:
+
+```csharp
+var context = new HostBuilderContext(new HostingEnvironment());
+var config = new ConfigurationBuilder();
+
+// The Functions host loads local.settings.json Values into config automatically
+// For proof/test flows, you may need to load it explicitly:
+var localSettingsPath = Path.Combine(context.HostingEnvironment.ContentRootPath, 
+                                     "local.settings.json");
+if (File.Exists(localSettingsPath))
+{
+  config.AddJsonFile(localSettingsPath, optional: true);
+}
+
+config.AddVarlock(source =>
+{
+  source.WorkingDirectory = context.HostingEnvironment.ContentRootPath;
+});
+
+// Now function config includes both local.settings.json and Varlock
+```
+
+The same precedence rules apply: Varlock keys override `local.settings.json` keys by default.
+
+## Worker Services / Generic Host
+
+Worker Services and other Generic Host applications load configuration through `HostApplicationBuilder`:
+
+```csharp
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.AddVarlock(source =>
+{
+  source.ReloadOnChange = true;
+});
+
+builder.Services.AddHostedService<MyWorker>();
+```
+
+This is equivalent to:
+
+```csharp
+builder.Configuration.AddVarlock(source =>
+{
+  source.ReloadOnChange = true;
+});
+```
+
+The `.AddVarlock()` helper method on `HostApplicationBuilder` just delegates to the configuration builder for clarity and consistency.
+
+## Environment-specific schemas
+
+Varlock supports environment-specific `.env` files and imports within your schema:
+
+```javascript
+/**
+ * @env-spec
+ */
+
+// Always loaded
+APP_NAME = @string @default("my-app")
+
+// Conditionally loaded based on .env.schema or imports
+// See the schema documentation for @import details
+API_KEY = @string @required
+```
+
+When Varlock loads configuration, environment-specific overrides are applied in order. This integrates cleanly with .NET's `appsettings.{Environment}.json` pattern—just keep in mind that Varlock and appsettings apply overrides independently based on your configuration pipeline order.
+
+## Troubleshooting coexistence
+
+### "Key not found" but I defined it in Varlock
+
+Check the precedence order. If appsettings comes after Varlock and doesn't have the key, that's fine. But if another provider overrides it, make sure you understand the order:
+
+```csharp
+// Wrong order: appsettings wins over Varlock
+builder.Configuration.AddVarlock().AddJsonFile("appsettings.json");
+
+// Right order: Varlock wins over appsettings
+builder.Configuration.AddJsonFile("appsettings.json").AddVarlock();
+```
+
+### "Validation error" during reload
+
+This is expected behavior. Varlock prevents invalid config from being applied. Fix the `.env` file and save it—reload will retry automatically.
+
+### Varlock keys not in `IConfiguration`
+
+Make sure you're using the correct casing. .NET `IConfiguration` keys are case-**insensitive**, but the schema definition matters:
+
+```javascript
+APP_NAME = @string  // Stored as "APP_NAME" in Varlock
+```
+
+```csharp
+string appName = config["APP_NAME"];    // Works
+string appName = config["app_name"];    // Also works (case-insensitive)
+```
+
+### User Secrets override Varlock
+
+That's by design—User Secrets have higher precedence. If you want Varlock to override User Secrets, add Varlock **after** User Secrets:
+
+```csharp
+builder.Configuration
+  .AddUserSecrets()
+  .AddVarlock();  // Varlock wins
+```
+
+## Performance considerations
+
+Startup latency:
+- First load adds roughly 160-180ms on typical hardware (dominated by CLI bridge overhead)
+- This is the cost of spawning the `varlock` CLI process and parsing its output
+- Schema size has minimal impact on this latency within typical application scales
+
+Reload latency:
+- Reload changes incur a 300ms debounce by design (prevents thrashing on rapid file saves)
+- After debounce, reload takes roughly 200ms on typical hardware
+- Failed reloads are fast—validation happens before configuration is swapped
+
+If sub-second reload is critical for your development experience, consider disabling reload in production and using environment-based feature flags instead.
+
+## Next steps
+
+- **[Typed access & generation](/integrations/dotnet/typed-options/)** — Learn about generated C# types and `IOptions<T>` binding
+- **[Examples](/guides/examples/)** — See working proof applications
+- **[Schema reference](/reference/schema-language/)** — Full `.env.schema` syntax and features
