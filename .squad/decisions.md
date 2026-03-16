@@ -2,6 +2,25 @@
 
 ## Active Decisions
 
+### 2026-03-16: Repo-owned temp artifacts must root under `.tmp/`
+
+- Initiative: `repo-hygiene`
+- Source: Matthew Corven via Copilot, Geordi
+- Decision: Repo-owned temporary tests, proof harnesses, and similar repository-scoped scratch work should create unique directories under the repository's `.tmp/` root instead of OS temp or ad-hoc repo-root folders.
+- Shared seams: TypeScript/Vitest and proof code should use `packages/utils/src/repo-temp.ts`; `.NET` tests should use `packages/dotnet/Varlock.DotNet.Tests/TestPaths.cs`.
+- Honest exception: negative-control cases that only work outside any git repository must stay on OS temp so the warning/error branch under test remains real.
+- Proven surface: `packages/utils/test/git-utils.test.ts`, `packages/varlock/src/cli/commands/test/scan.command.test.ts`, `packages/varlock/src/cli/helpers/test/js-package-manager-utils.test.ts`, `scripts/test-dotnet-proof.ts`, `packages/dotnet/Varlock.DotNet.Tests/HostingExtensionsTests.cs`, `packages/dotnet/Varlock.DotNet.Tests/BridgeContractAlignmentTests.cs`, and `packages/dotnet/Varlock.DotNet.Tests/ReloadTests.cs` now follow that routing.
+- Why: keeps repo-owned temp behavior deterministic and local without changing product/runtime semantics.
+
+### 2026-03-16: Root-level six-character ignore rule must stay anchored
+
+- Initiative: `repo-hygiene`
+- Source: Geordi, Tuvok
+- Decision: The six-character repo-root ignore rule must remain root-anchored as `'/[a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9]/'` so it only catches stray top-level workspace folders and never hides nested source paths such as `packages/dotnet/`.
+- Cleanup boundary: empty untracked six-character root folders, empty `MSBuildTemp/`, and stale untracked repro folders can be treated as disposable local clutter when not actively in use, but tracked `NuGetScratch/` and `node-compile-cache/` require an explicit reviewed cleanup change.
+- Honesty clause: the repo now prevents recurrence for repo-owned temp artifacts, but no checked-in decision should claim the external Copilot/context-mode workspace directories are fully redirected or root-caused unless the toolchain exposes a documented knob.
+- Why: prevents accidental ignores, keeps cleanup guidance honest, and separates repo-owned fixes from upstream tooling behavior.
+
 ### 2026-03-16: P4-A1 bridge-limits proposal slice closeout
 
 - Initiative: `dotnet-support`
@@ -3537,4 +3556,3 @@ Phase 4 documentation and wrapper scope is complete. No further P4 work is autho
 - Scope: Editorial only — no runtime behavior changes, no API changes, no MSBuild logic changes. This corrects stale parameter names and file paths in documentation guidance.
 - Why: Product coherence and user clarity. All shipped documentation now tells a unified story: the canonical output location is `obj/Varlock/`, the parameter form is `path=`, and both the CLI `@generateTypes` decorator and the MSBuild `VarlockGeneratedFile` property reference the same physical output file.
 - Status: DECIDED & EXECUTED — cleanup applied before P4-B1 product commit `101ebde` to maintain product coherence.
-

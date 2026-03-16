@@ -3,14 +3,14 @@ import {
 } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
+import { createRepoTempDirSync } from '@env-spec/utils/repo-temp';
 import { scanFileForValues, walkDirectory } from '../scan.command';
 
 describe('scanFileForValues', () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'varlock-scan-test-'));
+    tempDir = createRepoTempDirSync('varlock-scan-test');
   });
 
   afterEach(() => {
@@ -122,7 +122,7 @@ describe('walkDirectory', () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'varlock-walk-test-'));
+    tempDir = createRepoTempDirSync('varlock-walk-test');
   });
 
   afterEach(() => {

@@ -17,7 +17,7 @@ public sealed class ReloadTests : IDisposable
 
   public ReloadTests()
   {
-    _tempRoot = Path.Combine(Path.GetTempPath(), $"varlock-reload-tests-{Guid.NewGuid():N}");
+    _tempRoot = TestPaths.CreateTempDirectory("varlock-reload-tests");
     Directory.CreateDirectory(_tempRoot);
   }
 

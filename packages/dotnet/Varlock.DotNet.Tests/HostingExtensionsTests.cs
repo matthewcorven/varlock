@@ -22,7 +22,7 @@ public sealed class HostingExtensionsTests
 
     try
     {
-      Environment.CurrentDirectory = Path.Combine(GetRepositoryRoot(), "examples", "dotnet-console-net8");
+      Environment.CurrentDirectory = Path.Combine(TestPaths.RepositoryRoot, "examples", "dotnet-console-net8");
 
       var builder = new HostApplicationBuilder();
 
@@ -45,7 +45,7 @@ public sealed class HostingExtensionsTests
   public void AddVarlock_leaves_working_directory_unset_when_not_configured()
   {
     var runtime = new RecordingRuntime();
-    var contentRoot = Path.Combine(Path.GetTempPath(), $"varlock-hosting-tests-{Guid.NewGuid():N}");
+    var contentRoot = TestPaths.CreateTempDirectory("varlock-hosting-tests");
     Directory.CreateDirectory(contentRoot);
 
     try
@@ -71,7 +71,7 @@ public sealed class HostingExtensionsTests
   public void AddVarlock_preserves_explicit_working_directory()
   {
     var runtime = new RecordingRuntime();
-    var contentRoot = Path.Combine(Path.GetTempPath(), $"varlock-hosting-tests-{Guid.NewGuid():N}");
+    var contentRoot = TestPaths.CreateTempDirectory("varlock-hosting-tests");
     var explicitWorkingDirectory = Path.Combine(contentRoot, "explicit-working-directory");
     Directory.CreateDirectory(explicitWorkingDirectory);
 
@@ -121,24 +121,6 @@ public sealed class HostingExtensionsTests
         Assert.Equal(typeof(HostApplicationBuilder), parameters[0].ParameterType);
         Assert.Equal(typeof(Action<VarlockConfigurationSource>), parameters[1].ParameterType);
       });
-  }
-
-  private static string GetRepositoryRoot()
-  {
-    var directory = new DirectoryInfo(AppContext.BaseDirectory);
-    while (directory is not null)
-    {
-      var examplesPath = Path.Combine(directory.FullName, "examples");
-      var packagesPath = Path.Combine(directory.FullName, "packages");
-      if (Directory.Exists(examplesPath) && Directory.Exists(packagesPath))
-      {
-        return directory.FullName;
-      }
-
-      directory = directory.Parent;
-    }
-
-    throw new InvalidOperationException("Unable to locate the repository root from the test output directory.");
   }
 
   private sealed class RecordingRuntime : IVarlockRuntime

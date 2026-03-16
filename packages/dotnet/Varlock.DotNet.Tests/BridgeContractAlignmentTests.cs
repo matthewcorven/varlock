@@ -129,7 +129,7 @@ public sealed class BridgeContractAlignmentTests
   [Fact]
   public void ResolveExecutable_prefers_package_local_then_local_bin_then_repo_local_before_path()
   {
-    var root = Path.Combine(Path.GetTempPath(), $"varlock-dotnet-tests-{System.Guid.NewGuid():N}");
+    var root = TestPaths.CreateTempDirectory("varlock-dotnet-tests");
 
     try
     {
@@ -188,7 +188,7 @@ public sealed class BridgeContractAlignmentTests
   [Fact]
   public void ResolveExecutable_uses_path_only_when_explicitly_enabled()
   {
-    var root = Path.Combine(Path.GetTempPath(), $"varlock-dotnet-tests-{Guid.NewGuid():N}");
+    var root = TestPaths.CreateTempDirectory("varlock-dotnet-tests");
     var originalPath = Environment.GetEnvironmentVariable("PATH");
 
     try
@@ -249,7 +249,7 @@ public sealed class BridgeContractAlignmentTests
       return;
     }
 
-    var root = Path.Combine(Path.GetTempPath(), $"varlock-dotnet-tests-{Guid.NewGuid():N}");
+    var root = TestPaths.CreateTempDirectory("varlock-dotnet-tests");
 
     try
     {
@@ -298,7 +298,7 @@ public sealed class BridgeContractAlignmentTests
   [Fact]
   public void Load_executes_repo_local_js_entrypoint_without_explicit_executable_path()
   {
-    var root = Path.Combine(Path.GetTempPath(), $"varlock dotnet tests {Guid.NewGuid():N}");
+    var root = TestPaths.CreateTempDirectory("varlock-dotnet-tests");
 
     try
     {

@@ -2,9 +2,9 @@
 
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRepoTempDirSync } from '../packages/utils/src/repo-temp';
 
 type CommandResult = {
   stdout: string;
@@ -367,7 +367,7 @@ function escapeXml(value: string) {
 }
 
 function packVarlockMsbuildPackage(): PackedPackage {
-  const tempRoot = fs.mkdtempSync(join(tmpdir(), 'varlock-msbuild-pack-proof-'));
+  const tempRoot = createRepoTempDirSync('varlock-msbuild-pack-proof');
   const packageSourceDir = join(tempRoot, 'nupkgs');
   fs.mkdirSync(packageSourceDir, { recursive: true });
 
@@ -408,7 +408,7 @@ function packVarlockMsbuildPackage(): PackedPackage {
 }
 
 function createMsbuildPackageProofProject(packageVersion: string, packageSourceDir: string) {
-  const projectDir = fs.mkdtempSync(join(tmpdir(), 'varlock-msbuild-consumer-proof-'));
+  const projectDir = createRepoTempDirSync('varlock-msbuild-consumer-proof');
   const assemblyName = 'VarlockMsbuildPackageProof';
   const generatedFilePath = join(projectDir, 'obj', 'Varlock', 'AppConfig.g.cs');
   const cliPath = join(repoRoot, 'packages', 'varlock', 'bin', 'cli.js');
