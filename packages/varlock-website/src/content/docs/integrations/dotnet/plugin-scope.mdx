@@ -1,0 +1,103 @@
+---
+title: Plugin Support in .NET
+description: Plugin-backed secret resolution through the Varlock CLI bridge in .NET applications
+---
+
+import { Steps, Callout } from "@astrojs/starlight/components";
+
+## Overview
+
+Varlock plugins (such as [1Password](/plugins/1password/), [AWS Secrets Manager](/plugins/aws-secrets/), or other official integrations) work with .NET applications through the Varlock CLI bridge. This means you can use plugin-backed secret resolution in .NET exactly as you would in JavaScript environments — the Varlock CLI handles plugin loading and execution, and the .NET bridge consumes the resolved values transparently.
+
+## Supported: Plugin resolution through the CLI bridge
+
+When you configure your `.env.schema` to use a plugin for secret resolution:
+
+```typescript
+@env-spec
+/**
+ * @description Production database password fetched from 1Password
+ * @type string
+ * @plugin 1password get secret mydb-password
+ */
+const DB_PASSWORD: string;
+```
+
+The Varlock CLI executes the plugin, resolves the secret, and returns it in the machine-readable output that the .NET bridge consumes. Your .NET application receives the fully-resolved value through `IConfiguration` or the `Varlock.DotNet` runtime — no difference from any other resolved value.
+
+### Requirements
+
+1. The [Varlock CLI](/) is installed and available in your environment (local development, CI, or container)
+2. The required plugin is installed and available to the CLI (e.g., `@varlock/1password-plugin` for 1Password integration)
+3. Your `.env.schema` is configured with the plugin command
+
+See the specific plugin documentation (e.g., [1Password](/plugins/1password/)) for setup instructions.
+
+## Proven: Plugin failure handling
+
+The .NET bridge has proven failure handling for plugin load and execution errors. If a plugin fails to load or execution fails, the Varlock CLI returns an explicit error code and message, which the bridge surfaces to your .NET application as a clear resolution failure. You receive diagnostic information including:
+
+- Error category (e.g., `plugin-load-failed`, `resolution-failed`)
+- Plugin name and the attempted operation
+- Underlying error details from the plugin system
+
+This is proven by existing test fixtures in `packages/dotnet/Varlock.DotNet.Tests/BridgeContractAlignmentTests.cs` under the `PluginLoadFailed` scenario.
+
+## Deferred: Checked-in plugin-backed example
+
+A checked-in .NET example application demonstrating positive plugin-backed secret resolution is **deferred beyond v1.0**.
+
+### Rationale
+
+Creating a reliable checked-in example requires:
+
+1. A real external plugin environment (e.g., a live 1Password vault, AWS account, or Azure Key Vault instance)
+2. CI credentials or ephemeral secrets management that works reliably across all platforms (Windows, macOS, Linux)
+3. The ability to safely rotate or reset test credentials between CI runs
+
+Varlock does not yet bundle plugin CI fixtures that would allow a deterministic, credential-free checked-in test. Rather than introduce mocked or fake plugin behavior that does not reflect real-world usage, we defer this example pending:
+
+- Real-world .NET projects adopting plugin-backed resolution and requesting documentation
+- Community feedback on plugin usage patterns in .NET
+- Infrastructure maturity for safely testing plugin integration in CI
+
+### When we'll revisit this
+
+If you are using Varlock plugins with .NET and encounter:
+
+- Missing or unclear documentation
+- Plugin behavior that differs from the CLI or JavaScript bridge
+- CI integration challenges
+
+Please [file an issue](https://github.com/dmno-dev/varlock/issues) or join us on [Discord](https://chat.dmno.dev). Real-world adoption and feedback will drive prioritization of plugin-backed examples and deeper documentation.
+
+## .NET-native plugin authoring
+
+Creating .NET-specific plugins (in C#) is **not supported in v1.0**.
+
+Plugin authoring in Varlock currently uses the CLI plugin protocol, which is JavaScript-based. The .NET bridge consumes plugins exclusively through CLI execution — there is no .NET-native plugin extension point.
+
+If you need to integrate a custom secret resolver, you have two supported paths:
+
+1. **Extend the Varlock CLI with a JavaScript plugin** (recommended)  
+   Write a plugin in JavaScript/TypeScript and use it from the CLI. The .NET bridge will consume it transparently.
+
+2. **Inject secrets before Varlock loads**  
+   Set environment variables or reference files before calling the Varlock CLI. Varlock can load values from environment or file sources configured in your `.env.schema`.
+
+## What "transparent" means
+
+When we say plugin-resolved values flow "transparently" through the .NET bridge, we mean:
+
+- The .NET bridge does not distinguish between plugin-resolved and CLI-resolved values
+- Once resolved by the CLI, a secret from 1Password is indistinguishable from a secret set directly in `.env`
+- Metadata like `@sensitive` and validation rules apply identically to plugin-resolved values
+- Type generation, options binding, and logging redaction work the same way
+
+This design keeps the .NET bridge simple and maintainable while giving you access to the full Varlock plugin ecosystem.
+
+## See also
+
+- [Plugins Overview](/plugins/overview/)
+- [Plugins Guide](/guides/plugins/) — detailed plugin setup and configuration
+- [Configuration Provider](/integrations/dotnet/overview/) — how the .NET bridge loads and exposes configuration

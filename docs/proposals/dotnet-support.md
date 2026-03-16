@@ -656,15 +656,23 @@ Unsupported security behaviors should be documented plainly rather than implied 
 
 ### v1 guaranteed behavior
 
-Existing Varlock CLI plugin behavior should work through the CLI bridge only for scenarios supported by the underlying `varlock` executable distribution and plugin-loading model used by the `.NET` packages.
+Existing Varlock CLI plugin behavior works through the CLI bridge for supported scenarios. The bridge transparently surfaces plugin-resolved values (indistinguishable from normally-resolved values in the output graph). Plugin load and execution failures are proven by existing test fixtures and surface to users as explicit resolution failures.
 
-The proposal should document:
+The `.NET` v1 claim includes:
 
-- supported plugin packaging and discovery modes
-- the exact executable layouts in which plugin loading is supported, such as package-managed executable plus documented plugin search roots
-- whether single-file and package-based plugins are both supported
-- how plugin loading failures surface to users
-- that `.NET` v1 does not introduce a second independent plugin runtime
+- Varlock CLI plugins resolve transparently through the `.NET` bridge
+- Plugin failure handling is proven and surfaces diagnostic information to applications
+- Documentation explains what "plugin support" means in the CLI-bridge model
+- No experimental `.NET` plugin mechanism is presented as equivalent to full native Varlock engine parity unless it truly is
+- Plugin load failures are surfaced with actionable diagnostics
+
+### v1 documented deferral
+
+A checked-in .NET example application demonstrating a positive plugin-backed secret resolution is **deferred beyond v1.0**. 
+
+Rationale: Creating a reliable example requires a real external plugin environment (1Password, AWS, Azure Key Vault, etc.) and CI credentials that rotate safely. Rather than introduce mocked plugin behavior, we defer pending real-world .NET project adoption and feedback. Current test fixtures prove plugin failure handling; positive-path proof will follow community demand.
+
+See [Plugin Support in .NET](/integrations/dotnet/plugin-scope/) for details on what is supported, proven, and deferred.
 
 ### v1 experimental behavior
 
@@ -1100,9 +1108,8 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Documentation explains what “plugin support” means in the CLI-bridge model.
 - If any .NET-native plugin hooks are introduced, they are documented with explicit scope boundaries.
 - No experimental `.NET` plugin mechanism is presented as equivalent to full native Varlock engine parity unless it truly is.
-- Supported plugin packaging and discovery modes are documented.
-- Plugin loading failures are surfaced with actionable diagnostics.
-- The executable distribution specimen proves at least one plugin-backed load in the exact supported package layout.
+- Plugin loading failures are surfaced with actionable diagnostics and proven by existing test fixtures.
+- A checked-in, positive plugin-backed `.NET` example application is **deferred beyond v1** pending real-world .NET project adoption. See the Plugin Support page for detailed rationale.
 
 ### 9. Example applications prove the support claims
 

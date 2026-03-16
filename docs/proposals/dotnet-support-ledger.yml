@@ -439,10 +439,10 @@ support_matrix:
       caveat: manual per-value redaction helper only; helper output uses [REDACTED] with exact case-sensitive key matching, and raw console output is unchanged unless the helper is called
       proof_status: proven
     - id: dx-plugin-backed-resolution
-      example: examples/dotnet-console-net8/ or dedicated plugin fixture app
-      test: plugin-backed bridge test
-      caveat: supported only for the documented executable and plugin layout
-      proof_status: planned
+      example: "none (deferred)"
+      test: "plugin failure handling proven in BridgeContractAlignmentTests.cs"
+      caveat: "positive plugin-backed .NET example deferred beyond v1; pending real-world project adoption and CI integration story"
+      proof_status: "deferred-v1"
     - id: dx-machine-readable-errors
       example: none
       test: bridge contract fixture tests
