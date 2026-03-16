@@ -1,30 +1,28 @@
 ---
-updated_at: 2026-03-16T22:25:00.000Z
-focus_area: P4-B1 wave 1 documentation batch in progress
+updated_at: 2026-03-16T10:12:30.000Z
+focus_area: P4-B1 approved-close; product artifacts pending commit
 active_issues: []
 ---
 
 # What We're Focused On
 
-**P4-B1 Wave 1 documentation batch in progress.** Tuvok completed W1-7 and W1-9 (security/logging guide and migration guide). Remaining items: Geordi W1-1 and W1-2, Picard W1-3, Data W1-4 through W1-6, O'Brien W1-8.
+**P4-B1 is approved-close.** Wave 1 and Wave 2 deliverables are complete and reviewer-cleared. The immediate next step is to commit the product artifacts as a single batch.
 
-## Wave 1 in progress
+## Accepted in this batch
 
-- `W1-1` Geordi — thin `Varlock.SourceGeneration` wrapper
-- `W1-2` Geordi — `dotnet watch` / IDE behavior docs
-- `W1-3` Picard — plugin-scope deferral writeup and proposal/ledger sync
-- `W1-4` Data — .NET getting-started / install guide
-- `W1-5` Data — configuration-provider / coexistence guide
-- `W1-6` Data — typed-options guide
-- ✅ `W1-7` Tuvok — security-boundary / logging guide (DONE: commit 32f2b56)
-- `W1-8` O'Brien — diagnostics / troubleshooting guide
-- ✅ `W1-9` Tuvok — migration guide (DONE: commit 32f2b56)
+- Wave 1 docs: getting-started, configuration, typed-options, watch-and-ide, security-and-logging, migration, troubleshooting, plugin-scope
+- Product item: thin `Varlock.SourceGeneration` wrapper
+- Wave 2 docs: `type-generation.mdx` and the distribution / release guide
+- Package README expansion: `Varlock.DotNet`, `Varlock.Extensions.Configuration`, `Varlock.Extensions.Hosting`, `Varlock.MSBuild`, `Varlock.Serilog`; existing `Varlock.SourceGeneration` README remains acceptable in scope
+- O'Brien's Wave 2 slice was reviewer-cleared after a small Data-led editorial correction pass
 
-## Wave 2 waits on Wave 1
+## Remaining immediate step
 
-- `W2-1` Geordi — type generation + MSBuild guide
-- `W2-2` O'Brien — README expansion
-- `W2-3` O'Brien — distribution / release docs
+- Commit all P4-B1 product artifacts as a single batch
+- Optional follow-on editorial cleanup:
+  - `packages/varlock-website/src/content/docs/integrations/dotnet/migration.mdx` uses `output=` instead of canonical `path=`
+  - `packages/varlock-website/src/content/docs/integrations/dotnet/migration.mdx` shows `src/Generated/` instead of recommended `obj/Varlock/`
+  - `packages/varlock-website/src/content/docs/integrations/dotnet/getting-started.mdx` links to `/integrations/dotnet/offline/`
 
 ## Still deferred
 

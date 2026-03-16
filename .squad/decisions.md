@@ -3424,3 +3424,76 @@ Publish the Wave 2 type-generation guide as the canonical user-facing explanatio
 - `bun run --filter @varlock/website build` completed successfully
 - Site output included `/integrations/dotnet/type-generation/index.html`
 
+
+## 2026-03-16: P4-B1 Closeout Gate — APPROVE-CLOSE (Picard)
+
+**Date:** 2026-03-16  
+**Initiative:** dotnet-support  
+**Node:** P4-B1  
+**Decision:** APPROVE-CLOSE  
+**Author:** Picard (Initiative Lead)
+
+### Verdict
+
+**APPROVE-CLOSE.** All P4-B1 deliverables are present, coherent, and NO-GO boundaries are respected. The batch is ready for commit.
+
+### What was accepted
+
+#### 1. Wave 1 documentation (9 items, all present):
+
+- **W1-1** Geordi: thin `Varlock.SourceGeneration` wrapper (`.csproj` + `README.md`) — correctly declares itself as non-Roslyn, non-analyzer, MSBuild-delegating
+- **W1-2** Geordi: `watch-and-ide.mdx` — clearly separates build-time generation from runtime reload
+- **W1-3** Picard: `plugin-scope.mdx` — honestly defers positive-path example, proves failure handling
+- **W1-4** Data: `getting-started.mdx` — clean install flow with executable lookup chain
+- **W1-5** Data: `configuration.mdx` — precedence model, reload semantics, User Secrets coexistence
+- **W1-6** Data: `typed-options.mdx` — IOptions/IOptionsSnapshot/IOptionsMonitor patterns, public-only generation
+- **W1-7** Tuvok: `security-and-logging.mdx` — Serilog-only redaction scope, JS comparison table (committed 32f2b56)
+- **W1-8** O'Brien: `troubleshooting.mdx` — error category table, machine-readable inspection, bridge failure paths
+- **W1-9** Tuvok: `migration.mdx` — appsettings/DotEnv migration, environment-specific schemas (committed 32f2b56)
+
+#### 2. Wave 2 deliverables (3 items, all present):
+
+- **W2-1** Geordi: `type-generation.mdx` — MSBuild property table, path-alignment rule, explicit "What this does not claim" section
+- **W2-2** O'Brien: All 6 package READMEs expanded (DotNet, Extensions.Configuration, Extensions.Hosting, MSBuild, Serilog, SourceGeneration)
+- **W2-3** O'Brien: `distribution.mdx` — NuGet distribution, executable distribution, versioning, v1 scope, "Possible future directions" with re-open language
+
+#### 3. Product code:
+
+- `Varlock.SourceGeneration.csproj` — thin wrapper, `IncludeBuildOutput=false`, references `Varlock.MSBuild`, no compiled assemblies
+
+### NO-GO boundary compliance
+
+Every deliverable was checked against the three accepted NO-GO decisions:
+
+| NO-GO item | Status | Evidence |
+| --- | --- | --- |
+| Native .NET runtime | ✅ Respected | No docs claim in-process or child-process-free operation |
+| Full Roslyn source generator | ✅ Respected | `type-generation.mdx`, `watch-and-ide.mdx`, `SourceGeneration/README.md`, `MSBuild/README.md` all explicitly disclaim Roslyn IIncrementalGenerator |
+| .NET-native plugin expansion | ✅ Respected | `plugin-scope.mdx` defers plugin authoring; transparent CLI bridge is the only supported path |
+
+### Non-blocking cleanup items
+
+These are editorial and do not block the close:
+
+1. **`migration.mdx` uses `output=` instead of `path=`** in `@generateTypes` examples (lines 153, 449). The canonical parameter name across `type-generation.mdx`, `typed-options.mdx`, and `watch-and-ide.mdx` is `path=`. Should be harmonized in a follow-on editorial pass.
+
+2. **`migration.mdx` shows `src/Generated/Config.g.cs`** as a generated output path, which contradicts the recommended `obj/Varlock/*.g.cs` pattern from the type-generation guide. Not wrong, but could mislead users. Add a note or align to the recommendation.
+
+3. **`getting-started.mdx` references `/integrations/dotnet/offline/`** (line 258), which does not exist. Dead link — remove or replace with a general installation reference.
+
+4. **`distribution.mdx` claims ".NET Framework 4.8"** under v1 scope (line 137). Technically valid since packages target `netstandard2.0`, but no explicit .NET Framework test fixture exists. Acceptable as documented intent given the targeting, but should be marked "supported but untested" if accuracy is prioritized.
+
+### Recommended next step
+
+Commit all P4-B1 artifacts as a single coherent batch. Update `.squad/progression.md` to mark P4-B1 as COMPLETE. Address non-blocking cleanup items in a separate editorial commit.
+
+### Phase-gate status
+
+P4-B1 is the documentation and thin-wrapper batch for Phase 4. With this close, the .NET support initiative has:
+- Complete documentation coverage for all v1 packages
+- Honest scope boundaries in every artifact
+- A thin `Varlock.SourceGeneration` product-code wrapper that reserves the package name without overclaiming capabilities
+- Clear re-open criteria for each NO-GO decision
+
+Phase 4 documentation and wrapper scope is complete. No further P4 work is authorized unless new user friction evidence justifies re-opening a NO-GO decision through the established gate process.
+
