@@ -1,0 +1,170 @@
+---
+title: Security and Logging
+description: Serilog redaction, manual helpers, and sensitive-value boundaries in Varlock .NET
+---
+
+Varlock tracks sensitive values through the `@redactLogs` and `@preventLeaks` decorators in your `.env.schema`. The `.NET` implementation provides explicit, scoped support for redaction through Serilog and manual helpers. Other channels (Console, Microsoft.Extensions.Logging, HTTP responses) are unsupported in v1.
+
+## Serilog Destructuring Redaction
+
+If your application uses Serilog, you can enable destructuring-based redaction of sensitive values when logging objects.
+
+### Setup
+
+Add the Serilog redaction policy to your logger configuration:
+
+```csharp
+using Varlock.Serilog;
+
+var graph = varlockRuntime.Load(options);
+
+var logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .Destructure.With(new VarlockRedactionDestructuringPolicy(graph))
+    .CreateLogger();
+```
+
+### What this does
+
+- When you log an object with `logger.Information("Config: {@config}", config)`, any property whose key exactly matches a sensitive key in your Varlock graph is replaced with `[REDACTED]` during destructuring.
+- Matching is **exact and case-sensitive**. For example, if your schema marks `DATABASE_PASSWORD` as sensitive, only that exact key is redacted.
+- Redaction happens during Serilog destructuring (object inspection), not during message formatting. This means string-template parameters like `logger.Information("Password is {password}", password)` are **not** redacted by this policy.
+
+### What this does NOT do
+
+- Does not intercept `Console.WriteLine()`, `Debug.WriteLine()`, or other non-Serilog logging channels
+- Does not redact raw string concatenations in log messages
+- Does not redact values outside of Serilog destructuring
+- Does not automatically redact process output, environment variables, or HTTP responses
+
+### Example
+
+```csharp
+var schema = @"
+# @env-spec
+DATABASE_PASSWORD @string @sensitive
+API_KEY @string @sensitive
+DEBUG_MODE @bool
+";
+
+// After loading and configuring Serilog with VarlockRedactionDestructuringPolicy:
+logger.Information("Configuration: {@config}", new {
+    DatabasePassword = "secret123",
+    ApiKey = "token-xyz",
+    DebugMode = true
+});
+
+// Output: Configuration: { DatabasePassword: "[REDACTED]", ApiKey: "[REDACTED]", DebugMode: True }
+```
+
+## Manual Redaction Helper
+
+For non-Serilog scenarios or manual per-value redaction, use `VarlockRedactionHelper`:
+
+```csharp
+using Varlock;
+
+var graph = varlockRuntime.Load(options);
+var password = graph.Items["DATABASE_PASSWORD"].Value as string;
+var redacted = VarlockRedactionHelper.Redact(graph, "DATABASE_PASSWORD", password);
+
+// redacted = "[REDACTED]"
+```
+
+This is a **manual, caller-invoked** helper. It does not automatically intercept any logging or output channel. You must explicitly call it before logging or outputting the value.
+
+### Important: No automatic redaction
+
+If you log a sensitive value without the helper or Serilog destructuring:
+
+```csharp
+var password = graph.Items["DATABASE_PASSWORD"].Value as string;
+logger.Information("Password: {password}", password);  // ⚠️ NOT redacted
+Console.WriteLine($"Password: {password}");            // ⚠️ NOT redacted
+```
+
+The value appears in logs and output **exactly as stored**. This is intentional — Varlock provides the tools, but you control when they are used.
+
+## Metadata Flags: `@redactLogs` and `@preventLeaks`
+
+Your `.env.schema` may include metadata flags:
+
+```
+# @env-spec
+API_KEY @string @sensitive @redactLogs @preventLeaks
+```
+
+These flags are parsed and available as properties on `VarlockResolvedGraph`:
+
+- `graph.RedactLogs` — boolean indicating whether redaction is recommended
+- `graph.PreventLeaks` — boolean indicating whether leak prevention is recommended
+
+**Important:** In `.NET` v1, these are **metadata only**. No Varlock code enforces them. They are signals for you to decide whether to apply Serilog redaction, use the manual helper, or implement custom logging policy.
+
+If you want to act on these flags:
+
+```csharp
+var graph = varlockRuntime.Load(options);
+
+if (graph.RedactLogs)
+{
+    // Apply Serilog destructuring or manual redaction
+    var logger = new LoggerConfiguration()
+        .Destructure.With(new VarlockRedactionDestructuringPolicy(graph))
+        .CreateLogger();
+}
+
+if (graph.PreventLeaks)
+{
+    // Application-specific response filtering or leak detection
+}
+```
+
+## Blazor WebAssembly Public-Only Boundary
+
+When you generate C# types for a Blazor WebAssembly application using `@generateTypes(lang=cs, publicOnly=true)`, the generated type excludes:
+
+- All properties marked as sensitive
+- The `SensitiveKeys` array
+- The `PropertyBindings` class and `PropertyBindings[]` collection
+
+This ensures sensitive metadata and property names never appear in the publicly-downloadable WebAssembly bundle.
+
+```csharp
+// In .env.schema
+// @generateTypes(lang=cs, publicOnly=true, output=src/Generated/Config.g.cs)
+
+// Generated Config.g.cs includes only public properties:
+public partial class Config
+{
+    public string AppName { get; set; }
+    public int HttpPort { get; set; }
+    // Sensitive properties and SensitiveKeys are excluded
+}
+```
+
+This is a **generation-time boundary**, not a runtime check. The generated file is the contract — if sensitive metadata appears in it, the exclusion failed.
+
+## Comparison with JavaScript Runtime
+
+For reference, the Varlock JavaScript runtime provides additional automatic security behaviors that are **not available in .NET v1**:
+
+| Behavior | JavaScript | .NET v1 |
+|----------|-----------|---------|
+| Automatic console.log redaction | ✅ Yes (via runtime hook) | ❌ No — use Serilog destructuring or manual helper |
+| HTTP response body scanning for leaks | ✅ Yes (via ServerResponse patch) | ❌ No — implement custom ASP.NET Core middleware if needed |
+| Process environment injection via `varlock run` | ✅ Yes | ❌ No — use `BuildEnvironmentVariables()` helper for child processes |
+| `@redactLogs` / `@preventLeaks` enforcement | ✅ Yes, automatic | ❌ No — metadata only; use it to decide your logging strategy |
+
+If your application requires behaviors beyond what `.NET` v1 provides, you can:
+- Implement custom Serilog sinks or enrichers
+- Use ASP.NET Core middleware for response filtering
+- Use `BuildEnvironmentVariables()` for child-process setup
+
+See the [Serilog README](../../integrations/dotnet) for API details.
+
+## Further Reading
+
+- [Serilog integration package README](../../packages/varlock-serilog)
+- [Configuration provider and coexistence guide](./configuration.mdx)
+- [.NET examples](https://github.com/dmno-dev/varlock-examples)

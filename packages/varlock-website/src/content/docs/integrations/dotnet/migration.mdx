@@ -1,0 +1,471 @@
+---
+title: Migration to Varlock
+description: Move from appsettings.json, DotEnv, or other environment configuration to Varlock
+---
+
+Varlock integrates into the `.NET` configuration pipeline through `IConfigurationBuilder`. Your existing `appsettings.json` and other configuration sources continue to work — Varlock becomes an additional, validated source.
+
+## From `appsettings.json`
+
+If you are already using `appsettings.json` for environment-specific configuration:
+
+### 1. Create a `.env.schema` file
+
+Define your configuration contract alongside your application code:
+
+```yaml
+# .env.schema
+
+DATABASE_URL @string
+DATABASE_PASSWORD @string @sensitive
+API_KEY @string @sensitive
+DEBUG_MODE @bool
+LOG_LEVEL @string
+WORKER_THREADS @int { coerce: true }
+```
+
+### 2. Add Varlock to your configuration builder
+
+In your startup code (Startup.cs, Program.cs, or appsettings extension):
+
+```csharp
+using Varlock.Extensions.Configuration;
+
+var builder = WebApplicationBuilder.CreateBuilder(args);
+
+// Add appsettings (existing)
+builder.Configuration.AddJsonFile("appsettings.json", optional: false);
+builder.Configuration.AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true);
+
+// Add Varlock
+builder.Configuration.AddVarlock(new VarlockConfigurationSource
+{
+    SchemaPath = ".env.schema",
+    Optional = false
+});
+
+var app = builder.Build();
+```
+
+### 3. Precedence: Which source wins?
+
+By default, Varlock **overrides** existing configuration keys:
+
+```csharp
+builder.Configuration.AddVarlock(new VarlockConfigurationSource
+{
+    Precedence = VarlockPrecedence.OverrideExisting  // default
+});
+```
+
+This means if both `appsettings.json` and `.env` define `API_KEY`, the `.env` value takes precedence.
+
+To reverse this (appsettings wins):
+
+```csharp
+builder.Configuration.AddVarlock(new VarlockConfigurationSource
+{
+    Precedence = VarlockPrecedence.PreserveExisting
+});
+```
+
+### 4. Load environment variables
+
+Environment variables (`.env`, `.env.local`, etc.) are loaded automatically by Varlock from the current environment, `.env.local`, `.env.{EnvironmentName}`, and other standard sources.
+
+No additional setup is needed — just ensure your `.env` files are in the application root or the directory where Varlock searches.
+
+## From `DotEnv` (Node.js or other)
+
+If you are migrating from a `.NET` application that previously used another `DotEnv`-style loader:
+
+### 1. Replace the loader
+
+```csharp
+// Before (dotenv or similar)
+// DotEnv.Load();
+
+// After
+using Varlock.Extensions.Configuration;
+
+var builder = WebApplicationBuilder.CreateBuilder(args);
+builder.Configuration.AddVarlock(new VarlockConfigurationSource
+{
+    SchemaPath = ".env.schema"
+});
+```
+
+### 2. Define your schema
+
+Create `.env.schema` with the same variables you were previously loading:
+
+```yaml
+# .env.schema
+APP_NAME @string
+APP_PORT @int { coerce: true }
+DATABASE_URL @string
+DATABASE_PASSWORD @string @sensitive
+```
+
+### 3. Type-safe access
+
+Instead of accessing config keys as strings:
+
+```csharp
+// Before (string-based)
+var dbUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+
+// After (type-safe)
+using Varlock;
+
+var graph = serviceProvider.GetRequiredService<IVarlockRuntime>().Load(options);
+var dbUrl = graph.Items["DATABASE_URL"].Value as string;
+
+// Or use generated C# types
+var config = serviceProvider.GetRequiredService<IOptions<Config>>().Value;
+var dbUrl = config.DatabaseUrl;  // Strongly typed, intellisense-enabled
+```
+
+## Optional Configuration
+
+If your `.env` file is optional (e.g., in development, defaults are used in production):
+
+```csharp
+builder.Configuration.AddVarlock(new VarlockConfigurationSource
+{
+    SchemaPath = ".env.schema",
+    Optional = true  // Allow missing .env file
+});
+```
+
+With `Optional = true`:
+- If `.env` and `.env.schema` are both missing, Varlock does not fail at startup
+- If `.env.schema` exists but `.env` is missing, Varlock loads schema defaults and environment variables
+- If `.env.schema` is invalid, startup still fails (schema validation is always required)
+
+## Generated C# Types
+
+For better IDE support and compile-time safety, generate a C# type from your schema:
+
+### 1. Enable type generation in `.env.schema`
+
+```yaml
+# @generateTypes(lang=cs, output=src/Generated/Config.g.cs)
+
+APP_NAME @string
+APP_PORT @int
+DATABASE_URL @string
+```
+
+### 2. Build your project
+
+Type generation happens during the build via MSBuild integration:
+
+```bash
+dotnet build
+```
+
+The generated `Config.g.cs` file appears at the configured output path.
+
+### 3. Bind the generated type
+
+Use standard .NET options binding:
+
+```csharp
+builder.Services.Configure<Config>(builder.Configuration);
+
+// Later, in a controller or service:
+[ApiController]
+public class MyController : ControllerBase
+{
+    private readonly IOptions<Config> _config;
+
+    public MyController(IOptions<Config> config)
+    {
+        _config = config;
+    }
+
+    [HttpGet]
+    public IActionResult GetStatus()
+    {
+        return Ok(new { AppName = _config.Value.AppName });
+    }
+}
+```
+
+## Hosted and Non-Hosted Applications
+
+### ASP.NET Core (Web, API, Minimal Hosting)
+
+Use `WebApplicationBuilder.CreateBuilder()` with `AddVarlock()`:
+
+```csharp
+var builder = WebApplicationBuilder.CreateBuilder(args);
+builder.Configuration.AddVarlock(new VarlockConfigurationSource());
+var app = builder.Build();
+```
+
+### Generic Host (Worker Services, Console Apps)
+
+Use `HostApplicationBuilder.AddVarlock()` (convenience extension):
+
+```csharp
+using Varlock.Extensions.Hosting;
+
+var builder = Host.CreateApplicationBuilder(args);
+builder.AddVarlock(new VarlockConfigurationSource
+{
+    SchemaPath = ".env.schema"
+});
+
+var host = builder.Build();
+await host.RunAsync();
+```
+
+Or use the low-level configuration API:
+
+```csharp
+var builder = Host.CreateApplicationBuilder(args);
+builder.Configuration.AddVarlock(new VarlockConfigurationSource());
+```
+
+### WinForms, WPF, Console (Non-Hosted)
+
+Use the low-level API directly:
+
+```csharp
+using Varlock;
+using Varlock.Extensions.Configuration;
+
+var configBuilder = new ConfigurationBuilder();
+configBuilder.AddVarlock(new VarlockConfigurationSource
+{
+    SchemaPath = ".env.schema"
+});
+
+var config = configBuilder.Build();
+var dbUrl = config["DATABASE_URL"];
+```
+
+## Environment-Specific Schemas and Sources
+
+Varlock supports environment-specific `.env` files and schemas:
+
+```yaml
+# .env.schema
+# Shared configuration for all environments
+
+# .env.development
+# Development overrides
+
+# .env.production
+# Production overrides
+```
+
+Varlock automatically loads `.env.{EnvironmentName}` after `.env`, so production values override development defaults.
+
+To explicitly set the environment name:
+
+```csharp
+builder.Configuration.AddVarlock(new VarlockConfigurationSource
+{
+    SchemaPath = ".env.schema",
+    EnvironmentName = "production"
+});
+```
+
+## Reload on File Change
+
+If your schema or `.env` files change at runtime, enable reload:
+
+```csharp
+builder.Configuration.AddVarlock(new VarlockConfigurationSource
+{
+    ReloadOnChange = true,
+    ReloadFailureBehavior = VarlockReloadFailureBehavior.KeepLastKnownGood
+});
+```
+
+When `ReloadOnChange = true`:
+- Varlock watches the `.env` and `.env.schema` files for changes
+- On change, the configuration is reloaded
+- If reload fails, the previous configuration is preserved (last-known-good)
+- Change tokens fire, notifying `IOptionsMonitor<T>` subscribers
+
+This is useful for:
+- Configuration hot-reload during development
+- Gradual secret rotation in production (with monitoring)
+- Dynamic feature flags tied to `.env` values
+
+See [Reload semantics](./configuration.mdx) for details.
+
+## Azure Functions and Other Special Environments
+
+### Azure Functions (Isolated Worker Model)
+
+Use the hosting extension:
+
+```csharp
+using Varlock.Extensions.Hosting;
+
+var builder = new HostBuilder()
+    .ConfigureAppConfiguration(config =>
+    {
+        config.AddVarlock(new VarlockConfigurationSource());
+    })
+    .ConfigureFunctionsWorkerDefaults()
+    .Build();
+
+await builder.RunAsync();
+```
+
+### Azure Functions (In-Process Model)
+
+Use the low-level API:
+
+```csharp
+public static void ConfigureAppConfiguration(IConfigurationBuilder config)
+{
+    config.AddVarlock(new VarlockConfigurationSource());
+}
+```
+
+### User Secrets (Local Development)
+
+Varlock integrates with User Secrets in the standard `IConfigurationBuilder` chain:
+
+```csharp
+var builder = WebApplicationBuilder.CreateBuilder(args);
+
+// Secrets precede Varlock in precedence order
+builder.Configuration.AddUserSecrets<Program>();
+builder.Configuration.AddVarlock(new VarlockConfigurationSource
+{
+    Precedence = VarlockPrecedence.PreserveExisting  // Keep User Secrets
+});
+```
+
+This allows developers to override Varlock configuration locally without editing `.env` files.
+
+## Sensitive Values and Security
+
+Varlock tracks which configuration keys are sensitive (passwords, API keys, etc.) through the `@sensitive` decorator:
+
+```yaml
+# .env.schema
+API_KEY @string @sensitive
+DATABASE_PASSWORD @string @sensitive
+```
+
+These are available programmatically:
+
+```csharp
+var graph = varlockRuntime.Load(options);
+var isSensitive = graph.Items["API_KEY"].IsSensitive;  // true
+```
+
+For logging:
+- Use Serilog destructuring to redact sensitive values: [Security and Logging](./security-and-logging.mdx)
+- Never log raw `IConfiguration["API_KEY"]` or `config.ApiKey` values without redaction
+
+For debugging environment issues:
+- Use [Varlock diagnostics tools](./diagnostics.mdx) to inspect which sources were loaded and in what order
+- Redact sensitive values before sharing logs or configurations
+
+## CI/CD and Deployment
+
+### Local Development
+
+1. Create `.env` and `.env.local` files in your project root
+2. Varlock loads them automatically during build and runtime
+3. Never commit `.env.local` or `.env` with real secrets to version control
+
+### CI/CD Pipeline
+
+Set environment variables before the build:
+
+```bash
+# GitHub Actions example
+- name: Build
+  env:
+    DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    API_KEY: ${{ secrets.API_KEY }}
+  run: dotnet build
+```
+
+Varlock reads these environment variables at build time (for type generation) and runtime (for configuration loading).
+
+### Docker and Containers
+
+Pass environment variables to the container:
+
+```dockerfile
+FROM mcr.microsoft.com/dotnet/sdk:8.0
+
+WORKDIR /app
+COPY . .
+
+RUN dotnet build
+
+# At runtime, environment variables come from docker run -e or docker-compose.yml
+CMD ["dotnet", "run"]
+```
+
+```bash
+docker run -e DATABASE_URL=... -e API_KEY=... myapp
+```
+
+## Troubleshooting
+
+### "Schema not found" error
+
+Varlock is looking for `.env.schema` in the application root:
+
+```bash
+# Check the file exists
+ls -la .env.schema
+
+# Or specify a different path
+builder.Configuration.AddVarlock(new VarlockConfigurationSource
+{
+    SchemaPath = "config/.env.schema"  // Custom path
+});
+```
+
+### "Executable not found" error
+
+Varlock needs the CLI binary (`varlock` or `varlock.exe`) to load configuration. It searches:
+
+1. Package-managed executable (embedded with `.NET` packages)
+2. Explicit path (configure `VarlockLoadOptions.ExecutablePath`)
+3. PATH (as fallback)
+
+See [Executable acquisition and versioning](./getting-started.mdx) for setup details.
+
+### Type generation not happening
+
+1. Ensure `.env.schema` includes the `@generateTypes()` decorator:
+   ```yaml
+   # @generateTypes(lang=cs, output=src/Generated/Config.g.cs)
+   ```
+
+2. Build the project:
+   ```bash
+   dotnet build
+   ```
+
+3. Check the output path for the generated file:
+   ```bash
+   ls -la src/Generated/Config.g.cs
+   ```
+
+See [Type generation guide](./type-generation.mdx) for details.
+
+## Further Reading
+
+- [Getting Started with Varlock for .NET](./getting-started.mdx)
+- [Configuration Provider and Coexistence](./configuration.mdx)
+- [Type Generation and MSBuild Integration](./type-generation.mdx)
+- [Security and Logging](./security-and-logging.mdx)
+- [Troubleshooting and Diagnostics](./diagnostics.mdx)
+- [.NET Examples](https://github.com/dmno-dev/varlock-examples)
