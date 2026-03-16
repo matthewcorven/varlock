@@ -3030,3 +3030,261 @@ Both deliverables are complete, grounded in locked contracts, and ready for inte
 5. **Cross-link structure** — establishes expected documentation tree for future guides
 
 These guides will serve as canonical references for Varlock .NET security boundaries and as the primary onboarding path for teams migrating from existing configuration approaches.
+
+## 2026-03-16: P4-B1 Wave 1 W1-1 & W1-2 Documentation Decisions (Geordi)
+
+**Date:** 2026-03-16  
+**Deliverables:** W1-1 (SourceGeneration wrapper), W1-2 (dotnet watch / IDE behavior docs)  
+**Status:** COMPLETE
+
+### W1-1: Varlock.SourceGeneration Thin Wrapper
+
+**Decision:** `Varlock.SourceGeneration` ships as a thin wrapper package over the existing `Varlock.MSBuild` bridge, not as a fake Roslyn generator or separate implementation path.
+
+**Rationale:**
+1. MSBuild bridge already provides real deterministic schema-driven `.g.cs` generation into `obj/Varlock/`, incremental `Inputs`/`Outputs`, and design-time compile reuse
+2. Wrapper satisfies DoD 1020 (package-surface requirement) without opening Roslyn implementation work unauthorized in Phase 4
+3. User-facing docs describe current split honestly
+
+**Boundary:**
+- No Roslyn `IIncrementalGenerator`
+- No analyzer diagnostics  
+- No claim of pre-build IDE type availability
+- No watch-mode promises beyond build-backed behavior
+
+### W1-2: dotnet watch / IDE Behavior Documentation
+
+**Decision:** Document `dotnet watch` interaction and IDE behavior extracted from P4-A1 E2 (Roslyn evaluation section 5).
+
+**Key distinctions documented:**
+1. **Schema edits** → rebuild required (type shape changes)
+2. **Value-file edits** → reload in place when `ReloadOnChange = true`
+3. **Design-time IDE builds** → consume last successful generated file; do not run type generation
+
+**Scope:**
+- Rebuild-loop risk assessment included (no pathological loops)
+- Current MSBuild-backed behavior constraints documented
+- No Roslyn implementation promises
+
+## 2026-03-16: P4-B1 Wave 1 W1-3 Plugin-Scope Deferral (Picard)
+
+**Date:** 2026-03-16  
+**Deliverable:** W1-3 (Plugin-scope deferral documentation)  
+**Status:** COMPLETE
+
+### Summary
+
+Completed honest, evidence-first documentation of plugin-backed .NET support scope, deferring the checked-in positive-path example beyond v1 with clear rationale grounded in CI infrastructure and real-world adoption requirements.
+
+### What Is Supported
+
+- Varlock CLI plugins (1Password, AWS Secrets, etc.) work transparently through the .NET bridge
+- Plugin-resolved values are indistinguishable from normally-resolved values
+- Full Varlock plugin ecosystem available via CLI execution
+
+### What Is Proven
+
+- Plugin failure handling via existing test fixtures in `BridgeContractAlignmentTests.cs`
+- Error categories and diagnostics surfaced to .NET applications
+- Bridge does not distinguish plugin-resolved from normal-resolved values
+
+### What Is Deferred
+
+- Checked-in .NET example application demonstrating positive plugin-backed secret resolution
+- **Rationale:** Requires real external plugin environment (1Password, AWS, Azure Key Vault) and safely-rotating CI credentials; no deterministic credential-free fixture available
+
+### Why This Does NOT Reduce v1 Credibility
+
+1. Failure handling IS proven via bridge fixtures
+2. Success path IS supported (transparently); positive example is deferred
+3. Honest mapping: plugin-backed *resolution* supported; positive *example* deferred
+4. Reusable design: once real-world projects adopt, one infrastructure PR can deliver the example
+
+### Re-open Trigger
+
+- Real-world .NET projects adopting plugin-backed resolution
+- Community feedback on plugin usage patterns
+- CI integration challenges or documentation gaps
+
+### DoD Items Closed
+
+✅ 1099, 1100, 1103, 1105, 1121, 1141, 1167
+
+## 2026-03-16: P4-B1 Wave 1 W1-4, W1-5, W1-6 Documentation Decisions (Data)
+
+**Date:** 2026-03-16  
+**Deliverables:** W1-4 (Getting-started guide), W1-5 (Configuration guide), W1-6 (Typed-options guide)  
+**Status:** COMPLETE
+
+### Overview
+
+Three focused, publishable .NET integration guides under `packages/varlock-website/src/content/docs/integrations/dotnet/`.
+
+### Key Decisions
+
+1. **Executable Acquisition Explicitness**
+   - Made lookup order explicit: repo-local → package-local → binary install → optional PATH fallback
+   - Users understand where `varlock` executable comes from and what happens if not found
+   - Windows `.js` entrypoint behavior documented (requires `node`)
+
+2. **Documentation Organization**
+   - **getting-started.mdx** → Onboarding and setup (W1-4)
+   - **configuration.mdx** → Provider order, coexistence, reload (W1-5)
+   - **typed-options.mdx** → Code generation, IOptions binding (W1-6)
+   - Each has clear reader goal; can be consumed independently with linking
+
+3. **Reload Semantics Honesty**
+   - Documented fixed 300ms debounce and last-known-good behavior explicitly
+   - P4-A1 bridge-limits eval showed reload floor ~550ms, not "instant"
+   - No change notification fires on failure; sub-300ms reloads unrealistic without design changes
+
+4. **Coexistence as Primary Story**
+   - Made appsettings/User Secrets/local.settings.json coexistence the main integration story, not replacement
+   - Aligns with P4-A1 proposal: "Varlock augments .NET configuration, not replaces it"
+   - Users adopt Varlock incrementally without abandoning existing patterns
+
+5. **Generated Type Naming**
+   - Documented PascalCase conversion rule: `API_KEY` → `ApiKey`
+   - Warned about case-sensitivity in key references
+   - Important when mixing generated types with direct `IConfiguration[key]` access
+
+6. **No Shared Navigation Edits**
+   - Did not edit `overview.mdx` or navigation files
+   - Kept scope to pure content; navigation updates should be coordinated separately
+
+### Proof Artifacts Referenced
+
+All guides grounded in actual proof applications:
+- `examples/dotnet-console-net8/` — Direct runtime usage, Windows path handling
+- `examples/dotnet-aspnet-mvc-net8/` — Provider precedence, User Secrets coexistence, IOptionsSnapshot
+- `examples/dotnet-worker-net8/` — IOptionsMonitor reload behavior
+- `examples/dotnet-functions-isolated-net8/` — local.settings.json coexistence
+- `examples/dotnet-blazor-server-net8/` — Server-side config access
+- `examples/dotnet-blazor-wasm-net8-public/` — Public-only generation
+
+### Known Limitations
+
+1. Plugin scope not addressed in guides (documented separately in `plugin-scope.mdx` by W1-3)
+2. Troubleshooting separated (reference to existing diagnostics guide; guides do not duplicate)
+3. `dotnet watch` behavior not covered (planned W1-2 from Geordi)
+4. Offline setup referenced but not detailed (proposal-only; guides link as future content)
+
+### DoD Items Closed
+
+✅ 1013, 1053, 1158–1160, 1175–1177, 1180, 1188
+
+## 2026-03-16: P4-B1 Wave 1 W1-8 Troubleshooting Guide (O'Brien)
+
+**Date:** 2026-03-16  
+**Deliverable:** W1-8 (Diagnostics / troubleshooting guide)  
+**Status:** COMPLETE
+
+### Deliverable
+
+Created `packages/varlock-website/src/content/docs/integrations/dotnet/troubleshooting.mdx` as the published troubleshooting guide for .NET Varlock integration.
+
+### Scope Coverage
+
+All four required areas per P4-B1 scoping:
+
+1. **Executable lookup / version mismatch troubleshooting**
+   - Lookup order: explicit config → package-local → PATH (dev-only fallback)
+   - Version handshake and `executable-version-mismatch` error category
+   - Resolution steps: verify executable, check package/CLI versions in lock files
+   - CI guidance: pin both .NET packages and CLI together
+
+2. **Machine-readable inspection workflow**
+   - `VarlockException` structure with `ErrorCategory`, `Message`, `Location`
+   - 9-row error category reference table (from `dotnet-support.md`)
+   - `--dump-config` pattern for source attribution and precedence verification
+   - JSON inspection patterns for debugging resolution
+
+3. **Precedence debugging**
+   - Default order: `appsettings.json` → Varlock → environment variables
+   - `VarlockPrecedence` control (OverrideExisting vs FallbackWhenNotSet)
+   - Patterns to verify which source "won" a given key
+   - Import and environment-specific source inspection
+
+4. **Common bridge failure paths**
+   - **Startup:** missing/invalid schema, missing required values
+   - **Reload:** stale config via wrong options interface, last-known-good isolation
+   - **MSBuild:** generated file location and lookup failures
+   - **Serilog:** exact case-sensitive key matching for redaction
+
+### Key Decisions
+
+1. **Error Category Reference**
+   - Documented all 9 bridge error categories from `dotnet-support.md`:
+     - `executable-not-found`, `executable-version-mismatch`, `schema-missing`, `schema-invalid`
+     - `resolution-failed`, `plugin-load-failed`, `bridge-internal-error`
+   - Includes fallback guidance for unanticipated failures
+
+2. **Faithful to Bridge Contract**
+   - All guidance grounded in actual bridge latency measurements
+   - Proven startup/reload behavior from P3-A1 proof artifacts
+   - Exact error categories and machine-readable formats from proposal
+
+3. **No Shared Navigation Edits**
+   - Created standalone file; did not edit integration overview or navigation
+
+4. **Canonicalized Inspection Pattern**
+   - Selected `--dump-config` as canonical machine-readable inspection tool
+   - Matches checked-in proof harness behavior in `scripts/test-dotnet-proof.ts`
+
+### DoD Items Closed
+
+✅ 1025, 1165, 1181, 1183
+
+## 2026-03-16: P4-B1 Wave 1 Kickoff Design Review (Picard)
+
+**Date:** 2026-03-16  
+**Verdict:** PROCEED  
+**Status:** APPROVED TO START WAVE 1
+
+### Decision
+
+P4-B1 is well-defined, bounded, and ready to start. The E4 gap analysis inventoried remaining work precisely: 28 documentation-only DoD bullets across 8 areas, plus 3 scope decisions that P4-A1 produced evidence to resolve. No speculative product-code expansion needed. Critical path is documentation publication and thin `Varlock.SourceGeneration` wrapper already authorized at P4-A1.
+
+### Scope Decisions at This Gate
+
+1. **Plugin-backed positive proof → DEFERRED beyond v1**
+   - Bridge transparently surfaces plugin-resolved values
+   - Plugin load failures proven by PluginLoadFailed fixture
+   - No positive in-repo proof of plugin-backed .NET load exists
+   - Requires real external plugin environment
+   - Deferral rationale: "bridge works; example requires real environment"
+
+2. **dotnet watch / IDE behavior → RESOLVED by E2 Section 5**
+   - Geordi's Roslyn evaluation already contains thorough analysis
+   - Converts DoD items 1007, 1077–1082, 1179 to documentation-only
+   - Task is extraction into publishable user-facing docs
+
+3. **Varlock.SourceGeneration thin wrapper → IN SCOPE for Wave 1**
+   - Authorized at P4-A1 closeout
+   - Satisfies DoD 1020 with minimal interpretation
+   - No Roslyn implementation
+
+### Wave 1 Parallelism
+
+All 9 items are independent leaf nodes with no predecessors:
+- Geordi: W1-1, W1-2 (independent from each other and all others)
+- Data: W1-4, W1-5, W1-6 (draw on existing proof artifacts)
+- Tuvok: W1-7, W1-9 (draw on E3 evaluation)
+- O'Brien: W1-8 (draws on E4 gap analysis)
+- Picard: W1-3 (self-contained documentation)
+
+### Wave 2 Dependencies
+
+1. W2-1 (type-gen guide) → W1-1 + W1-2
+2. W2-2 (README expansion) → W1-4..W1-9
+3. W2-3 (release docs) → W1-4
+
+### Exit Criteria for P4-B1
+
+1. All 28 documentation-only DoD bullets resolved with publishable docs
+2. All 15 P4-A1 dependent DoD bullets resolved (docs, wrapper, or accepted deferral)
+3. `Varlock.SourceGeneration` thin wrapper exists and is packable
+4. Plugin scope documented honestly with deferral rationale
+5. `dotnet watch` / IDE behavior documented from E2 evidence
+6. Package READMEs expanded to user-facing quality
+7. At least one doc page under `packages/varlock-website/src/content/docs/` for .NET

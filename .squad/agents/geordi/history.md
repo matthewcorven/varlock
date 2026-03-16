@@ -89,3 +89,5 @@ Both deliverables meet specification. publicOnly contract is production-ready fo
 ## P4-A1 Closeout — E2 Evaluation Accepted (2026-03-16)
 
 - 2026-03-16: Picard accepted E2 (Roslyn Source-Generator Evaluation) without revision. DX baseline, three implementation options, and `Varlock.SourceGeneration` thin-wrapper recommendation all present and costed. `dotnet watch` interaction analysis resolves multiple O'Brien DoD gaps (1077–1082) and grounds the recommendation not to implement Roslyn generator in Phase 4. Thin wrapper authorized as P4-B1 item. Decision grounds Roslyn NO-GO + wrapper-authorization verdict.
+
+- 2026-03-16: P4-B1 Wave 1 W1-1 & W1-2 completion: Completed SourceGeneration thin wrapper decision (no Roslyn, wrapper over MSBuild) and dotnet watch / IDE behavior documentation (schema vs. value changes, rebuild loop risk). Both deliverables grounded in P4-A1 E2 Roslyn evaluation section 5. Design decisions capture wrapper shape, boundary enforcement, and honest scope claims. Submitted inbox decision capturing rationale and DoD closure. Wave 1 marked DONE. Wave 2 W2-1 (type-gen guide) ready to start immediately.

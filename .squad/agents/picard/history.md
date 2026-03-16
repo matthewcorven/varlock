@@ -160,3 +160,5 @@ Completed final lead review of all P3-A1c deliverables (Azure Functions isolated
 **Decision:** APPROVE-CLOSE P3-A1c. P3-A1d (Security boundary + Serilog + ledger completion) now unblocked.
 
 **Status:** COMPLETE
+
+- 2026-03-16: P4-B1 Wave 1 W1-3 completion: Completed plugin-scope deferral documentation with honest evidence-first framing. Documented what is supported (transparent CLI plugin execution through bridge), what is proven (failure handling fixtures), what is deferred (positive example pending real-world adoption), and re-open trigger. Also conducted P4-B1 kickoff design review, approved Wave 1 to proceed immediately (all 9 items independent leaf nodes), and established Wave 2 dependencies. Submitted two inbox files with deferral rationale and gate verdicts. Wave 1 marked DONE.
