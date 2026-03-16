@@ -92,3 +92,18 @@ Both deliverables meet specification. publicOnly contract is production-ready fo
 - 2026-03-16: Picard accepted E2 (Roslyn Source-Generator Evaluation) without revision. DX baseline, three implementation options, and `Varlock.SourceGeneration` thin-wrapper recommendation all present and costed. `dotnet watch` interaction analysis resolves multiple O'Brien DoD gaps (1077–1082) and grounds the recommendation not to implement Roslyn generator in Phase 4. Thin wrapper authorized as P4-B1 item. Decision grounds Roslyn NO-GO + wrapper-authorization verdict.
 
 - 2026-03-16: P4-B1 Wave 1 W1-1 & W1-2 completion: Completed SourceGeneration thin wrapper decision (no Roslyn, wrapper over MSBuild) and dotnet watch / IDE behavior documentation (schema vs. value changes, rebuild loop risk). Both deliverables grounded in P4-A1 E2 Roslyn evaluation section 5. Design decisions capture wrapper shape, boundary enforcement, and honest scope claims. Submitted inbox decision capturing rationale and DoD closure. Wave 1 marked DONE. Wave 2 W2-1 (type-gen guide) ready to start immediately.
+
+---
+
+## P4-B1 Editorial Cleanup (2026-03-17)
+
+**Status:** COMPLETE  
+**Commit:** P4-B1 landed all product artifacts + editorial cleanup  
+
+- **Migration.mdx editorial cleanup applied:**
+  - Replaced stale `@generateTypes(..., output=src/Generated/Config.g.cs)` with canonical `path=obj/Varlock/Config.g.cs` form in two locations (line 153, line 449)
+  - Updated troubleshooting example path from `src/Generated/Config.g.cs` to `obj/Varlock/Config.g.cs` (line 459)
+  - All changes align migration guide with canonical `type-generation.mdx`, `typed-options.mdx`, and `watch-and-ide.mdx` landed docs
+  - Scope held tight: editorial cleanup only, no runtime behavior changes
+
+- **Batch commit rationale:** All P4-B1 artifacts (type-generation, distribution, watch-and-ide docs; updated typed-options/getting-started; READMEs for MSBuild, SourceGeneration, Configuration, Hosting, DotNet, Serilog) committed as single batch with migration cleanup to maintain product coherence across docsite and package-level guidance. O'Brien history updated for CI/examples work.
