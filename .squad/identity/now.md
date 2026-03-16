@@ -1,23 +1,37 @@
 ---
-updated_at: 2026-03-15T22:11:14.786Z
-focus_area: Phase 3 complete
+updated_at: 2026-03-16T00:00:00.000Z
+focus_area: Phase 4 kickoff preparation
 active_issues: []
 ---
 
 # What We're Focused On
 
-**Phase 3 is now complete.** **P3-A1a** ("Cross-platform CI parity"), **P3-A1b** ("Hosting + Worker"), **P3-A1c** ("Remaining framework examples"), and **P3-A1d** ("Security Boundary + Ledger Completion") are all approved-closed with proof artifacts and narrowed support-ledger language.
+**Phase 3 is committed and closed.** All sub-batches (P3-A1a through P3-A1d) are approved-closed with proof artifacts, and the Phase 3 commit is on `main`.
 
-What Phase 3 now proves:
+**Phase 4 is now authorized for kickoff.** The next active node is **P4-A1** ("Analyzer/native-runtime decisions").
 
-1. Cross-platform CI parity for the `.NET` proof slice
-2. Hosted and worker `.NET` configuration-provider flows
-3. Azure Functions isolated, Blazor Server, Blazor WASM public-only generation boundary, and WinForms `net48`
-4. `packages/dotnet/Varlock.Serilog/` with Serilog-specific destructuring redaction and metadata enrichment
-5. Manual non-Serilog fallback redaction via `VarlockRedactionHelper.Redact(...)`
-6. An explicit security boundary that names what is automatic, what is manual, and what is unsupported in v1
+## What Phase 4 start means
 
-There is **no active implementation slice open right now**. **Phase 4** remains deferred until explicitly opened.
+Phase 4 is an **evaluation and decision phase**, not an implementation phase. The first work is:
 
-Next possible focus if authorized:
-- **P4-A1** — native evolution and plugin expansion
+1. **Audit CLI bridge limits** — document concrete friction points, latency characteristics, and capability gaps that the CLI bridge imposes on the .NET developer experience, drawn from Phase 1–3 proof artifacts and example usage
+2. **Cost-benefit analysis** — evaluate native .NET parser/runtime against the proven bridge, using measured evidence rather than speculative parity concerns
+3. **Analyzer/source-generator scoping** — determine whether Roslyn analyzer or source-generator enhancements are justified, and if so, define their support contract boundaries
+4. **Plugin expansion assessment** — evaluate .NET-native plugin authoring model feasibility
+
+## Explicitly deferred even within Phase 4 start
+
+- No product code implementation until the evaluation deliverables are accepted
+- No `Varlock.SourceGeneration` Roslyn-native package until cost-benefit analysis is complete
+- No native .NET parser/runtime implementation — only the decision artifact
+- No new .NET packages beyond what Phase 3 shipped
+- No expansion of the v1 support matrix — Phase 3 ledger rows remain the v1 boundary
+
+## Phase 3 accomplishments (for reference)
+
+1. Cross-platform CI parity for the .NET proof slice
+2. Hosted and worker .NET configuration-provider flows
+3. Azure Functions isolated, Blazor Server, Blazor WASM public-only generation boundary, WinForms net48
+4. `Varlock.Serilog` with Serilog-specific destructuring redaction and metadata enrichment
+5. `VarlockRedactionHelper.Redact(...)` for non-Serilog paths
+6. Explicit security boundary naming what is automatic, manual, and unsupported in v1
