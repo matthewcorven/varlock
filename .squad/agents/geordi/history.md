@@ -107,3 +107,5 @@ Both deliverables meet specification. publicOnly contract is production-ready fo
   - Scope held tight: editorial cleanup only, no runtime behavior changes
 
 - **Batch commit rationale:** All P4-B1 artifacts (type-generation, distribution, watch-and-ide docs; updated typed-options/getting-started; READMEs for MSBuild, SourceGeneration, Configuration, Hosting, DotNet, Serilog) committed as single batch with migration cleanup to maintain product coherence across docsite and package-level guidance. O'Brien history updated for CI/examples work.
+
+- 2026-03-16: P4-B1 editorial cleanup completed and committed. Applied targeted changes to migration.mdx (lines 153, 449, 459) to align `output=` → `path=` parameter form and `src/Generated/` → `obj/Varlock/` path guidance. All four shipped docs now tell unified story: canonical output is `obj/Varlock/`, parameter form is `path=`, CLI @generateTypes and MSBuild VarlockGeneratedFile reference same physical output. Product commit 101ebde landed with this cleanup integrated.

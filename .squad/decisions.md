@@ -3497,3 +3497,20 @@ P4-B1 is the documentation and thin-wrapper batch for Phase 4. With this close, 
 
 Phase 4 documentation and wrapper scope is complete. No further P4 work is authorized unless new user friction evidence justifies re-opening a NO-GO decision through the established gate process.
 
+
+### 2026-03-16: P4-B1 Editorial Cleanup — Migration.mdx Path Alignment
+
+- Initiative: `dotnet-support`
+- Node: `P4-B1` (product close)
+- Source: Geordi
+- Decision: Apply targeted editorial cleanup to `packages/varlock-website/src/content/docs/integrations/dotnet/migration.mdx` to align migration guidance with canonical `path=obj/Varlock/` story established in P2-B1 and carried through all P4-B1 Wave 1 and Wave 2 documentation.
+- Changes applied:
+  1. Line 153: `@generateTypes(lang=cs, output=src/Generated/Config.g.cs)` → `@generateTypes(lang=cs, path=obj/Varlock/Config.g.cs)` — canonical parameter form
+  2. Line 449: Same schema decorator parameter alignment — consistency across all examples
+  3. Line 459: `ls -la src/Generated/Config.g.cs` → `ls -la obj/Varlock/Config.g.cs` — troubleshooting path consistency
+  4. (Related: O'Brien applied dead-link fix in `getting-started.mdx` line 258: `/integrations/dotnet/offline/` → `/integrations/dotnet/distribution/`)
+- Alignment verified: migration.mdx now matches canonical forms across `type-generation.mdx`, `typed-options.mdx`, `watch-and-ide.mdx`, `Varlock.MSBuild/README.md`, and `Varlock.SourceGeneration/README.md`
+- Scope: Editorial only — no runtime behavior changes, no API changes, no MSBuild logic changes. This corrects stale parameter names and file paths in documentation guidance.
+- Why: Product coherence and user clarity. All shipped documentation now tells a unified story: the canonical output location is `obj/Varlock/`, the parameter form is `path=`, and both the CLI `@generateTypes` decorator and the MSBuild `VarlockGeneratedFile` property reference the same physical output file.
+- Status: DECIDED & EXECUTED — cleanup applied before P4-B1 product commit `101ebde` to maintain product coherence.
+
