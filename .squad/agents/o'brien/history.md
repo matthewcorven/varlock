@@ -84,3 +84,35 @@ Awaiting Data's fixes and then re-review by Picard.
 ## P4-A1 Closeout — E4 Evaluation Accepted (2026-03-16)
 
 - 2026-03-16: Picard accepted E4 (Definition-of-Done Gap Analysis) without revision. Every DoD bullet (lines 1001–1209) categorized: 113 complete, 28 documentation-only, 15 P4-dependent, 6 deferred. Four critical-path blockers explicitly identified. Documentation-gap estimate (8 deliverable areas) justifies P4-B1 documentation batch. "Should not block v1" items properly separated from blockers. Scope leakage check clean. No hidden Phase 4 or native-runtime references in gap analysis. Decision grounds v1 completion boundaries and P4-B1 authorization.
+
+---
+
+## P4-B1 Wave 1 W1-8 — .NET Troubleshooting Guide (2026-03-16)
+
+**Status:** COMPLETE  
+**Deliverable:** `packages/varlock-website/src/content/docs/integrations/dotnet/troubleshooting.mdx`  
+**Commit:** 4533395
+
+Created comprehensive .NET troubleshooting guide addressing all four required areas per P4-B1 scoping:
+
+1. **Executable lookup and version mismatch:** Documented the exact lookup order (explicit config → package-local → PATH), version handshake detection, and resolution steps. Grounded in actual bridge implementation from `dotnet-phase4-bridge-limits.md`.
+
+2. **Machine-readable inspection workflow:** Built error category reference table covering all 9 error types from the bridge spec (executable-not-found, executable-version-mismatch, schema-missing, schema-invalid, resolution-failed, plugin-load-failed, bridge-internal-error, plus internal-error fallback). Included `VarlockException` structure and `--dump-config` pattern as canonical inspection tool per DoD line 1025.
+
+3. **Configuration precedence debugging:** Documented default layering (appsettings.json → Varlock → environment variables), `VarlockPrecedence` control, and patterns for inspecting which source "won" for a given key. Included import and environment-specific source inspection patterns.
+
+4. **Common bridge failure paths:** Covered startup failures (missing/invalid schema, missing values), reload failures (stale config via wrong options interface, bad config isolation with last-known-good guarantees), MSBuild failures (generated files), and Serilog redaction issues (exact case-sensitive key matching).
+
+**Key constraints honored:**
+- All guidance faithful to proven bridge contract and accepted bridge limits
+- Avoided claims beyond v1 scope (no native runtime hints, no full watch/IDE parity claims)
+- Did not edit shared navigation/index files
+- All example commands match checked-in proof harness patterns
+- Error categories match `dotnet-support.md` line 226 specification exactly
+
+**Evidence basis:**
+- `docs/proposals/dotnet-phase4-dod-gap-analysis.md` (diagnostics DoD requirement at line 1025)
+- `docs/proposals/dotnet-phase4-bridge-limits.md` (actual latency and failure modes)
+- `docs/proposals/dotnet-support.md` lines 715–730 (diagnostics scope and requirements)
+- `packages/dotnet/Varlock.DotNet/*` (exception types and bridge surface)
+- `.squad/skills/dotnet-hosted-proof/SKILL.md` (inspection patterns)

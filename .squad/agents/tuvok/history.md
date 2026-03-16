@@ -6,6 +6,34 @@
 - **Role:** Security/Contracts Lead
 - **Joined:** 2026-03-13T10:56:25.546Z
 
+## P4-B1 Wave 1 Documentation Delivery (W1-7, W1-9)
+
+- 2026-03-16T22:15:00Z: Tuvok completed P4-B1 Wave 1 documentation deliverables W1-7 (security-and-logging guide) and W1-9 (migration guide). Commit: 32f2b56. Both guides prioritize narrow, testable security claims grounded in P3-A1d contract and P2-A1 reload contract.
+
+**W1-7 (security-and-logging.mdx) key decisions:**
+- Serilog destructuring redaction is the primary v1 path: exact case-sensitive key matching, `[REDACTED]` replacement, destructuring only (not string templates)
+- VarlockRedactionHelper is the non-Serilog fallback: manual, caller-invoked, per-value, zero automatic interception
+- @redactLogs and @preventLeaks are metadata only in .NET v1 — no enforcement by Varlock code
+- Blazor WASM public-only boundary is generation-time gate, not runtime check — generated file excludes sensitive properties, SensitiveKeys[], PropertyBindings
+- Explicit comparison table shows what JS runtime does (console redaction, response scanning, env injection) vs. .NET v1 (none automatic; Serilog + helper only)
+- Forbidden language enforced: "redactable through" (not "protected"), "manually redactable" (not "safe"), "metadata" (not "enforcement")
+
+**W1-9 (migration.mdx) key decisions:**
+- appsettings.json coexistence: Varlock as additional IConfigurationSource with configurable precedence (OverrideExisting default, PreserveExisting option)
+- DotEnv/dotenv migration: replace loader with AddVarlock(), define schema, use generated types or direct Items access
+- Optional configuration: `Optional = true` allows missing .env file but requires valid schema
+- Type generation: setup via @generateTypes() decorator, happens at build time via MSBuild, binds with Configure<T>()
+- Hosted patterns: WebApplicationBuilder, HostApplicationBuilder.AddVarlock() extension, low-level ConfigurationBuilder for WinForms/Console
+- Environment-specific: .env.{EnvironmentName} sourcing, EnvironmentName property configuration
+- Reload: ReloadOnChange = true with KeepLastKnownGood behavior; detailed linking to configuration.mdx guide
+- Azure Functions (isolated + in-process), User Secrets coexistence, Docker/container, CI/CD env-var setup
+- Troubleshooting linked to diagnostics guide (not written yet, but placeholders established)
+
+**Boundary enforcement:**
+- security-and-logging.mdx explicitly states what Serilog redaction does NOT do (Console.WriteLine, MEL, HTTP, etc.) and provides code examples showing manual helper requirement
+- Both guides link together and to related guides (configuration.mdx, type-generation.mdx, diagnostics.mdx, getting-started.mdx) — establishing expected doc tree
+- No support claims beyond contract scope; all statements are testable against existing P3-A1d proofs
+
 ## Learnings
 
 <!-- Append learnings below -->
