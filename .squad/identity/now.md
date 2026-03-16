@@ -1,12 +1,12 @@
 ---
-updated_at: 2026-03-16T01:16:51.100Z
-focus_area: P4-B1 wave 1 active
+updated_at: 2026-03-16T22:25:00.000Z
+focus_area: P4-B1 wave 1 documentation batch in progress
 active_issues: []
 ---
 
 # What We're Focused On
 
-**P4-B1 Wave 1 is active.** The accepted `P4-A1` evaluation artifacts were committed in `d6cb962`, Picard ran the `P4-B1` kickoff review, and the first documentation wave is now in flight.
+**P4-B1 Wave 1 documentation batch in progress.** Tuvok completed W1-7 and W1-9 (security/logging guide and migration guide). Remaining items: Geordi W1-1 and W1-2, Picard W1-3, Data W1-4 through W1-6, O'Brien W1-8.
 
 ## Wave 1 in progress
 
@@ -16,9 +16,9 @@ active_issues: []
 - `W1-4` Data — .NET getting-started / install guide
 - `W1-5` Data — configuration-provider / coexistence guide
 - `W1-6` Data — typed-options guide
-- `W1-7` Tuvok — security-boundary / logging guide
+- ✅ `W1-7` Tuvok — security-boundary / logging guide (DONE: commit 32f2b56)
 - `W1-8` O'Brien — diagnostics / troubleshooting guide
-- `W1-9` Tuvok — migration guide
+- ✅ `W1-9` Tuvok — migration guide (DONE: commit 32f2b56)
 
 ## Wave 2 waits on Wave 1
 
