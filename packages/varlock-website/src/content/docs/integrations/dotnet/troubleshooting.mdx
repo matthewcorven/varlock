@@ -1,0 +1,382 @@
+---
+title: Troubleshooting
+description: Diagnose and resolve common .NET integration issues with Varlock
+---
+
+import { Tabs, TabItem, Steps, Aside } from "@astrojs/starlight/components";
+
+Varlock's .NET integration uses a CLI bridge to the existing `varlock` engine. This guide covers diagnosing issues with executable discovery, version compatibility, configuration precedence, and common failure modes.
+
+## Executable Lookup and Version Mismatch
+
+The Varlock CLI bridge needs to locate the `varlock` executable. The lookup process tries paths in order until it finds a compatible version.
+
+### Lookup order
+
+1. **Explicit configuration:** If you set `ExecutablePath` in code, that path is used directly
+2. **Package-local fallback:** The .NET packages look for `varlock` in `node_modules/@varlock/cli/bin/cli.js`
+3. **Development-only PATH:** If you opt in with environment variables or configuration, `PATH` is searched
+
+### Diagnosing lookup failures
+
+If you see an error like `executable-not-found` or "varlock executable not available", verify the executable is present:
+
+<Tabs>
+  <TabItem label="Repository development">
+    ```bash
+    # Check if the executable exists at the repo-local path
+    ls -la packages/varlock/bin/cli.js
+    
+    # Or in the installed package
+    ls -la node_modules/@varlock/cli/bin/cli.js
+    ```
+  </TabItem>
+  <TabItem label="npm/Yarn project">
+    ```bash
+    # Install the CLI as a dev dependency
+    npm install --save-dev varlock
+    
+    # Verify it's available
+    npx varlock --version
+    ```
+  </TabItem>
+</Tabs>
+
+### Version mismatch detection
+
+The bridge performs a version handshake before loading configuration. Each Varlock .NET package declares the CLI contract version it expects. If the executable reports a different contract version, you'll see an `executable-version-mismatch` error.
+
+**To resolve version mismatches:**
+
+1. Ensure your .NET packages and the CLI are from compatible releases
+2. Check the version in your package manager lock file:
+   ```bash
+   npm ls varlock  # or equivalent for your package manager
+   ```
+3. Rebuild and reinstall:
+   ```bash
+   npm ci  # or pnpm install / yarn install
+   npm run build  # if you have local monorepo builds
+   ```
+
+<Aside type="note">
+In CI environments, pin both the .NET packages (`packages.lock.json` or equivalent) and the CLI executable together. If they drift, the bridge will fail fast with a clear error message rather than silently using incompatible formats.
+</Aside>
+
+## Machine-Readable Inspection Workflow
+
+When the bridge encounters an error, it returns structured information. You can use this to debug issues programmatically.
+
+### Inspecting bridge exceptions
+
+The .NET bridge surfaces errors through `VarlockException` and derived types. Each exception includes machine-readable metadata:
+
+```csharp
+try
+{
+    var graph = await runtime.LoadAsync(options);
+}
+catch (VarlockException ex)
+{
+    // ex.ErrorCategory contains the error type
+    Console.WriteLine($"Category: {ex.ErrorCategory}");
+    
+    // ex.Message is human-readable
+    Console.WriteLine($"Details: {ex.Message}");
+    
+    // Location info is available for schema/resolution errors
+    if (ex.Location != null)
+    {
+        Console.WriteLine($"File: {ex.Location.File}");
+        Console.WriteLine($"Line: {ex.Location.Line}, Column: {ex.Location.Column}");
+    }
+}
+```
+
+### Error categories and meaning
+
+| Category | Meaning | Common cause | Resolution |
+| --- | --- | --- | --- |
+| `executable-not-found` | Varlock executable could not be located | Missing CLI installation or wrong path | Install `varlock` CLI or set `ExecutablePath` |
+| `executable-version-mismatch` | Bridge contract version is incompatible | .NET packages and CLI are from different releases | Update packages and CLI to matching versions |
+| `schema-missing` | `.env.schema` file was not found | File doesn't exist or `SchemaPath` is wrong | Create schema file or fix path in code |
+| `schema-invalid` | `.env.schema` contains syntax errors | Malformed `@env-spec` decorators or imports | Fix syntax; check line/column in error |
+| `resolution-failed` | A value could not be resolved | Required env var is missing, resolver failed, or import error | Check required vars are set; debug imports separately |
+| `plugin-load-failed` | A plugin referenced in schema could not load | Plugin executable missing or incompatible | Install plugin or update schema to remove reference |
+| `bridge-internal-error` | The bridge itself encountered an unexpected error | Rare; indicates a bug in the bridge | File an issue with the error message and schema |
+
+### Using `--dump-config` for inspection
+
+Some .NET example applications include a `--dump-config` flag that emits machine-readable JSON output:
+
+```bash
+dotnet run -- --dump-config > config-output.json
+```
+
+The JSON includes:
+- Resolved configuration values
+- Source identity for each value (file, line)
+- Metadata such as `isSensitive` flags
+- The source list and import graph
+
+This helps verify:
+- Which sources were loaded and in what order
+- Which source "won" when multiple files define the same key
+- Which files are currently being watched for reload
+
+## Debugging Configuration Precedence
+
+Varlock layers into the .NET configuration system. Understanding precedence helps diagnose unexpected values.
+
+### Default precedence
+
+By default:
+1. `appsettings.json` loads first
+2. Environment-specific `appsettings.{Environment}.json` loads next
+3. Varlock loads last and **overrides** matching keys from appsettings
+4. Environment variables override everything
+
+You can control this with `VarlockPrecedence`:
+
+```csharp
+var builder = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.json")
+    .AddVarlock(options => {
+        options.SchemaPath = ".env.schema";
+        // Change where Varlock sits in the order
+        options.Precedence = VarlockPrecedence.OverrideExisting; // default
+        // or
+        options.Precedence = VarlockPrecedence.FallbackWhenNotSet;
+    });
+```
+
+### Inspecting which source won
+
+When debugging why a key has an unexpected value:
+
+1. **In code:** Call `IConfiguration.GetValue()` and check the value
+2. **In configuration:** Add Varlock's source info to your logs
+3. **In tests:** Use the `--dump-config` pattern to see full source attribution
+
+Example: if `MyApp:Port` is 5000 but you expected 3000:
+
+```bash
+# Check what appsettings says
+jq '.MyApp.Port' appsettings.json
+
+# Check what Varlock would set
+grep -n "APP_PORT\|MyApp:Port" .env.schema .env*
+
+# Run with --dump-config to see which source won
+dotnet run -- --dump-config | jq '.["MyApp:Port"] | {value, source}'
+```
+
+### Debugging imports and environment-specific sources
+
+If `@import` statements or environment-specific sources are involved:
+
+1. Check the import paths are correct:
+   ```bash
+   grep '@import' .env.schema
+   ```
+
+2. Verify environment-specific files exist:
+   ```bash
+   ls -la .env .env.local .env.{Environment}*
+   ```
+
+3. Check import resolution order in `--dump-config` output:
+   ```json
+   {
+     "sources": [
+       { "file": ".env.schema", "type": "schema" },
+       { "file": ".env.local", "imported_by": ".env.schema" },
+       { "file": ".env.production", "active_in_environment": "Production" }
+     ]
+   }
+   ```
+
+## Common Bridge Failure Paths
+
+### Startup failure: schema missing or invalid
+
+**Symptom:** Application fails to start with a schema error.
+
+**Diagnosis:**
+```csharp
+// Your Program.cs
+var config = new ConfigurationBuilder()
+    .AddVarlock(options => options.SchemaPath = ".env.schema")
+    .Build();
+```
+
+**Check:**
+1. Does `.env.schema` exist? `ls -la .env.schema`
+2. Is the syntax valid? `varlock validate .env.schema` (from the repo root)
+3. If schema is optional, did you set `Optional = true`?
+
+**Resolution:**
+```csharp
+builder.Configuration.AddVarlock(options => {
+    options.SchemaPath = ".env.schema";
+    options.Optional = true; // Allow startup even if schema is missing
+});
+```
+
+### Startup failure: required value missing
+
+**Symptom:** Application fails with `resolution-failed`.
+
+**Diagnosis:**
+
+Check if the schema requires a value that isn't in your environment:
+
+```bash
+# See which keys are required
+grep -v '@optional' .env.schema | grep '=' | cut -d= -f1
+```
+
+**Check your environment:**
+```bash
+# Verify the variable is set
+echo $MY_REQUIRED_VAR
+```
+
+**Resolution:**
+- Set the missing variable
+- Or mark it `@optional` in the schema if it shouldn't be required
+
+### Reload failure: stale configuration in use
+
+**Symptom:** Configuration change isn't reflected after schema/env file edit.
+
+**Diagnosis:**
+
+1. Verify `ReloadOnChange` is enabled:
+   ```csharp
+   options.ReloadOnChange = true;
+   ```
+
+2. Check that your code uses `IOptionsMonitor<T>` for long-lived consumers:
+   ```csharp
+   public MyService(IOptionsMonitor<MyOptions> monitor)
+   {
+       // This refreshes automatically on reload
+       _options = monitor;
+   }
+   ```
+
+3. Use `--dump-config` to verify the new values were loaded:
+   ```bash
+   dotnet run -- --dump-config | jq '.NewKey'
+   ```
+
+**Resolution:**
+
+- For short-lived consumers (per-request), use `IOptionsSnapshot<T>`
+- For long-lived consumers, use `IOptionsMonitor<T>` and subscribe to `OnChange` if needed
+- Verify files are writable and the file system is notifying changes (some CI/container environments don't)
+
+### Reload failure: bad config stays in memory
+
+**Symptom:** Configuration becomes inaccessible after a failed reload attempt.
+
+**Diagnosis:**
+
+The bridge implements "last known good" behavior. Failed reloads don't mutate the current configuration. Verify this:
+
+```csharp
+// This shows the stable value from the last successful load
+var currentValue = options.Value.MyKey;
+```
+
+**Check the error:**
+```csharp
+public MyService(IOptionsMonitor<MyOptions> monitor)
+{
+    monitor.OnChange((newValue, name) => {
+        // This only fires after successful reload
+        Console.WriteLine($"Config reloaded: {newValue}");
+    });
+}
+```
+
+### MSBuild failures: generated file not found
+
+**Symptom:** Build fails with "VarlockConfig.g.cs not found" or similar.
+
+**Diagnosis:**
+
+1. Check the schema is loadable from the build context:
+   ```bash
+   # Run from the project directory
+   cd packages/MyProject
+   ls -la .env.schema
+   ```
+
+2. Check the executable is available:
+   ```bash
+   which varlock  # or
+   ls -la node_modules/.bin/varlock
+   ```
+
+3. Run the build with verbose output:
+   ```bash
+   dotnet build -v detailed 2>&1 | grep -i varlock
+   ```
+
+**Resolution:**
+
+- Ensure `.env.schema` is in the project directory or set `VarlockSchemaPath` in the project file
+- Ensure the CLI is installed: `npm install --save-dev varlock`
+- Check MSBuild logs for the actual error from `varlock typegen`
+
+### Serilog redaction not applied
+
+**Symptom:** Sensitive values appear in logs.
+
+**Diagnosis:**
+
+1. Verify you called `WithVarlockRedaction()`:
+   ```csharp
+   var logger = new LoggerConfiguration()
+       .MinimumLevel.Debug()
+       .WriteTo.Console()
+       .WithVarlockRedaction(graph) // Must call this
+       .CreateLogger();
+   ```
+
+2. Check the key matches exactly (case-sensitive):
+   ```bash
+   # Key in schema must match the structured property name
+   grep 'MySecretKey\|my_secret_key' .env.schema
+   ```
+
+3. Verify the value is marked sensitive in the schema:
+   ```bash
+   grep -A1 'MySecretKey' .env.schema | grep -i 'sensitive\|secret'
+   ```
+
+**Resolution:**
+
+- Add `WithVarlockRedaction(graph)` to your Serilog configuration
+- Ensure the `IsSensitive` metadata is set in the schema (use `@sensitive` decorator)
+- Key matching is exact and case-sensitive; `DB_PASSWORD` and `db_password` are different
+
+## Getting Help
+
+If you encounter issues not covered here:
+
+1. **Check the examples:** Look at how the checked-in examples handle your scenario
+   ```bash
+   ls -la examples/dotnet-*/
+   ```
+
+2. **Review the error details:** Machine-readable errors include file and line information
+3. **Run in a test environment:** Create a minimal `.env.schema` and test in isolation
+4. **Check the CLI directly:** Test with the standalone Varlock CLI
+   ```bash
+   varlock load --format json-full
+   ```
+
+5. **File an issue:** Include the error category, the schema file, and the error message
