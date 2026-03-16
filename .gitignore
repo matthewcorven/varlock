@@ -26,3 +26,7 @@ packages/dotnet/**/obj/
 # Squad: SubSquad activation file (local to this machine)
 .squad-workstream
 .tmp/
+
+# Copilot CLI context-mode workspace directories (ephemeral per-session)
+# Remove these periodically with: find . -maxdepth 1 -type d -name '[a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9]' ! -path ./node_modules ! -path ./packages ! -path ./examples ! -path ./scripts ! -path ./smoke-tests ! -path ./docs ! -name '.squad' -exec rm -rf {} +
+[a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9]/
