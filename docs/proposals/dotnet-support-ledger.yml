@@ -431,7 +431,7 @@ support_matrix:
     - id: dx-serilog-redaction
       example: examples/dotnet-aspnet-mvc-net8/
       test: bun run proof:dotnet ASP.NET --serilog-proof check
-      caveat: Serilog-specific destructuring redaction only; exact case-sensitive key matches inside {@obj} are redacted to [REDACTED], and scalar params remain raw
+      caveat: Serilog-specific destructuring redaction only; exact case-sensitive key matches inside {@obj} are redacted to [REDACTED], `WithVarlockMetadata(graph)` adds metadata only, and scalar params remain raw
       proof_status: proven
     - id: dx-non-serilog-fallback
       example: examples/dotnet-console-net8/
@@ -4132,7 +4132,7 @@ clause_rows:
       table_cells:
         - "`examples/dotnet-aspnet-mvc-net8/`"
         - "`bun run proof:dotnet` ASP.NET `--serilog-proof` check"
-        - "proven only for Serilog: `WithVarlockRedaction(graph)` redacts exact, case-sensitive sensitive-key matches during `{@obj}` destructuring with `[REDACTED]`, `WithVarlockMetadata(graph)` adds `VarlockRedactLogs`, and scalar message-template parameters remain raw"
+        - "proven only for Serilog: `WithVarlockRedaction(graph)` redacts exact, case-sensitive sensitive-key matches during `{@obj}` destructuring with `[REDACTED]`, `WithVarlockMetadata(graph)` adds `VarlockRedactLogs` as metadata only, and scalar message-template parameters remain raw"
         - "proven"
     - id: "support-matrix-ledger-developer-experience-intersection-ledger-non-serilog-fallback-redaction-he-l0818"
       owner: "O'Brien"

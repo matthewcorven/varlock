@@ -52,6 +52,9 @@ if (optionsProof)
   return;
 }
 
+// Hosted Serilog specimen: prove `WithVarlockRedaction(graph)` only affects
+// exact, case-sensitive keys inside destructured payloads while
+// `WithVarlockMetadata(graph)` only adds metadata.
 if (serilogProof)
 {
   var graph = new VarlockCliRuntime().Load(new VarlockLoadOptions

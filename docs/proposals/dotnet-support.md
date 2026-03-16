@@ -641,14 +641,14 @@ The `.NET` plan should define the security boundary explicitly rather than imply
 
 Required v1 security stance:
 
-- `RedactLogs` is supported in `.NET` v1 only through the documented Serilog integration points (`WithVarlockRedaction(graph)` / `WithVarlockMetadata(graph)`) and the explicit manual per-value redaction helper `VarlockRedactionHelper.Redact(graph, key, value)` exposed by `Varlock.DotNet`; both checked-in proof paths use the literal `[REDACTED]` and exact case-sensitive key matching
+- sensitive-value redaction in `.NET` v1 is available only when the caller wires the documented Serilog integration points (`WithVarlockRedaction(graph)` / `WithVarlockMetadata(graph)`) or explicitly calls the manual per-value redaction helper `VarlockRedactionHelper.Redact(graph, key, value)` exposed by `Varlock.DotNet`; the checked-in proof paths use the literal `[REDACTED]` and exact case-sensitive key matching
 - `PreventLeaks` is surfaced through bridge metadata in `.NET` v1 but does not imply automatic patching of process output, HTTP responses, or framework response objects
 - there is no `.NET`-native equivalent to `varlock scan` in v1; repository and file scanning remain provided by the existing `varlock scan` CLI for CI and repository workflows
 - there is no supported non-Serilog global process output redaction mechanism in `.NET` v1
 - there is no automatic HTTP response interception or leak-prevention equivalent to the current JavaScript runtime patches in `.NET` v1
 - if child-process environment injection is provided by `Varlock.DotNet`, it should be documented as environment preparation only, not as a full parity replacement for `varlock run`
 
-The checked-in console proof demonstrates the supported non-Serilog path with `VarlockRedactionHelper.Redact(graph, key, value)`; it is intentionally manual, and the proof also emits the same secret raw to show that raw console output is unchanged unless that helper is called for the value.
+`WithVarlockMetadata(graph)` adds `VarlockRedactLogs` as metadata only; it does not cause redaction by itself. The checked-in console proof demonstrates the supported non-Serilog path with `VarlockRedactionHelper.Redact(graph, key, value)`; it is intentionally manual, and the proof also emits the same secret raw to show that raw console output is unchanged unless that helper is called for the value.
 
 Unsupported security behaviors should be documented plainly rather than implied by the broader “first-class” label.
 
@@ -979,7 +979,7 @@ Phase 2 exit criteria:
 
 Phase 3 exit criteria:
 
-- ~~the security-boundary specimen exists and makes the Serilog versus non-Serilog distinction concrete~~ **done:** `bun run proof:dotnet` now exercises the hosted ASP.NET `--serilog-proof`, the console `--redaction-helper-proof`, and the Blazor WebAssembly public-only boundary with the documented narrow caveats
+- ~~the security-boundary specimen exists and makes the Serilog versus non-Serilog distinction concrete~~ **done:** `bun run proof:dotnet` now exercises the hosted ASP.NET MVC `--serilog-proof` specimen built around `WithVarlockRedaction(graph)` and `WithVarlockMetadata(graph)`, the console `--redaction-helper-proof`, and the Blazor WebAssembly public-only boundary with the documented narrow caveats
 - ~~Azure Functions isolated, Blazor Server, and Blazor WebAssembly examples prove the claimed caveats and supported flows~~ **done:** each checked-in example has a corresponding `bun run proof:dotnet` assertion for its supported startup or build-time flow
 - ~~the support-matrix ledger is filled for every v1 support claim~~ **done:** currently shipped rows are explicitly marked `proven` or `planned` with their caveats stated inline; no support claim is left implicit
 
