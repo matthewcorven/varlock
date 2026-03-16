@@ -78,3 +78,9 @@ Awaiting Data's fixes and then re-review by Picard.
 **Status:** Issue 1 pending fix; Issue 2 reassigned to Data.
 
 - **2026-03-15T23:08:17Z (P3-A1d Proof Harness & Ledger):** O'Brien completed proof harness expansion and support-matrix ledger closure for P3-A1d. Serilog destructuring redaction path: Log structured objects with sensitive keys, assert `[REDACTED]` replacement, verify case-sensitive matching and non-sensitive passthrough, confirm scalar bypass, validate `VarlockRedactLogs` metadata enrichment. Non-Serilog fallback path: Console example demonstrates `VarlockRedactionHelper.Redact()` usage AND raw unredacted output proof (proves nothing automatic). Updated support-matrix ledger: Serilog redaction row `planned` → `proven` with caveat: "destructuring-only, not string-templates." Non-Serilog row `planned` → `proven` with caveat: "manual per-value; no automatic interception." Verified no forbidden language (no "protection", no "automatic" for non-Serilog, no "enforcement" for PreventLeaks). All Phase 3 exit criteria struck through with concrete proof references. `bun run proof:dotnet` validates all 7 examples + 32 total tests passing. **P3-A1d APPROVE-CLOSED. Phase 3 complete.**
+
+---
+
+## P4-A1 Closeout — E4 Evaluation Accepted (2026-03-16)
+
+- 2026-03-16: Picard accepted E4 (Definition-of-Done Gap Analysis) without revision. Every DoD bullet (lines 1001–1209) categorized: 113 complete, 28 documentation-only, 15 P4-dependent, 6 deferred. Four critical-path blockers explicitly identified. Documentation-gap estimate (8 deliverable areas) justifies P4-B1 documentation batch. "Should not block v1" items properly separated from blockers. Scope leakage check clean. No hidden Phase 4 or native-runtime references in gap analysis. Decision grounds v1 completion boundaries and P4-B1 authorization.

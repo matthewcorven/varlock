@@ -1,28 +1,29 @@
 ---
-updated_at: 2026-03-16T01:00:00.000Z
-focus_area: P4-A1 evaluation batch active
+updated_at: 2026-03-16T01:08:00.740Z
+focus_area: P4-B1 documentation batch authorized
 active_issues: []
 ---
 
 # What We're Focused On
 
-**P4-A1 is active** — evaluation batch, not implementation. Design review passed. Four parallel evaluation deliverables assigned.
+**P4-A1 is approved closed.** Picard accepted all four evaluation deliverables and authorized the next step: `P4-B1`.
 
-## Active Deliverables
+## Closeout decisions
 
-| ID | Agent | Deliverable | Status |
-|----|-------|-------------|--------|
-| E1 | Data | CLI bridge limits audit (`docs/proposals/dotnet-phase4-bridge-limits.md`) | assigned |
-| E2 | Geordi | Roslyn source-generator evaluation (`docs/proposals/dotnet-phase4-roslyn-evaluation.md`) | assigned |
-| E3 | Tuvok | Contract & security boundary evolution (`docs/proposals/dotnet-phase4-contract-evolution.md`) | assigned |
-| E4 | O'Brien | Definition-of-Done gap analysis (`docs/proposals/dotnet-phase4-dod-gap-analysis.md`) | assigned |
+- `E1` CLI bridge limits audit — **accepted**
+- `E2` Roslyn source-generator evaluation — **accepted**
+- `E3` Contract & security evolution — **accepted**
+- `E4` DoD gap analysis — **accepted**
+- Native `.NET` runtime implementation — **NO-GO**
+- Full Roslyn source-generator implementation — **NO-GO**
+- `.NET`-native plugin expansion — **NO-GO**
+- Thin `Varlock.SourceGeneration` wrapper to satisfy DoD line 1020 — **authorized**
 
-## What completes P4-A1
+## Next step
 
-All four deliverables accepted by Picard, plus documented go/no-go decisions on: native runtime, Roslyn source generators, and .NET-native plugin expansion.
+**P4-B1** — documentation batch plus the small, explicitly authorized scope items needed to turn the accepted proposal/proof material into a publishable `.NET` support story.
 
-## Explicitly deferred inside P4-A1
+## Readiness notes
 
-- No product code — only evaluation and decision artifacts
-- No new .NET packages, examples, or support-matrix expansion
-- Documentation authoring sized by E4 but deferred to P4-B1
+- Strategic readiness: **authorized to proceed**
+- Practical caveat: the accepted `docs/proposals/dotnet-phase4-*.md` artifacts are still in the working tree and should be committed as part of the formal handoff into `P4-B1`

@@ -103,3 +103,19 @@ Performed comprehensive boundary, security, and contract gap analysis for P3-A1:
 - 2026-03-16: Reload-aware Serilog policy re-registration is explicitly deferred to Phase 4. The v1 policy captures a graph snapshot at registration time. This is a documented limitation, not a bug.
 - 2026-03-16: Forbidden language: "protection" for redaction, "automatic" for non-Serilog, "enforced" for PreventLeaks, "safe" for sensitive values. Correct language: "redactable through Serilog destructuring" or "manually redactable via helper."
 - 2026-03-16: If Serilog's `IDestructuringPolicy` cannot match by property name alone (type-based dispatch), Data may use an alternative Serilog extension point. The contract binds the observable behavior (sensitive → `[REDACTED]` in output), not the internal mechanism. Data must flag mechanism changes to Tuvok before shipping.
+
+## P4-A1/E3 Contract Evolution Assessment (2026-03-16)
+
+- 2026-03-16: Tuvok completed P4-A1/E3 contract evolution assessment. Written to `docs/proposals/dotnet-phase4-contract-evolution.md`. Bridge-contract v1 is sufficient for all proven scenarios. No v2 trigger conditions are currently met.
+- 2026-03-16: v2 would only be justified if (a) E1 latency data shows >500ms p95 reload delays requiring incremental protocol, (b) a Roslyn analyzer needs schema introspection without full load, or (c) a .NET feature requires plugin capability discovery. None currently apply.
+- 2026-03-16: The handshake probe mechanism (`--bridge-contract 0` → version-mismatch response) already provides forward-compatible version negotiation. A future CLI supporting v2 would advertise `supportedContractVersion: 2` and the .NET client could opt in without breaking v1 consumers.
+- 2026-03-16: JS runtime's console patching (`kWriteToConsole` hook) and HTTP response patching (`ServerResponse.prototype.write/end`) are architecturally impossible to replicate in .NET without invasive runtime hooks. The CLR does not expose equivalent interception surfaces.
+- 2026-03-16: The only justified security expansion is `BuildEnvironmentVariables()` — a trivial utility projecting graph items into `Dictionary<string, string>` for child-process setup. Already in proposal design (line 317). Must be labeled "environment preparation" not "varlock run parity."
+- 2026-03-16: Future security packages (`Varlock.Logging` for MEL, `Varlock.AspNetCore` for response scanning) are architecturally valid but not justified without demonstrated demand. Both must be opt-in and must not claim parity with JS automatic behavior.
+- 2026-03-16: Full .NET-native plugin parity (C# resolvers/decorators) is a native-runtime decision, not a plugin extension. It requires a .NET parser for `@env-spec`, a .NET resolution engine, and ongoing maintenance parity with the JS engine. Not justified by any current evidence.
+
+---
+
+## P4-A1 Closeout — E3 Evaluation Accepted (2026-03-16)
+
+- 2026-03-16: Picard accepted E3 (Contract & Security Boundary Evolution) without revision. All four required sections present: contract stability assessment (v1 sufficient), security boundary completeness (honestly documented gaps vs. Node.js), plugin evolution tiering (minimum viable vs. full parity), and go/no-go recommendations. Nine scenarios evaluated against v1. Security-boundary language precise: no "protection" claims, honest about what .NET architecture allows vs. prevents. Recommendations tied to proposal exit criteria lines 992–995. `BuildEnvironmentVariables()` convenience utility authorized as follow-on (small, non-blocking). Decision grounds both native-runtime NO-GO and plugin-expansion NO-GO verdicts.

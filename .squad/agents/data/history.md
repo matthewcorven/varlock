@@ -79,3 +79,9 @@ Also validated Geordi's publicOnly implementation against contract requirements.
 **Status:** COMPLETE
 
 - **2026-03-15T23:08:17Z (P3-A1d Serilog & Redaction):** Data completed implementation of `Varlock.Serilog` package (netstandard2.0, depends on Serilog + Varlock.DotNet). Implemented exact-match-only `WithVarlockRedaction()` destructuring policy (snapshots sensitive-key set at registration time, applies case-sensitive replacement to destructured properties and IDictionary keys). Implemented `WithVarlockMetadata()` enricher appending `VarlockRedactLogs` metadata property. Implemented `VarlockRedactionHelper.Redact()` in Varlock.DotNet for manual non-Serilog fallback (returns `[REDACTED]` for sensitive keys, passthrough otherwise). Integrated both into ASP.NET MVC example. Unit tests: 5 new `VarlockSerilogExtensionsTests` covering destructuring redaction, passthrough, empty graph, metadata enrichment, helper fallback — all passing (32 total tests). Picard approved all deliverables. **P3-A1d APPROVE-CLOSED. Phase 3 complete.**
+
+---
+
+## P4-A1 Closeout — E1 Evaluation Accepted (2026-03-16)
+
+- 2026-03-16: Picard accepted E1 (CLI Bridge Limits Audit) as-is. Measured latency data (15 startup, 8 reload on macOS) is authoritative despite cross-platform caveat. Core finding (process-spawn dominance, ~160–180ms startup floor, ~550ms reload floor) is architectural, not platform-specific. Cross-platform benchmarking deferred conditionally: "if needed before native-runtime investment, create dedicated CI benchmark lane first." Decision grounds native-runtime NO-GO verdict.

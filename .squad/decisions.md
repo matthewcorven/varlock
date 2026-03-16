@@ -2820,3 +2820,130 @@ The `publicOnly` option flows through the full decorator pipeline:
 
 
 ---
+
+---
+
+## 2026-03-16: Phase 4 Kickoff — Evaluation Before Implementation
+
+- **Initiative:** dotnet-support
+- **Node:** P4-A1
+- **Source:** Picard
+- **Decision:** Phase 4 is authorized to begin at node **P4-A1** ("Analyzer/native-runtime decisions"). Phase 4 start is an **evaluation gate**, not an implementation gate.
+- **What P4-A1 delivers:** (1) CLI bridge limits audit drawn from Phase 1–3 proof, (2) cost-benefit analysis of native .NET parser/runtime vs. proven bridge, (3) scoping document for Roslyn enhancements, (4) go/no-go recommendation for .NET-native plugin model.
+- **What P4-A1 does NOT authorize:** No product code until evaluation deliverables are accepted. No new .NET packages. No native runtime implementation. No v1 support-matrix expansion. No new example applications.
+- **Rationale:** Phase 3 is complete with full proof across 7 frameworks and security boundary. Bridge is mature enough to evaluate honestly. Starting Phase 4 with evidence-gathering prevents premature native-runtime ambition from undermining stable bridge foundation.
+
+---
+
+## 2026-03-16: P4-A1 Design Review — Evaluation Batch Shape and Agent Assignments
+
+- **Initiative:** dotnet-support
+- **Node:** P4-A1
+- **Source:** Picard
+- **Ceremony:** Design Review
+- **Verdict:** PROCEED
+- **Context:** CLI bridge feature-complete for design scope. Zero TODO/FIXME/phase-4 markers in .NET packages. Proposal requires Phase 4 work be "justified by demonstrated limits...rather than speculative parity."
+- **Deliverables:** (E1) CLI Bridge Limits Audit by Data — measured latency + capability gap inventory with materiality; (E2) Roslyn Evaluation by Geordi — DX baseline + implementation cost + source-generator recommendation; (E3) Contract & Security Evolution by Tuvok — contract stability, security boundary completeness, plugin model; (E4) DoD Gap Analysis by O'Brien — every DoD bullet categorized, critical path identified, documentation estimate.
+- **Hard dependencies:** E1 and E3 both required before native-runtime go/no-go. E2 and E4 independent, can run in parallel.
+- **Reviewer gates:** Picard reviews all four. No partial acceptance. Evidence standard: latency requires measured numbers, capabilities require code-path references, recommendations require explicit rationale.
+- **Acceptance:** All 10 criteria must be met (measured latency, `Varlock.SourceGeneration` recommendation, contract/security/plugin go/no-go all documented, DoD gaps categorized, zero product code, all four deliverables pass Picard review).
+
+---
+
+## 2026-03-16: P4-A1 Closeout Review — Evaluation Batch Acceptance and Go/No-Go Rulings
+
+- **Initiative:** dotnet-support
+- **Node:** P4-A1
+- **Source:** Picard
+- **Ceremony:** Closeout Review
+- **Date:** 2026-03-16
+- **Verdict:** APPROVE-CLOSE
+
+### Deliverable Verdicts
+
+- **E1 (Data: Bridge Limits Audit)** — ACCEPT ✅
+  - Real measured latency: 15 startup, 8 reload iterations on macOS
+  - Five concrete capability gaps inventoried with materiality column
+  - Cross-platform caveat recorded: benchmarking lane should be created if needed before native-runtime investment
+  - Architectural findings (process-spawn dominance, ~160-180ms startup floor, ~550ms reload floor) not platform-specific
+
+- **E2 (Geordi: Roslyn Evaluation)** — ACCEPT ✅
+  - All five required sections present
+  - DX baseline thoroughly documented
+  - Three implementation options costed
+  - Thin-wrapper `Varlock.SourceGeneration` recommendation satisfies DoD line 1020 without speculative implementation
+  - `dotnet watch` interaction analysis directly resolves O'Brien DoD gaps 1077–1082
+
+- **E3 (Tuvok: Contract Evolution)** — ACCEPT ✅
+  - All four required sections present
+  - Nine scenarios evaluated against v1 sufficiency
+  - Security boundary analysis thorough and honest about .NET vs. Node.js limits
+  - Plugin evolution clearly tiered with cost and risk assessments
+  - Recommendations tied to proposal exit criteria
+
+- **E4 (O'Brien: DoD Gap Analysis)** — ACCEPT ✅
+  - Every DoD bullet (lines 1001–1209) classified
+  - Totals clear: 113 complete, 28 documentation-only, 15 P4-dependent, 6 deferred
+  - Four critical-path blockers explicitly identified
+  - Documentation-gap estimate justifies P4-B1 batch
+  - "Should not block v1" items properly separated from blockers
+
+### Go/No-Go Decisions
+
+- **Native .NET Runtime: NO-GO**
+  - Grounded in: E1 (Data) + E3 (Tuvok)
+  - Bridge adds ~160–180ms startup, ~550ms reload (observable but not blocking for proven matrix)
+  - Capability gaps real but no user friction in documented scenarios
+  - Re-open conditions: sub-300ms reload becomes requirement, pure .NET/no-JS deployment required, in-process schema APIs committed, child-process-free host demand
+
+- **Roslyn Source Generator: NO-GO (thin wrapper authorized)**
+  - Grounded in: E2 (Geordi)
+  - Current MSBuild CLI-generated flow deterministic, incremental-build-friendly, zero .NET dependencies
+  - Roslyn would add IDE preview + build-without-CLI stubs but 2–8 weeks cost + maintenance burden
+  - No user friction with current build-time-only flow
+  - `Varlock.SourceGeneration` thin wrapper authorized for P4-B1 (satisfies DoD line 1020 literally)
+  - Re-open conditions: users report build-time-only blocks productivity, offline/restricted build-without-CLI requested, analyzer diagnostics become top feature request
+
+- **.NET-Native Plugin Expansion: NO-GO**
+  - Grounded in: E3 (Tuvok)
+  - CLI bridge transparently surfaces plugin-resolved values and failures
+  - No .NET user scenario identified requiring C#-authored plugins that JS plugins cannot serve
+  - Proposal requires demonstrated limits, not speculative parity
+  - Lower-cost extensions (C# type mappings, diagnostics observer) do not require bridge-contract changes
+  - Re-open conditions: demonstrated user scenarios requiring C#-authored resolvers/decorators, type-mapping customization demand beyond CLI type generation
+
+### P4-A1 Acceptance Criteria Checklist
+
+| # | Criterion | Status |
+|---|-----------|--------|
+| 1 | E1 with measured latency and materiality assessment | ✅ Accepted |
+| 2 | E2 with `Varlock.SourceGeneration` recommendation | ✅ Accepted (thin wrapper) |
+| 3 | E3 with go/no-go for contract v2, security, plugins | ✅ Accepted |
+| 4 | E4 with every DoD bullet categorized and critical path | ✅ Accepted |
+| 5 | Native-runtime go/no-go documented | ✅ NO-GO (this decision) |
+| 6 | Roslyn source-generator go/no-go documented | ✅ NO-GO impl / thin wrapper authorized (this decision) |
+| 7 | Plugin expansion go/no-go documented | ✅ NO-GO (this decision) |
+| 8 | E4 identifies v1 completion vs. deferred | ✅ Critical path + deferrals identified |
+| 9 | Zero product code implemented | ✅ All deliverables are evaluation artifacts only |
+| 10 | All four deliverables passed lead review | ✅ All accepted (this decision) |
+
+### Verdict
+
+All 10 acceptance criteria satisfied. **P4-A1 is complete: APPROVE-CLOSE.**
+
+### What Follows P4-A1
+
+Based on E4's gap analysis and the three go/no-go decisions:
+
+- **P4-B1: Documentation Batch + Small Scope Items** (authorized for start)
+  1. `Varlock.SourceGeneration` thin wrapper — small, bounded task
+  2. `dotnet watch` / IDE behavior documentation — E2 analysis ready for publication
+  3. Plugin-backed loading scope decision — clarify whether plugin-backed .NET loading is v1 or deferred
+  4. Publishable .NET documentation — 28 docs-only DoD gaps identified by E4 (8 deliverable areas)
+
+- **No implementation work authorized beyond these bounded items**
+  - No native .NET parser/runtime
+  - No Roslyn incremental generator
+  - No .NET-native plugin authoring
+  - No v1 support-matrix expansion
+

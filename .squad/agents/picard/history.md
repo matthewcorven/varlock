@@ -81,6 +81,70 @@ Reassignments issued per reviewer lockout rule. P3-A1a sequencing (four sub-batc
 
 ---
 
+## P4-A1 Closeout Review — Lead Decision (2026-03-16T01:14:25Z)
+
+**Session:** P4-A1 Closeout Review  
+**Role:** Initiative lead, final design authority, APPROVE-CLOSE gate  
+**Timestamp:** 2026-03-16T01:14:25Z
+
+Conducted comprehensive P4-A1 evaluation-batch lead review with all four deliverables present:
+
+### Deliverable Verdicts
+
+- **E1 (Data: CLI Bridge Limits Audit)** — ACCEPT ✅  
+  Real measured latency (15 startup, 8 reload on macOS). Five capability gaps inventoried with materiality. Cross-platform caveat recorded (CI benchmarking deferred).
+
+- **E2 (Geordi: Roslyn Evaluation)** — ACCEPT ✅  
+  All five sections present. DX baseline thorough. Three implementation options costed. Thin-wrapper `Varlock.SourceGeneration` recommendation satisfies DoD line 1020 honestly. `dotnet watch` analysis resolves O'Brien DoD gaps 1077–1082.
+
+- **E3 (Tuvok: Contract & Security Evolution)** — ACCEPT ✅  
+  All four sections present. Nine scenarios evaluated. Security boundary thorough and honest about .NET vs. Node.js limits. Plugin evolution tiered with cost/risk. Recommendations tied to proposal exit criteria.
+
+- **E4 (O'Brien: DoD Gap Analysis)** — ACCEPT ✅  
+  Every DoD bullet classified. Totals: 113 complete, 28 docs-only, 15 P4-dependent, 6 deferred. Four critical-path blockers identified. Documentation estimate justifies P4-B1 batch.
+
+### Go/No-Go Decisions (3)
+
+1. **Native .NET Runtime → NO-GO**  
+   Bridge adds ~160–180ms startup, ~550ms reload (acceptable). Capability gaps real but no user friction. Re-open: sub-300ms reload, pure-.NET deployment, in-process APIs, child-process-free host.
+
+2. **Roslyn Source Generator → NO-GO (thin wrapper authorized)**  
+   Current MSBuild flow sufficient. `Varlock.SourceGeneration` wrapper authorized P4-B1. Re-open: user friction with build-time-only, offline build demand, analyzer diagnostics request.
+
+3. **.NET-Native Plugin Expansion → NO-GO**  
+   No .NET scenario identified requiring C#-authored plugins. CLI bridge surfaces values/failures transparently. Re-open: demonstrated C# resolver/decorator need, type-mapping demand beyond CLI generation.
+
+### Acceptance Criteria
+
+All 10 met:
+- ✅ E1 measured latency + materiality
+- ✅ E2 SourceGeneration recommendation
+- ✅ E3 contract/security/plugin go/no-go
+- ✅ E4 DoD categorized + critical path
+- ✅ Native-runtime go/no-go documented
+- ✅ Roslyn go/no-go documented  
+- ✅ Plugin go/no-go documented
+- ✅ v1 completion vs. deferred identified
+- ✅ Zero product code (evaluation artifacts only)
+- ✅ All four deliverables passed lead review
+
+### Verdict
+
+**P4-A1: APPROVE-CLOSE.** All 10 criteria satisfied. Phase 4 evaluation complete.
+
+### Next: P4-B1 Documentation Batch + Small Scope Items (authorized)
+
+1. `Varlock.SourceGeneration` thin wrapper (small, bounded)
+2. `dotnet watch` / IDE behavior documentation
+3. Plugin-backed loading scope decision
+4. Publishable .NET documentation (28 docs-only gaps, 8 areas)
+
+**NOT authorized beyond P4-B1:** Native runtime, Roslyn generator, .NET plugin authoring, v1 support-matrix expansion.
+
+**Status:** COMPLETE
+
+---
+
 ## P3-A1c Lead Review & APPROVE-CLOSE (2026-03-15T20:50:57Z)
 
 **Session:** P3-A1c closeout consolidation  

@@ -13,6 +13,7 @@
 - 2026-03-16: P3-A1c WinForms net48 example added: Created minimal legacy desktop bridge proof at `examples/dotnet-winforms-net48/` using the narrowest honest scope (runtime loading only, no MSBuild integration or generated types). The example builds successfully and proves `netstandard2.0` Varlock.DotNet targeting works on legacy .NET Framework 4.8.
 - 2026-03-16: Type-generation test suite uses `vitest` CLI (`bunx vitest`), not `bun test`, to avoid `expect.getState()` compatibility issues with Bun's test runner. All 35 existing tests plus 4 new publicOnly tests pass cleanly with vitest.
 - 2026-03-16: WinForms proof path fixed with `--dump-config` flag: Added explicit command-line argument handling to emit machine-readable JSON to stdout when flag is present, otherwise display MessageBox for interactive runs. Enables honest automated proof on Windows runners without blocking on UI or weakening to build-only validation.
+- 2026-03-16: P4-A1 E2 (Roslyn evaluation) completed: Documented current CLI-generated MSBuild DX baseline (build-time types, incremental via Inputs/Outputs, zero .NET dependencies, ~50ms first-build overhead), hypothetical Roslyn IIncrementalGenerator benefits (real-time IDE preview, build-without-CLI stubs, analyzer diagnostics), implementation costs (2-8 weeks + C# schema parser maintenance or Node interop), and dotnet watch loop analysis (low risk, clean separation between build-time typegen and runtime reload). Recommendation: create thin wrapper package satisfying DoD line 1020 minimally, defer Roslyn implementation until demonstrated DX friction in real projects.
 
 - 2026-03-13: Picard assigned Geordi the first C# generation specimen as phase-1 work that can advance in parallel once naming and output expectations are fixed.
 - 2026-03-13: O'Brien's proof scope means the generation slice should travel with representative schema, `.g.cs` golden output, and binder-validation proof if `lang=cs` is included in the first implementation slice.
@@ -81,3 +82,9 @@ Implemented two critical P3-A1c deliverables:
 Both deliverables meet specification. publicOnly contract is production-ready for Blazor WASM and future use.
 
 **Status:** COMPLETE
+
+---
+
+## P4-A1 Closeout — E2 Evaluation Accepted (2026-03-16)
+
+- 2026-03-16: Picard accepted E2 (Roslyn Source-Generator Evaluation) without revision. DX baseline, three implementation options, and `Varlock.SourceGeneration` thin-wrapper recommendation all present and costed. `dotnet watch` interaction analysis resolves multiple O'Brien DoD gaps (1077–1082) and grounds the recommendation not to implement Roslyn generator in Phase 4. Thin wrapper authorized as P4-B1 item. Decision grounds Roslyn NO-GO + wrapper-authorization verdict.
