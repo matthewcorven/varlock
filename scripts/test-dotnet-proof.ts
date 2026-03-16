@@ -728,6 +728,8 @@ const aspNetOptionsResult = runDotnet(aspNetProjectDir, [
 const aspNetOptionsPayload = parseJsonOutput<AspNetPayload>('dotnet-aspnet-mvc-net8 options', aspNetOptionsResult);
 assertAspNetPayload(aspNetOptionsPayload, 'ASP.NET options proof');
 
+// Hosted ASP.NET MVC Serilog specimen: destructuring redaction, metadata-only enrichment,
+// case-sensitive key matching, and scalar-template non-coverage.
 const aspNetSerilogResult = runDotnet(aspNetProjectDir, [
   'run',
   '--no-build',
