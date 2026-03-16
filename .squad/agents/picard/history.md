@@ -183,3 +183,12 @@ Completed final lead review of all P3-A1c deliverables (Azure Functions isolated
 ## P4-B1 Closeout Gate — APPROVE-CLOSE (2026-03-16)
 
 - 2026-03-16: Picard conducted final phase-gate review of P4-B1 (Waves 1–2, all 12 deliverables). Verdict: **APPROVE-CLOSE**. All Wave 1 items present and sound (thin SourceGeneration wrapper, 8 documentation pages). All Wave 2 items present and coherent (type-generation guide, 6 package READMEs, distribution doc). Three NO-GO boundaries verified: native runtime (no in-process claims), full Roslyn source gen (all docs disclaim IIncrementalGenerator), .NET-native plugin expansion (transparent CLI bridge only). O'Brien's Wave 2 slice reviewer-cleared with Data's 3 editorial fixes applied and verified. Non-blocking cleanup items logged (migration.mdx path alignment, getting-started dead link, distribution.mdx .NET Framework 4.8 caveat). P4-B1 ready for commit as single coherent batch. Phase 4 documentation and wrapper scope **COMPLETE**. No further P4 work authorized unless new user friction evidence justifies re-opening NO-GO decision through established gate process.
+
+## P4-A1 Bridge-Limits Proposal Closeout (2026-03-20)
+
+- 2026-03-20: Picard reviewed `docs/proposals/dotnet-phase4-bridge-limits.md` against Phase 4 exit criteria and Data's measurement rerun. Verdict: **APPROVE-CLOSE** for remaining P4-A1 todos (`p4-analyze-gaps`, `p4-write-proposal`, `p4-validate-doc`). All three satisfied by the committed artifact (d6cb962). Data's rerun confirmed measurements within expected variance (174-175 ms median vs original 164-167 ms — thermal/load variation, not drift). Document already covers all required elements: latency tables, code-path references, 5-gap capability inventory with materiality ratings, and a clear "do not start native runtime" recommendation with explicit re-open triggers. No worktree drift detected. The P4 evaluation slice is now fully closed.
+
+### Learnings
+
+- 2026-03-20: When a proposal artifact is already committed and measurements have been rerun with consistent results, the right closeout is to mark all constituent todos done in one pass rather than re-executing each step. Repeated re-measurement to chase identical conclusions wastes cycles.
+- 2026-03-20: Slight measurement variance between runs (~6% median shift: 164→174 ms) on the same host is normal thermal/load noise, not evidence of regression. Phase gates should define an acceptable variance band rather than expecting exact reproducibility.

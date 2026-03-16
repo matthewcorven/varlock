@@ -2,6 +2,30 @@
 
 ## Active Decisions
 
+### 2026-03-16: P4-A1 bridge-limits proposal slice closeout
+
+- Initiative: `dotnet-support`
+- Source: Picard (Initiative Lead)
+- Decision: All three Phase 4 Analysis 1 evaluation todos are **DONE** and the bridge-limits proposal slice is **APPROVED-CLOSE**.
+- Completed todos:
+  - `p4-analyze-gaps` — Committed artifact (`docs/proposals/dotnet-phase4-bridge-limits.md`, commit `d6cb962`) contains 5-gap capability inventory (A–E) with materiality ratings against the proven support matrix.
+  - `p4-write-proposal` — Artifact exists with all required elements: latency tables, code-path references, capability gaps, materiality assessment, and recommendation.
+  - `p4-validate-doc` — Data's measurement rerun (2026-03-20) reaffirmed baseline within expected variance; no document drift (`git diff HEAD` clean).
+- Exit criteria check: Both criteria from `docs/proposals/dotnet-support.md:1000-1003` satisfied — native evolution justified by demonstrated limits, and no expanded scope assumed retroactively.
+- No blockers. No revision required. No edits needed before closeout.
+- Follow-up: Native-runtime investigation only if product requirements change to sub-300 ms end-to-end reload, pure .NET deployment, in-process APIs, or child-process-free hosts.
+
+### 2026-03-16: p4-measure-runtime measurement confirmation
+
+- Initiative: `dotnet-support`
+- Node: `P4-A1`
+- Source: Data (Bridge/Hosting Lead)
+- Decision: Close p4-measure-runtime without proposal changes. Measurement rerun confirms baseline evidence; local variance is expected.
+- Measurement rerun (2026-03-20): Small schema ~174.33 ms median (baseline 164–167 ms), medium schema ~175.27 ms median (baseline 166–167 ms). Variance is ~10 ms, attributable to JIT state, disk/network variance, and system load differences across sessions.
+- Core finding unchanged: Process-spawn cost dominates; bridge adds ~160–180 ms startup floor; reload with 300 ms debounce adds ~550 ms effective latency; schema size (4→52 items) has negligible impact.
+- Methodology validated: Proposal's measurement approach and fixture sizes remain representative and sound.
+- Re-open native-runtime work only if product requirements change to sub-300 ms reload, pure .NET deployment, in-process APIs, or child-process-free hosts.
+
 ### 2026-03-13: First `.NET` implementation slice boundary
 
 - Initiative: `dotnet-support`

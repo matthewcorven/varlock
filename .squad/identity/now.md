@@ -1,33 +1,31 @@
----
-updated_at: 2026-03-16T11:19:33.000Z
-focus_area: P4-B1 COMPLETE; Phase 4 documentation/wrapper scope complete
+updated_at: 2026-03-16T14:06:40.921Z
+focus_area: Phase 4 bridge-limits proposal slice closed; awaiting next direction
 active_issues: []
 ---
 
 # What We're Focused On
 
-**P4-B1 is COMMITTED.** All Wave 1 and Wave 2 deliverables have been landed in product commit `101ebde` with editorial cleanup applied. Phase 4 documentation and thin-wrapper scope is complete.
+**The current .NET Phase 4 follow-on slice is closed.** `P4-B1` remains committed, the bridge-limits proposal note remains accurate after rerun, and Picard has issued `APPROVE-CLOSE` on the remaining proposal/evidence items.
 
-## Completed P4-B1 Batch
+## Recently Closed
 
-- Wave 1 docs (8 items): getting-started, configuration, typed-options, watch-and-ide, security-and-logging, migration, troubleshooting, plugin-scope
-- Product item: thin `Varlock.SourceGeneration` wrapper (MSBuild delegation, no Roslyn)
-- Wave 2 docs (2 items): `type-generation.mdx` and `distribution.mdx` 
-- Package README expansion (5 items): `Varlock.DotNet`, `Varlock.Extensions.Configuration`, `Varlock.Extensions.Hosting`, `Varlock.MSBuild`, `Varlock.Serilog`
-- Editorial cleanup: migration.mdx path alignment (output= → path=, src/Generated/ → obj/Varlock/), getting-started.mdx dead-link fix
+- `P4-B1` product/documentation scope — committed in `101ebde` with editorial cleanup applied
+- `p4-measure-runtime` — rerun confirmed the existing baseline in `docs/proposals/dotnet-phase4-bridge-limits.md`
+- `p4-analyze-gaps` — satisfied by the committed gap/materiality inventory already in the bridge-limits note
+- `p4-write-proposal` — satisfied by the committed `dotnet-phase4-bridge-limits.md` artifact
+- `p4-validate-doc` — satisfied by Picard's review and Data's no-change measurement rerun
 
-## Product Coherence Achieved
+## Current Position
 
-- **Canonical output location:** All docs now specify `obj/Varlock/` as the recommended intermediate output path
-- **Canonical parameter form:** All examples use `path=` parameter in `@generateTypes` decorator
-- **Unified message:** CLI @generateTypes and MSBuild VarlockGeneratedFile reference the same physical output file
-- **Honest scope:** Thin wrapper, MSBuild delegation, no Roslyn implementation, explicit deferred-work callouts
+- No remaining active Phase 4 bridge-limits todos
+- Existing bridge evidence remains valid; no proposal edit was required
+- The `.NET` initiative is ready for the next user-directed phase or backlog item
 
 ## Scope Boundaries Maintained
 
 - ✓ Thin source-generation wrapper (no Roslyn, no analyzers)
 - ✓ Build-backed type generation with external CLI
-- ✓ Documentation coherence (Wave 1 + Wave 2)
+- ✓ Documentation coherence (Wave 1 + Wave 2 + bridge-limits closeout)
 - ✓ Package README clarity
 - ✗ Native .NET runtime — **NO-GO**
 - ✗ Full Roslyn source-generator — **NO-GO**
