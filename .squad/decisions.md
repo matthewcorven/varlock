@@ -2947,3 +2947,86 @@ Based on E4's gap analysis and the three go/no-go decisions:
   - No .NET-native plugin authoring
   - No v1 support-matrix expansion
 
+
+---
+
+## 2026-03-16: P4-B1 Wave 1 Documentation Delivery
+
+- **Initiative:** dotnet-support
+- **Node:** P4-B1
+- **Source:** Tuvok (Contracts & Security Lead)
+- **Deliverables:** W1-7 (security-and-logging guide), W1-9 (migration guide)
+- **Date:** 2026-03-16T22:15Z
+- **Commit:** 32f2b56
+
+### W1-7: Security-and-Logging Guide
+
+**Grounding:** P3-A1d security-boundary contract + existing proof artifacts
+
+**Scope:**
+- Serilog destructuring redaction: exact case-sensitive key matching, `[REDACTED]` replacement, destructuring only
+- VarlockRedactionHelper: manual, caller-invoked, per-value fallback for non-Serilog
+- Metadata flags (@redactLogs, @preventLeaks): signals for consumer decision-making, no Varlock enforcement
+- Blazor WASM public-only boundary: generation-time gate, excludes sensitive properties and metadata
+- Honest comparison with JS runtime automatic behaviors (console redaction, response scanning, env injection)
+
+**Language constraints enforced:**
+- NO "protection" (use "redactable through Serilog destructuring")
+- NO "automatic" for non-Serilog redaction (use "manual, caller-invoked")
+- NO "enforcement" of PreventLeaks metadata (use "metadata for consumer decisions")
+- Examples show both positive (redaction works) and negative (raw leak) paths
+
+### W1-9: Migration Guide
+
+**Grounding:** P2-A1 reload contract + dotnet-support.md proposal + project conventions
+
+**Scope:**
+- From appsettings.json: Varlock as additional IConfigurationSource with configurable precedence
+- From DotEnv: type-safe configuration access and generated C# types
+- Optional configuration: `Optional = true` allows missing .env but requires valid schema
+- Type generation: @generateTypes() decorator, MSBuild integration, Configure<T>() binding
+- Hosted patterns: WebApplicationBuilder, HostApplicationBuilder.AddVarlock(), low-level ConfigurationBuilder
+- Environment-specific: .env.{EnvironmentName} sourcing, EnvironmentName property
+- Reload: ReloadOnChange + KeepLastKnownGood, change-token semantics (grounded in P2-A1)
+- Real-world: Azure Functions (isolated + in-process), User Secrets coexistence, Docker/container, CI/CD
+- Troubleshooting: actionable steps for schema-not-found, executable-not-found, type-generation failures
+
+### Boundary Enforcement
+
+Both guides are grounded in machine-readable contracts:
+
+1. **Serilog API and behavior** — W1-7 documents exact behavior from P3-A1d security boundary contract
+2. **Manual helper behavior** — W1-7 shows caller-invoked API, zero automatic interception (P3-A1d)
+3. **Metadata flags without enforcement** — W1-7 states "no Varlock code enforces them" (P3-A1d line 102)
+4. **WASM boundary** — W1-7 documents generation-time contract from P3-A1c
+5. **Optional config schema validation** — W1-9 states "schema validation is always required" (P2-A1)
+6. **Reload atomicity and last-known-good** — W1-9 links to P2-A1 guarantees with explicit constraints
+7. **Hosted API surface** — W1-9 matches P3-A1b API design (two overloads + low-level fallback)
+8. **Precedence is configurable** — W1-9 shows both OverrideExisting and PreserveExisting with consequences
+
+### Documentation Tree Implications
+
+Both guides establish cross-links to sibling guides:
+
+- **getting-started.mdx** — executable acquisition, lookup order
+- **configuration.mdx** — precedence, coexistence, reload semantics (linked from W1-9)
+- **type-generation.mdx** — @generateTypes(), MSBuild, dotnet watch (linked from W1-9)
+- **diagnostics.mdx** — error categories, inspection workflow (linked from W1-9 troubleshooting)
+- **security-and-logging.mdx** — Serilog, manual helper, metadata (W1-7 itself)
+- **migration.mdx** — appsettings, DotEnv, Optional, reload, hosted, Azure, Docker, CI/CD (W1-9 itself)
+
+Placeholders for guides not yet written are marked "(when available)" to signal deferred content.
+
+### Verdict
+
+**W1-7 and W1-9 are APPROVED-CLOSED.**
+
+Both deliverables are complete, grounded in locked contracts, and ready for integration into the final .NET documentation site. The guides provide:
+
+1. **Narrow, testable security claims** — no overclaiming on automatic behaviors
+2. **Contract grounding** — every constraint tied to P3-A1d (security) or P2-A1 (reload)
+3. **Real-world examples** — migration paths, hosted vs. non-hosted patterns, Docker, Azure Functions
+4. **Honest language** — explicit about what .NET v1 does NOT provide (JS parity)
+5. **Cross-link structure** — establishes expected documentation tree for future guides
+
+These guides will serve as canonical references for Varlock .NET security boundaries and as the primary onboarding path for teams migrating from existing configuration approaches.
