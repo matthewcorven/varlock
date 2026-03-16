@@ -57,7 +57,7 @@ public sealed class VarlockConfig
 }
 ```
 
-## Use generated types with IOptions<T>
+## Use generated types with `IOptions<T>`
 
 ### Basic binding with IConfiguration
 
@@ -191,7 +191,7 @@ Schema validation runs at startup (before `ValidateOnStart()`) and on every relo
 
 ## Working with scopes
 
-### IOptionsSnapshot<T>
+### `IOptionsSnapshot<T>`
 
 Use `IOptionsSnapshot<T>` for request-scoped or short-lived configuration:
 
@@ -217,7 +217,7 @@ public class MyController : ControllerBase
 
 When configuration reloads, the next request gets the new values automatically.
 
-### IOptionsMonitor<T>
+### `IOptionsMonitor<T>`
 
 Use `IOptionsMonitor<T>` for long-lived services that need to track configuration changes:
 
@@ -352,6 +352,8 @@ Generated types are created during the normal .NET build process. No extra steps
 dotnet build
 ```
 
+This happens during a **real build**, not during design-time project evaluation. On a fresh clone or after cleaning `obj/`, run `dotnet build` once before expecting IntelliSense to resolve the generated type. For the exact `dotnet watch` / IDE behavior, see [Watch mode & IDE builds](/integrations/dotnet/watch-and-ide/).
+
 The generated file is placed in the path you specified in `@generateTypes(path=...)`. 
 
 If you use a path in the `obj/` directory (recommended for generated files), it's automatically excluded from source control and cleaned on `dotnet clean`.
@@ -386,4 +388,5 @@ If binding fails with a type error, check that your schema types match your opti
 
 - **[Configuration & coexistence](/integrations/dotnet/configuration/)** — Understand how Varlock works with appsettings and other sources
 - **[Getting started](/integrations/dotnet/getting-started/)** — Start from the beginning
+- **[Watch mode & IDE builds](/integrations/dotnet/watch-and-ide/)** — See how schema edits, runtime reload, and design-time compile fit together
 - **[Schema reference](/reference/schema-language/)** — Full syntax for `@generateTypes` and other directives

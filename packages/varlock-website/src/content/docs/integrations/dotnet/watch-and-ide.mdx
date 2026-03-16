@@ -1,0 +1,115 @@
+---
+title: "dotnet watch & IDE builds"
+description: How Varlock's build-time C# generation and runtime reload behave under dotnet watch and IDE-driven builds
+---
+
+Varlock's current `.NET` flow has **two separate mechanisms**:
+
+1. **Build-time C# generation** through `Varlock.MSBuild`
+2. **Runtime configuration reload** through `Varlock.Extensions.Configuration` when `ReloadOnChange = true`
+
+That split is intentional. Generated types change your compiled shape; runtime reload changes resolved values. Treat them as different triggers with different outcomes.
+
+## What change triggers what?
+
+| Change | Build-time generation | Runtime reload | Typical result |
+| --- | --- | --- | --- |
+| `.env.schema` or `@generateTypes(...)` metadata | Yes | Maybe briefly, but a rebuild/restart usually supersedes it under watch | `dotnet watch` rebuilds, Varlock regenerates `.g.cs`, app restarts |
+| `.env`, `.env.local`, or another watched value source | No | Yes, if `ReloadOnChange = true` | Provider reloads values in-process without regenerating types |
+| `.csproj`, `.cs`, or other normal project inputs | Normal .NET build behavior | No special Varlock behavior | Standard rebuild / restart |
+
+## `dotnet watch`
+
+The safest way to think about `dotnet watch` is:
+
+- **schema edits are build edits**
+- **value edits are reload edits**
+
+If you change `.env.schema`, you are potentially changing generated C# shape, namespaces, type names, or metadata. Expect a rebuild. If `dotnet watch` is running, it should rebuild the project, rerun `varlock typegen`, and restart the app.
+
+If you change `.env`, `.env.local`, or another active value source while `ReloadOnChange = true`, Varlock can reload configuration without regenerating C# or forcing a rebuild.
+
+```csharp
+builder.Configuration.AddVarlock(source =>
+{
+  source.ReloadOnChange = true;
+});
+```
+
+### Why this does not create a dirty loop
+
+Varlock's generated file belongs in `obj/Varlock/`, not in a tracked source folder:
+
+```xml
+<PropertyGroup>
+  <VarlockEnabled>true</VarlockEnabled>
+  <VarlockGeneratedFile>$(BaseIntermediateOutputPath)Varlock/AppConfig.g.cs</VarlockGeneratedFile>
+</PropertyGroup>
+```
+
+```text
+# @generateTypes(lang=cs, path=obj/Varlock/AppConfig.g.cs, namespace=MyApp.Generated, typeName=AppConfig, auto=false)
+```
+
+Keeping generated output under `obj/` matters for build-loop hygiene:
+
+- it stays out of source control
+- it does not ask `dotnet watch` to treat generated output like hand-authored code
+- it keeps the watched source tree cleaner than a checked-in `Generated/` folder
+
+## IDE-driven builds
+
+Varlock does **not** run type generation during design-time evaluation. IDEs consume the last successful generated file instead.
+
+That means:
+
+- on a **fresh clone**, run a real `dotnet build` once before expecting generated types to appear in IntelliSense
+- after `dotnet clean` or deleting `obj/`, run a real build again
+- if you change `typeName`, `namespace`, or the generated path, build once so the IDE sees the new output
+
+This is deliberate. Design-time project evaluation should stay lightweight and predictable instead of spawning the CLI during every IDE pass.
+
+## What to expect in practice
+
+### First open in Visual Studio, Rider, or another IDE
+
+If the generated file does not exist yet, the IDE may show missing-type errors for your generated config class. Run:
+
+```bash
+dotnet build
+```
+
+Once the build succeeds, the generated file in `obj/Varlock/` is available for later design-time compile.
+
+### Editing only values during a long-lived session
+
+If your app uses `ReloadOnChange = true`, value-only edits can flow through `IOptionsMonitor<T>` or reload-aware configuration consumers without a rebuild.
+
+### Editing the schema while `dotnet watch` is running
+
+Expect a rebuild and restart. That is the correct behavior for a type-shape change.
+
+## Current boundaries
+
+Varlock's current `.NET` type-generation story does **not** claim:
+
+- a Roslyn source generator
+- live analyzer diagnostics from `.env.schema`
+- generated types before the first successful real build
+- special watch-mode behavior beyond the build-backed flow described here
+
+If richer IDE-native behavior becomes necessary later, it belongs in a deliberate follow-on phase rather than being smuggled into the current MSBuild bridge.
+
+## Recommended workflow
+
+1. Generate C# into `obj/Varlock/`
+2. Keep `VarlockGeneratedFile` and `@generateTypes(..., path=...)` aligned
+3. Build once after clone / clean before expecting IDE type resolution
+4. Use `ReloadOnChange = true` only when you want value-only edits to refresh at runtime
+5. Treat schema edits as rebuild-causing changes
+
+## See also
+
+- [Getting started](/integrations/dotnet/getting-started/)
+- [Configuration & coexistence](/integrations/dotnet/configuration/)
+- [Typed options & code generation](/integrations/dotnet/typed-options/)

@@ -134,6 +134,8 @@ If a reload fails (e.g., someone adds an invalid key to `.env`), Varlock will:
 
 This ensures your app continues running with valid configuration instead of crashing on a bad edit.
 
+Under `dotnet watch`, value-file edits can reload in place, but schema edits are build-affecting changes and should be expected to rebuild and restart the app. See [Watch mode & IDE builds](/integrations/dotnet/watch-and-ide/) for the build-loop details.
+
 ## User Secrets coexistence
 
 User Secrets are a .NET feature for storing sensitive values during development without committing them to the repository. Varlock coexists cleanly with User Secrets:
@@ -285,5 +287,6 @@ If sub-second reload is critical for your development experience, consider disab
 ## Next steps
 
 - **[Typed access & generation](/integrations/dotnet/typed-options/)** — Learn about generated C# types and `IOptions<T>` binding
+- **[Watch mode & IDE builds](/integrations/dotnet/watch-and-ide/)** — See how runtime reload differs from build-time generation
 - **[Examples](/guides/examples/)** — See working proof applications
 - **[Schema reference](/reference/schema-language/)** — Full `.env.schema` syntax and features
