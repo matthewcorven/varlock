@@ -1,0 +1,35 @@
+﻿@page "/"
+@inject IConfiguration Configuration
+
+@* 👈 Varlock: IConfiguration injected above to read .env.schema values *@
+
+<PageTitle>Home</PageTitle>
+
+<h1>Hello, world!</h1>
+
+Welcome to your new app.
+
+@* 👈 Varlock: display configuration values loaded from .env.schema *@
+<h2>Varlock Configuration</h2>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Key</th>
+            <th>Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var key in VarlockKeys)
+        {
+            <tr>
+                <td>@key</td>
+                <td><code>@(Configuration[key] ?? "(null)")</code></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    // 👈 Varlock: known keys from .env.schema
+    private static readonly string[] VarlockKeys = ["APP_NAME", "APP_PORT", "FEATURE_ENABLED"];
+}
