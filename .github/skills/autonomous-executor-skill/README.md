@@ -10,11 +10,15 @@ Autonomous task orchestrator — turns the VS Code agent into a hands-off execut
 
 The orchestrator will parse the tasks, validate prerequisites, ask you a few setup questions (including retry budget), then execute each one autonomously via Ralph's agentic loop.
 
+The helper wrapper is compatibility-aware: it detects the Ralph CLI surface from `--help`, pre-renders prompt templates on older builds that lack `--prompt-template`, and omits `--abort-promise` when that flag is unavailable.
+
 ## Architecture Overview
 
 When multiple tasks are assigned, three tiers of context isolation come into play. The **VS Code agent** orchestrates, **subagents** run the ralph CLI, and **Copilot CLI** iterates within each ralph loop. State flows between iterations and tasks exclusively through the **filesystem** — not memory.
 
 ### Control Flow Diagram
+
+The command strings in the diagram show the full-surface Ralph invocation. In real runs, `scripts/run-ralph.sh` adapts to older Ralph versions instead of assuming every flag exists.
 
 ```mermaid
 flowchart TB
@@ -181,7 +185,7 @@ ralph-skill/
 ├── SKILL.md                        # Orchestration instructions (agent reads this)
 ├── README.md                       # This file — architecture docs for humans
 ├── scripts/
-│   ├── run-ralph.sh                # Run Ralph with all mandatory flags
+│   ├── run-ralph.sh                # Run Ralph with compatibility fallbacks and dry-run support
 │   ├── setup-ralph.sh              # Downloads Ralph from github
 │   └── watch-ralph.sh              # Tail Ralph log output
 ├── tests/
@@ -200,6 +204,6 @@ ralph-skill/
 
 - The skill supports an **opt-in streaming mode**: when enabled the subagent invocation will stream Ralph's stdout/stderr to `.tmp/ralph/logs/TASK-{ID}.log` so you can follow progress from another terminal.
 - Use the helper scripts in `scripts/`:
-  - `run-ralph.sh <TASK-ID> --prompt-template <path> [--model <model>] [--max-iterations <N>] [--stream]` — run Ralph with all mandatory flags. `--prompt-template` is required. Model is read from `state.json` if `--model` is omitted. Optionally enable streaming into `.tmp/ralph/logs/<TASK-ID>.log`.
+    - `run-ralph.sh <TASK-ID> --prompt-template <path> [--model <model>] [--max-iterations <N>] [--stream] [--dry-run]` — run Ralph through the compatibility wrapper. `--prompt-template` remains a required wrapper input. Model is read from `state.json` if `--model` is omitted. On older Ralph builds, the wrapper pre-renders the template into a generated prompt file and omits unsupported abort handling flags. `--dry-run` validates the setup without launching a loop.
   - `watch-ralph.sh <TASK-ID|log-path>` — tail the corresponding log file (or a direct path) for live monitoring
 - Logs live in `.tmp/ralph/logs/`. Keep an eye on retention and avoid writing secrets into prompts.

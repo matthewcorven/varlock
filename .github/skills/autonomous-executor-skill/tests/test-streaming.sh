@@ -23,7 +23,7 @@ Implementation note: This is a test prompt meant to finish quickly. Do not attem
 PROMPT
 
 # Run ralph in streaming mode in background
-# A minimal prompt template is required (--prompt-template is mandatory).
+# The wrapper still requires a prompt template input, even when it has to pre-render it for older Ralph builds.
 # Use the backend-builder template since it's lighter and this is just a smoke test.
 "${SKILL_DIR}/scripts/run-ralph.sh" "${WI_ID}" --model claude-sonnet-4.6 --prompt-template "${WORKSPACE_ROOT}/.github/skills/autonomous-executor-skill/templates/backend-builder.md" --stream &
 RALPH_PID=$!

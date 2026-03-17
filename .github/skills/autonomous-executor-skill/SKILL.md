@@ -129,6 +129,8 @@ Each runs as its own Wiggum invocation with its respective template. The backend
 
 **How templates work:** Wiggum's `--prompt-template` flag provides a custom template that wraps `{{prompt}}` (the task prompt from `--prompt-file`) with agent identity, conventions, and loop instructions. This replaces Wiggum's default iteration prompt entirely, ensuring Copilot CLI operates with the correct agent persona throughout the loop.
 
+If the installed Ralph build does not advertise `--prompt-template`, the helper should render the template into a generated prompt file before launch and pass that rendered file via `--prompt-file` instead. This preserves the agent persona and conventions, but the rendered file is static, so iteration/context placeholders do not update live on older Ralph versions.
+
 Store the selected template path for use in Step 5.
 
 ### Step 4b: Pre-Execution Consistency Check (Subagent)
@@ -178,29 +180,31 @@ Embed this constraint block directly into the Wiggum prompt. This ensures Wiggum
 Delegate execution to a subagent that runs the Wiggum CLI. The subagent prompt should instruct it to:
 
 1. Change directory to the task's worktree (`.worktrees/{TASK-ID}`)
-2. Execute Wiggum with the generated prompt file and **all mandatory flags**
+2. Execute Wiggum with the generated prompt file and the supported Ralph flags for the installed build
 3. Monitor for completion, abort, or max-iterations exhaustion
 4. Return the final status and any error output
 
-#### Mandatory CLI Arguments
+#### Wrapper Inputs And CLI Flags
 
-Every Wiggum invocation **must** include these flags. No exceptions — omitting any of them is a workflow violation.
+Every Wiggum invocation should provide the wrapper inputs below. The helper then passes the matching Ralph flags when the installed CLI supports them, or uses the documented compatibility fallback when it does not.
 
-| Flag                            | Value                                                               | Rationale                                                                   |
+| Wrapper input or flag           | Value                                                               | Compatibility behavior                                                      |
 | ------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `--agent copilot`               | Always `copilot`                                                    | Our agent runtime is GitHub Copilot CLI                                     |
-| `--prompt-template <path>`      | Template from `.github/skills/autonomous-executor-skill/templates/` | Agent identity + conventions (selected in Step 4a)                          |
-| `--prompt-file <path>`          | `.tmp/ralph/prompts/TASK-{ID}-prompt.md`                            | Task-specific execution specification                                       |
-| `--max-iterations <N>`          | Based on complexity (see table below)                               | Safety net for runaway loops                                                |
-| `--completion-promise COMPLETE` | Always `COMPLETE`                                                   | Signals successful task completion                                          |
-| `--abort-promise ABORT`         | Always `ABORT`                                                      | Signals early exit (BLOCKED or FAILURE — type determined by JSON file)      |
-| `--model <model>`               | From `state.json` (PM decides at registration)                      | PM selects model based on task complexity                                   |
-| `--verbose-tools`               | Always present                                                      | Orchestrator needs visibility into every tool call                          |
-| `--allow-all`                   | Always present                                                      | Agent operates with maximum empowerment — no interactive permission prompts |
-| `--no-commit`                   | Always present                                                      | Only the git-committer agent commits changes                                |
-| `--no-stream`                   | Default (omit for streaming)                                        | Buffer output; omit when live monitoring is desired                         |
+| `--agent copilot`               | Always `copilot`                                                    | Passed directly                                                             |
+| `--prompt-template <path>`      | Template from `.github/skills/autonomous-executor-skill/templates/` | Required wrapper input; older Ralph builds get a pre-rendered prompt file   |
+| `--prompt-file <path>`          | `.tmp/ralph/prompts/TASK-{ID}-prompt.md`                            | Passed directly, or replaced with the rendered fallback prompt file         |
+| `--max-iterations <N>`          | Based on complexity (see table below)                               | Passed directly                                                             |
+| `--completion-promise COMPLETE` | Always `COMPLETE`                                                   | Passed when supported; otherwise rely on Ralph's default completion token   |
+| `--abort-promise ABORT`         | Always `ABORT`                                                      | Passed only when supported; older Ralph builds cannot early-abort on ABORT  |
+| `--model <model>`               | From `state.json` (PM decides at registration)                      | Passed directly                                                             |
+| `--verbose-tools`               | Always present                                                      | Passed directly                                                             |
+| `--allow-all`                   | Always present                                                      | Passed directly                                                             |
+| `--no-commit`                   | Always present                                                      | Passed directly                                                             |
+| `--no-stream`                   | Default (omit for streaming)                                        | Passed directly when buffering is desired                                   |
 
 #### Full Command
+
+This is the full-surface command when Ralph supports every flag. The helper script should probe `ralph --help` first and degrade as described above instead of assuming the newer surface is always present.
 
 ```bash
 cd .worktrees/{TASK-ID} && \
@@ -243,6 +247,8 @@ The `--abort-promise ABORT` flag tells Wiggum to exit immediately when the agent
 The agent writes the appropriate JSON file (with a `reason` field) **before** outputting `<promise>ABORT</promise>`. The orchestrator reads the file after Wiggum exits to determine the abort type.
 
 If Wiggum exits via **max-iterations** without any promise, the orchestrator treats it as an implicit FAILURE (retry-eligible).
+
+Compatibility note: older Ralph builds that do not advertise `--abort-promise` cannot honor the early-abort path. The helper should omit the unsupported flag, keep the run launchable, and report that blocked/failure templates fall back to normal loop exhaustion or manual interruption on that build.
 
 > **Streaming (opt-in):** When you want to monitor Wiggum's stdout/stderr live, omit `--no-stream` and enable streaming in the orchestrator. The orchestrator will pipe stdout/stderr into `.tmp/ralph/logs/TASK-{ID}.log`. Use the `watch-ralph.sh` helper to follow the log in another terminal.
 
