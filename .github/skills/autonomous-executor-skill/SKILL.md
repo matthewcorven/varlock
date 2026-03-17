@@ -227,7 +227,7 @@ The PM assigns a model at task registration time and writes it to `state.json`. 
 | Tier         | Model               | When                                                         |
 | ------------ | ------------------- | ------------------------------------------------------------ |
 | **Standard** | `claude-sonnet-4.6` | `complexity: small` or `complexity: medium` (est-hours ≤ 12) |
-| **Premium**  | `claude-opus-4.6`   | `complexity: high` or `complexity: xl` (est-hours > 12)      |
+| **Premium**  | `gpt-5.4`           | `complexity: high` or `complexity: xl` (est-hours > 12)      |
 
 The human can override the PM's selection by specifying `model: <model-name>` in task frontmatter or via an explicit command to the orchestrator.
 
