@@ -2,6 +2,77 @@
 
 ## Active Decisions
 
+### 2026-03-17: .NET DX overhaul kickoff operates under existing support boundaries
+
+- Initiative: `dotnet-dx-overhaul`
+- Source: Picard
+- Decision: Treat `docs/proposals/dotnet-dx-overhaul.md` as the approved kickoff PRD for implementation planning, but keep it subordinate to `docs/proposals/dotnet-support.md` v1 boundaries and existing NO-GO decisions.
+- Governing rules:
+  - The overhaul may simplify examples, improve default ergonomics, and tighten packaging/docs.
+  - The overhaul may not silently widen the support contract, soften plugin/security language, or reopen native runtime, Roslyn generator, analyzer, or `.NET`-native plugin work.
+  - Every new public claim must still map to proof artifacts and the support-matrix ledger before it is considered accepted.
+- Execution map:
+  - Wave 0: oversight and lane shaping.
+  - Wave 1: baseline DX slice ready now for the single-file happy-path console, `Varlock.DotNet.Env.Load()`, direct-load / typed-config / sensitive / Serilog / reload console siblings, and baseline docs/proof alignment.
+  - Wave 2: example expansion with known semantics after Wave 1 stabilizes.
+  - Wave 3: contract-adjacent API additions only with explicit proof and review seams.
+  - Wave 4: packaging and default-behavior decisions only after earlier waves are proven and explicitly approved.
+- Delegation rule: each Wiggum lane must have one primary owner, one primary reviewer, exact proof commands, required artifact paths, explicit non-goals, and a stop condition for missing human judgment.
+- Coordinator guardrails: require Tuvok review on diagnostics, plugin, security, public-only, or attribute-surface changes; require Picard approval before any default flip, package-surface expansion, or support-matrix wording change.
+
+### 2026-03-17: .NET DX overhaul first-wave control set governs autonomous fan-out
+
+- Initiative: `dotnet-dx-overhaul`
+- Source: Ralph, requested by Matthew Corven
+- Decision: Before GitHub issues exist, the overhaul is governed by stable node IDs, explicit proof artifacts, named reviewers, and a permanent proof/docs sync lane.
+- Stable nodes: `DX-A1`, `DX-A2a`, `DX-A2b`, `DX-A2c`, `DX-A3`, `DX-A4`, `DX-B1`, `DX-B2`, `DX-B3`, `DX-B4`, `DX-B5`, `DX-B6`, `DX-B7`, `DX-B8`, and `DX-X1`.
+- First-wave control set: `DX-A1` (baseline example), `DX-B1` (WebApplicationBuilder entry point), `DX-B3` (static `Env.Load`), and `DX-X1` (proof/docs/ledger sync). If any control-set node is red, the coordinator should slow or stop additional autonomous fan-out until the set returns to green.
+- Wiggum-ready rule: no node is ready until it has one accountable owner, one named reviewer, one explicit proof artifact or proof command, one bounded definition of done, and one explicit out-of-scope list.
+- Board minimum: track `node`, `lane`, `status`, `owner`, `reviewer`, `proof artifact`, `definition of done`, `blocked by`, `last meaningful update`, and `next gate`.
+- Color meaning:
+  - `green`: owner, reviewer, proof artifact, and definition of done all exist; at least one Track A and one Track B slice can run in parallel.
+  - `yellow`: work started but proof mapping, reviewer assignment, or scope boundaries remain incomplete.
+  - `red`: the baseline or proof/docs sync lane is stalled, public API or sensitive-boundary work is moving without the correct reviewer seam, or any first-wave node is stale for 48 hours.
+
+### 2026-03-17: .NET DX overhaul control-set execution contract
+
+- Initiative: `dotnet-dx-overhaul`
+- Source: Picard
+- Decision: The first-wave control-set contract is now explicit in `.squad/dotnet-dx-overhaul-control-set.md` and governs Wiggum fan-out.
+- Control-set readiness:
+  - `DX-A1` is green and may execute now as the baseline example lane.
+  - `DX-B3` is green only as a narrow library-and-tests lane; it is not a docs-ready recommended path until a proving specimen exists and `DX-X1` syncs the claim.
+  - `DX-X1` is green and should run continuously from day one.
+  - `DX-B1` stays yellow until `DX-A1` stabilizes the baseline docs/proof anchor required by the approved dependency map.
+- Guardrails reaffirmed:
+  - no control node may widen `.NET` support claims beyond `docs/proposals/dotnet-support.md`
+  - no convenience API becomes the default onboarding story until proof, docs, and ledger state all agree
+  - no autonomous run should combine baseline-example rewrite and public API expansion in the same lane
+
+### 2026-03-17: .NET DX overhaul lanes close proof-first and ledger-first
+
+- Initiative: `dotnet-dx-overhaul`
+- Source: O'Brien
+- Decision: The overhaul is governed by proof-first lane closure.
+- Required closure conditions:
+  - no lane is done until code, proof command coverage, documentation, and ledger state all match
+  - every new DX claim must be shadowed in `docs/proposals/dotnet-support-ledger.yml` before it can be announced as supported
+  - first-wave implementation must ship proof in parallel for the new happy-path console example, direct load, typed config, reload, and the first narrow logging/security slice
+  - Wiggum task definitions must include the exact user-facing claim, proving artifact, CI command, doc-sync files, and caveat text
+- Guardrails:
+  - `.NET 10` remains a proposal preference, not a public support claim, until CI and docs prove that target explicitly
+  - new sibling examples are documentation assets only until `bun run proof:dotnet` exercises them
+  - reload, leak-prevention, and logging language must stay tied to exact proven boundaries rather than broad claims
+  - metapackage and executable-distribution claims require a package-consumer proof path, not just monorepo references
+- Coordinator expectation: every overhaul lane needs either a ledger update or explicit no-ledger-change rationale, a proving example README update, proof-script and CI updates or a bounded follow-on proof task created in the same lane, and docs that match current evidence rather than planned end-state behavior.
+
+### 2026-03-17: User directive — Wiggum-first execution with stronger definitions of done
+
+- Initiative: `dotnet-dx-overhaul`
+- Source: Matthew Corven via Copilot
+- Directive: Prefer Wiggum-driven execution to maximize goal completion, and refine definitions of done so subagents receive explicit, completion-oriented acceptance criteria for the `.NET` DX overhaul.
+- Why: user request captured for team memory and coordinator routing.
+
 ### 2026-03-16: Repo-owned temp artifacts must root under `.tmp/`
 
 - Initiative: `repo-hygiene`

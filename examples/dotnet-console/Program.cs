@@ -1,21 +1,20 @@
-﻿using Varlock.DotNet; // 👈 Varlock
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Varlock.Extensions.Configuration; // 👈 Varlock
 
-namespace dotnet_console;
+var builder = Host.CreateApplicationBuilder(args);
 
-class Program
-{
-  static void Main(string[] args)
-  {
-    Console.WriteLine("Hello, World!");
+builder.Configuration.AddVarlock(); // 👈 Varlock: load the default .env.schema and .env files into IConfiguration
 
-    // 👈 Varlock: load environment variables from .env.schema
-    var runtime = new VarlockCliRuntime();
-    var graph = runtime.Load(new VarlockLoadOptions());
+using var app = builder.Build();
 
-    foreach (var item in graph.Items)
-    {
-      var display = item.Value.IsSensitive ? "***" : item.Value.Value?.ToString() ?? "(null)";
-      Console.WriteLine($"  {item.Key} = {display}");
-    }
-  }
-}
+var configuration = app.Services.GetRequiredService<IConfiguration>(); // 👈 Varlock: read values through the standard configuration path
+var configurationRoot = (IConfigurationRoot)configuration;
+var varlockProvider = configurationRoot.Providers.OfType<VarlockConfigurationProvider>().Single();
+
+Console.WriteLine($"APP_NAME = {configuration["APP_NAME"]}");
+Console.WriteLine($"HTTP_PORT = {configuration["HTTP_PORT"]}");
+Console.WriteLine($"FEATURE_ENABLED = {configuration["FEATURE_ENABLED"]}");
+Console.WriteLine($"VARLOCK_PROVIDER = {varlockProvider.GetType().Name}");
+Console.WriteLine($"VARLOCK_SCHEMA_PATH = {varlockProvider.Source.SchemaPath}");

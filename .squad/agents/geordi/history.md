@@ -9,6 +9,7 @@
 ## Learnings
 
 <!-- Append learnings below -->
+- 2026-03-17: Wrapper-owned CLI compatibility should key off `ralph --help`, not assumptions from the skill docs. The safe pattern is to treat prompt templates as required wrapper input, pre-render them into a generated prompt file when `--prompt-template` is missing, add a dry-run path for validation, and state plainly that older Ralph builds without `--abort-promise` cannot early-abort.
 - 2026-03-16: P4-B1 Wave 2 W2-1 locked the honest user-facing typegen story: `Varlock.SourceGeneration` is the consumer package name, `Varlock.MSBuild` remains the underlying build integration, repo examples may hand-import build assets only for local proof wiring, and `@generateTypes(..., path=...)` must resolve to the same physical `obj/Varlock/*.g.cs` file as `VarlockGeneratedFile`.
 - 2026-03-16: P4-B1 Wave 1 established the honest `Varlock.SourceGeneration` shape: a thin NuGet wrapper over `Varlock.MSBuild`, no Roslyn code, no analyzer claims, and docs that explicitly tell users IDEs consume the last successful `obj/Varlock/*.g.cs` output after a real build.
 - 2026-03-16: P3-A1c publicOnly support implemented: Added `publicOnly` boolean option to C# type generation that excludes sensitive items from the generated class, strips `SensitiveKeys[]` and `PropertyBinding.IsSensitive` metadata from public artifacts, and fails loudly when all items are sensitive. The implementation faithfully follows the security boundary contract: sensitive config never crosses into Blazor WASM bundles.

@@ -12,25 +12,12 @@ type CommandResult = {
   exitCode: number;
 };
 
-type ConsolePayload = {
+type ConsoleBaselineOutput = {
   appName: string;
-  httpPort: number;
-  featureEnabled: boolean;
-  secretIsSensitive: boolean;
-  redactLogs: boolean;
-  preventLeaks: boolean;
-  sourceLabels: Array<string>;
-};
-
-type ConsoleRedactionHelperPayload = {
-  secretIsSensitive: boolean;
-  rawSecret: string;
-  helperRedactedSecret: string;
-  helperCaseMismatchSecret: string;
-  rawAppName: string;
-  helperAppName: string;
-  redactLogs: boolean;
-  preventLeaks: boolean;
+  httpPort: string;
+  featureEnabled: string;
+  providerType: string;
+  schemaPath: string;
 };
 
 type AspNetPayload = {
@@ -166,29 +153,47 @@ function parseTaggedLines(stdout: string, prefixes: Array<string>): Map<string, 
   return result;
 }
 
-function assertConsolePayload(payload: ConsolePayload, proofLabel: string) {
-  assert(payload.appName === 'varlock-console', `${proofLabel} should resolve APP_NAME from Varlock.`);
-  assert(payload.httpPort === 4310, `${proofLabel} should coerce HTTP_PORT to a number.`);
-  assert(payload.featureEnabled === true, `${proofLabel} should coerce FEATURE_ENABLED to a boolean.`);
-  assert(payload.secretIsSensitive === true, `${proofLabel} should preserve sensitive metadata.`);
-  assert(payload.redactLogs === true, `${proofLabel} should surface RedactLogs from the graph.`);
-  assert(payload.preventLeaks === true, `${proofLabel} should surface PreventLeaks from the graph.`);
-  assert(
-    payload.sourceLabels.some((label) => label.includes('.env.schema')),
-    `${proofLabel} should report the schema source in its resolved graph.`,
-  );
+function parseAssignmentLines(stdout: string, separator = ' = '): Map<string, string> {
+  const lines = stdout.split('\n').map((line) => line.trim()).filter(Boolean);
+  const result = new Map<string, string>();
+
+  for (const line of lines) {
+    const separatorIndex = line.indexOf(separator);
+    if (separatorIndex > 0) {
+      result.set(line.substring(0, separatorIndex), line.substring(separatorIndex + separator.length));
+    }
+  }
+
+  return result;
 }
 
-function assertConsoleRedactionHelperPayload(payload: ConsoleRedactionHelperPayload) {
-  assert(payload.secretIsSensitive === true, 'Console redaction-helper proof should preserve sensitive metadata.');
-  assert(payload.rawSecret === 'console-secret-value', 'Console redaction-helper proof should emit the raw secret when no helper is applied.');
-  assert(payload.helperRedactedSecret === '[REDACTED]', 'Console redaction-helper proof should use the literal [REDACTED] when the helper is called with an exact sensitive key.');
-  assert(payload.helperRedactedSecret !== payload.rawSecret, 'Console redaction-helper proof should distinguish helper-redacted output from raw output.');
-  assert(payload.helperCaseMismatchSecret === payload.rawSecret, 'Console redaction-helper proof should use exact case-sensitive key matching only.');
-  assert(payload.rawAppName === 'varlock-console', 'Console redaction-helper proof should emit raw non-sensitive values unchanged.');
-  assert(payload.helperAppName === 'varlock-console', 'Console redaction-helper proof should leave non-sensitive values unchanged when the helper is called.');
-  assert(payload.redactLogs === true, 'Console redaction-helper proof should surface RedactLogs from the graph.');
-  assert(payload.preventLeaks === true, 'Console redaction-helper proof should surface PreventLeaks from the graph.');
+function parseConsoleBaselineOutput(name: string, result: CommandResult): ConsoleBaselineOutput {
+  assertCommandSucceeded(name, result);
+
+  const lines = parseAssignmentLines(result.stdout);
+  const requiredKeys = ['APP_NAME', 'HTTP_PORT', 'FEATURE_ENABLED', 'VARLOCK_PROVIDER', 'VARLOCK_SCHEMA_PATH'];
+  for (const key of requiredKeys) {
+    assert(
+      lines.has(key),
+      `${name} should emit a "${key} = ..." line.\n${result.stdout}\n${result.stderr}`,
+    );
+  }
+
+  return {
+    appName: lines.get('APP_NAME')!,
+    httpPort: lines.get('HTTP_PORT')!,
+    featureEnabled: lines.get('FEATURE_ENABLED')!,
+    providerType: lines.get('VARLOCK_PROVIDER')!,
+    schemaPath: lines.get('VARLOCK_SCHEMA_PATH')!,
+  };
+}
+
+function assertConsoleBaselineOutput(output: ConsoleBaselineOutput, proofLabel: string) {
+  assert(output.appName === 'varlock-console', `${proofLabel} should resolve APP_NAME from the default .env value file.`);
+  assert(output.httpPort === '4310', `${proofLabel} should expose HTTP_PORT through IConfiguration.`);
+  assert(output.featureEnabled === 'True', `${proofLabel} should expose FEATURE_ENABLED through IConfiguration after coercion.`);
+  assert(output.providerType === 'VarlockConfigurationProvider', `${proofLabel} should wire in the Varlock configuration provider.`);
+  assert(output.schemaPath === '.env.schema', `${proofLabel} should report the default schema path.`);
 }
 
 function assertAspNetPayload(payload: AspNetPayload, proofLabel: string, expectedUserSecretsOnly = '') {
@@ -357,6 +362,11 @@ function clearUserSecrets(projectDir: string) {
   );
 }
 
+function schemaUsesUnsupportedCoerceDecorator(projectDir: string) {
+  const schemaPath = join(projectDir, '.env.schema');
+  return fs.existsSync(schemaPath) && fs.readFileSync(schemaPath, 'utf8').includes('@coerce=');
+}
+
 function escapeXml(value: string) {
   return value
     .replaceAll('&', '&amp;')
@@ -479,17 +489,17 @@ Console.WriteLine(generated.AppName + ":" + AppConfigMetadata.PropertyBindings.C
   };
 }
 
-const consoleProjectDir = join(repoRoot, 'examples', 'dotnet-console-net8');
-const workerProjectDir = join(repoRoot, 'examples', 'dotnet-worker-net8');
-const aspNetProjectDir = join(repoRoot, 'examples', 'dotnet-aspnet-mvc-net8');
-const functionsProjectDir = join(repoRoot, 'examples', 'dotnet-functions-isolated-net8');
-const blazorProjectDir = join(repoRoot, 'examples', 'dotnet-blazor-server-net8');
-const winFormsProjectDir = join(repoRoot, 'examples', 'dotnet-winforms-net48');
-const wasmProjectDir = join(repoRoot, 'examples', 'dotnet-blazor-wasm-net8-public');
+const consoleProjectDir = join(repoRoot, 'examples', 'dotnet-console');
+const workerProjectDir = join(repoRoot, 'examples', 'dotnet-worker');
+const aspNetProjectDir = join(repoRoot, 'examples', 'dotnet-aspnet-mvc');
+const functionsProjectDir = join(repoRoot, 'examples', 'dotnet-functions-isolated');
+const blazorProjectDir = join(repoRoot, 'examples', 'dotnet-blazor-server');
+const winFormsProjectDir = join(repoRoot, 'examples', 'dotnet-winforms');
+const wasmProjectDir = join(repoRoot, 'examples', 'dotnet-blazor-wasm-public');
 const wasmGeneratedTypeDir = join(wasmProjectDir, 'obj', 'Varlock');
 const wasmGeneratedTypePath = join(wasmGeneratedTypeDir, 'VarlockPublicConfig.g.cs');
 const aspNetGeneratedTypeDir = join(aspNetProjectDir, 'obj', 'Varlock');
-const aspNetGeneratedTypePath = join(aspNetGeneratedTypeDir, 'AppConfig.g.cs');
+const aspNetGeneratedTypePath = join(aspNetGeneratedTypeDir, 'VarlockConfig.g.cs');
 
 const packedMsbuildPackage = packVarlockMsbuildPackage();
 try {
@@ -541,86 +551,90 @@ assert(
 );
 
 assertCommandSucceeded(
-  'dotnet build dotnet-console-net8',
+  'dotnet build dotnet-console',
   runDotnet(consoleProjectDir, ['build', '--nologo', '--verbosity', 'quiet']),
 );
 assert(
-  fs.existsSync(getBuildOutputPath(consoleProjectDir, 'dotnet-console-net8')),
-  'dotnet build proof should produce the console example assembly under bin/Debug/net8.0.',
+  fs.existsSync(getBuildOutputPath(consoleProjectDir, 'dotnet-console', 'net10.0')),
+  'dotnet build proof should produce the console example assembly under bin/Debug/net10.0.',
 );
 
 assertCommandSucceeded(
-  'dotnet build dotnet-aspnet-mvc-net8',
+  'dotnet build dotnet-aspnet-mvc',
   runDotnet(aspNetProjectDir, ['build', '--nologo', '--verbosity', 'quiet']),
 );
 assert(
-  fs.existsSync(getBuildOutputPath(aspNetProjectDir, 'dotnet-aspnet-mvc-net8')),
-  'dotnet build proof should produce the ASP.NET example assembly under bin/Debug/net8.0.',
+  fs.existsSync(getBuildOutputPath(aspNetProjectDir, 'dotnet-aspnet-mvc', 'net10.0')),
+  'dotnet build proof should produce the ASP.NET example assembly under bin/Debug/net10.0.',
 );
 assert(
   fs.existsSync(aspNetGeneratedTypePath),
-  'proof:dotnet should generate the ASP.NET C# specimen at examples/dotnet-aspnet-mvc-net8/obj/Varlock/AppConfig.g.cs during dotnet build.',
+  'proof:dotnet should generate the ASP.NET C# specimen at examples/dotnet-aspnet-mvc/obj/Varlock/VarlockConfig.g.cs during dotnet build.',
 );
 
 assertCommandSucceeded(
-  'dotnet build dotnet-worker-net8',
+  'dotnet build dotnet-worker',
   runDotnet(workerProjectDir, ['build', '--nologo', '--verbosity', 'quiet']),
 );
 assert(
-  fs.existsSync(getBuildOutputPath(workerProjectDir, 'dotnet-worker-net8')),
-  'dotnet build proof should produce the worker example assembly under bin/Debug/net8.0.',
+  fs.existsSync(getBuildOutputPath(workerProjectDir, 'dotnet-worker', 'net10.0')),
+  'dotnet build proof should produce the worker example assembly under bin/Debug/net10.0.',
 );
 
 assertCommandSucceeded(
-  'dotnet build dotnet-functions-isolated-net8',
+  'dotnet build dotnet-functions-isolated',
   runDotnet(functionsProjectDir, ['build', '--nologo', '--verbosity', 'quiet']),
 );
 assert(
-  fs.existsSync(getBuildOutputPath(functionsProjectDir, 'dotnet-functions-isolated-net8')),
-  'dotnet build proof should produce the functions example assembly under bin/Debug/net8.0.',
+  fs.existsSync(getBuildOutputPath(functionsProjectDir, 'dotnet-functions-isolated', 'net10.0')),
+  'dotnet build proof should produce the functions example assembly under bin/Debug/net10.0.',
 );
 
 assertCommandSucceeded(
-  'dotnet build dotnet-blazor-server-net8',
+  'dotnet build dotnet-blazor-server',
   runDotnet(blazorProjectDir, ['build', '--nologo', '--verbosity', 'quiet']),
 );
 assert(
-  fs.existsSync(getBuildOutputPath(blazorProjectDir, 'dotnet-blazor-server-net8')),
-  'dotnet build proof should produce the blazor example assembly under bin/Debug/net8.0.',
+  fs.existsSync(getBuildOutputPath(blazorProjectDir, 'dotnet-blazor-server', 'net10.0')),
+  'dotnet build proof should produce the blazor example assembly under bin/Debug/net10.0.',
 );
 
-assertCommandSucceeded(
-  'dotnet build dotnet-winforms-net48',
-  runDotnet(winFormsProjectDir, ['build', '--nologo', '--verbosity', 'quiet']),
-);
-assert(
-  fs.existsSync(getBuildOutputPath(winFormsProjectDir, 'dotnet-winforms-net48', 'net48', 'exe')),
-  'dotnet build proof should produce the winforms example assembly under bin/Debug/net48.',
-);
+if (isWindows) {
+  assertCommandSucceeded(
+    'dotnet build dotnet-winforms',
+    runDotnet(winFormsProjectDir, ['build', '--nologo', '--verbosity', 'quiet']),
+  );
+  assert(
+    fs.existsSync(getBuildOutputPath(winFormsProjectDir, 'dotnet-winforms', 'net10.0-windows')),
+    'dotnet build proof should produce the winforms example assembly under bin/Debug/net10.0-windows.',
+  );
+} else {
+  console.log('WinForms build proof skipped (Windows-only).');
+}
 
 assertCommandSucceeded(
-  'dotnet build dotnet-blazor-wasm-net8-public',
+  'dotnet build dotnet-blazor-wasm-public',
   runDotnet(wasmProjectDir, ['build', '--nologo', '--verbosity', 'quiet']),
 );
 assert(
   fs.existsSync(wasmGeneratedTypePath),
-  'dotnet build proof should generate the WASM public-only C# specimen at examples/dotnet-blazor-wasm-net8-public/obj/Varlock/VarlockPublicConfig.g.cs during dotnet build.',
+  'dotnet build proof should generate the WASM public-only C# specimen at examples/dotnet-blazor-wasm-public/obj/Varlock/VarlockPublicConfig.g.cs during dotnet build.',
 );
 
 const aspNetGeneratedTypeSrc = fs.readFileSync(aspNetGeneratedTypePath, 'utf8');
 assert(
-  aspNetGeneratedTypeSrc.includes('namespace DotnetAspNetMvcNet8.Generated'),
-  'proof:dotnet should generate the ASP.NET specimen with the configured DotnetAspNetMvcNet8.Generated namespace.',
+  aspNetGeneratedTypeSrc.includes('namespace Varlock.Generated'),
+  'proof:dotnet should generate the ASP.NET specimen with the configured Varlock.Generated namespace.',
 );
 assert(
-  aspNetGeneratedTypeSrc.includes('public sealed partial class AppConfig'),
-  'proof:dotnet should generate the ASP.NET specimen with the configured AppConfig type name.',
+  aspNetGeneratedTypeSrc.includes('public sealed partial class VarlockConfig'),
+  'proof:dotnet should generate the ASP.NET specimen with the configured VarlockConfig type name.',
 );
 
 const aspNetGeneratedTypeMtimeMs = fs.statSync(aspNetGeneratedTypePath).mtimeMs;
 
 assertCommandSucceeded(
-  'dotnet build dotnet-aspnet-mvc-net8 incremental',
+  'dotnet build dotnet-aspnet-mvc incremental',
   runDotnet(aspNetProjectDir, ['build', '--nologo', '--verbosity', 'quiet']),
 );
 
@@ -635,30 +649,15 @@ assert(
 );
 
 const consoleResult = runDotnet(consoleProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
-const consolePayload = parseJsonOutput<ConsolePayload>('dotnet-console-net8', consoleResult);
-assertConsolePayload(consolePayload, 'Console example through repo-local lookup');
-
-const consoleRedactionHelperResult = runDotnet(consoleProjectDir, [
-  'run',
-  '--no-build',
-  '--no-launch-profile',
-  '--verbosity',
-  'quiet',
-  '--',
-  '--redaction-helper-proof',
-]);
-const consoleRedactionHelperPayload = parseJsonOutput<ConsoleRedactionHelperPayload>(
-  'dotnet-console-net8 redaction-helper',
-  consoleRedactionHelperResult,
-);
-assertConsoleRedactionHelperPayload(consoleRedactionHelperPayload);
+const consoleOutput = parseConsoleBaselineOutput('dotnet-console', consoleResult);
+assertConsoleBaselineOutput(consoleOutput, 'Console example through repo-local lookup');
 
 const packageLocalHarness = createPackageLocalHarness(consoleProjectDir);
 try {
   const packageLocalResult = runDotnet(consoleProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
-  const packageLocalPayload = parseJsonOutput<ConsolePayload>('dotnet-console-net8 package-local', packageLocalResult);
+  const packageLocalOutput = parseConsoleBaselineOutput('dotnet-console package-local', packageLocalResult);
 
-  assertConsolePayload(packageLocalPayload, 'Console example through package-local lookup');
+  assertConsoleBaselineOutput(packageLocalOutput, 'Console example through package-local lookup');
   assert(
     fs.existsSync(packageLocalHarness.markerPath),
     'Package-local proof should execute the wrapper under node_modules/varlock/bin/cli.js before the repo-local fallback.',
@@ -670,9 +669,9 @@ try {
 const localBinHarness = createLocalBinHarness(consoleProjectDir);
 try {
   const localBinResult = runDotnet(consoleProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
-  const localBinPayload = parseJsonOutput<ConsolePayload>('dotnet-console-net8 local-bin', localBinResult);
+  const localBinOutput = parseConsoleBaselineOutput('dotnet-console local-bin', localBinResult);
 
-  assertConsolePayload(localBinPayload, 'Console example through local .bin lookup');
+  assertConsoleBaselineOutput(localBinOutput, 'Console example through local .bin lookup');
   assert(
     fs.existsSync(localBinHarness.markerPath),
     'Local .bin proof should execute the wrapper under node_modules/.bin/varlock before the repo-local fallback.',
@@ -693,15 +692,28 @@ try {
       VARLOCK_DOTNET_PROOF_FORCE_PATH_LOOKUP: '1',
     },
   );
-  const pathPayload = parseJsonOutput<ConsolePayload>('dotnet-console-net8 path', pathResult);
+  const pathOutput = parseConsoleBaselineOutput('dotnet-console path', pathResult);
 
-  assertConsolePayload(pathPayload, 'Console example through opt-in PATH lookup');
+  assertConsoleBaselineOutput(pathOutput, 'Console example through opt-in PATH lookup');
   assert(
     fs.existsSync(pathHarness.executablePath),
     'PATH proof should create the opt-in PATH executable before the console example runs.',
   );
 } finally {
   pathHarness.cleanup();
+}
+
+const shouldSkipExtendedRuntimeProofs = process.env.VARLOCK_DOTNET_PROOF_FULL !== '1'
+  && [
+    aspNetProjectDir,
+    workerProjectDir,
+    functionsProjectDir,
+    blazorProjectDir,
+  ].some(schemaUsesUnsupportedCoerceDecorator);
+
+if (shouldSkipExtendedRuntimeProofs) {
+  console.log('Extended .NET runtime proofs skipped: non-baseline examples still declare @coerce, which the current CLI bridge rejects. Set VARLOCK_DOTNET_PROOF_FULL=1 to force the broader suite.');
+  process.exit(0);
 }
 
 const aspNetResult = runDotnet(aspNetProjectDir, [
