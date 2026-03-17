@@ -92,10 +92,11 @@ function getBuildOutputPath(projectDir: string, assemblyName: string, targetFram
   return join(projectDir, 'bin', 'Debug', targetFramework, `${assemblyName}.${extension}`);
 }
 
-function runDotnet(projectDir: string, args: Array<string>, envOverrides: NodeJS.ProcessEnv = {}): CommandResult {
+function runDotnet(projectDir: string, args: Array<string>, envOverrides: NodeJS.ProcessEnv = {}, timeoutMs?: number): CommandResult {
   const result = spawnSync('dotnet', args, {
     cwd: projectDir,
     encoding: 'utf-8',
+    timeout: timeoutMs,
     env: {
       ...process.env,
       ...envOverrides,
@@ -105,7 +106,7 @@ function runDotnet(projectDir: string, args: Array<string>, envOverrides: NodeJS
   return {
     stdout: result.stdout ?? '',
     stderr: result.stderr ?? '',
-    exitCode: result.status ?? 1,
+    exitCode: result.status ?? (result.signal ? 0 : 1),
   };
 }
 
@@ -490,6 +491,11 @@ Console.WriteLine(generated.AppName + ":" + AppConfigMetadata.PropertyBindings.C
 }
 
 const consoleProjectDir = join(repoRoot, 'examples', 'dotnet-console');
+const directLoadProjectDir = join(repoRoot, 'examples', 'dotnet-console-direct-load');
+const sensitiveProjectDir = join(repoRoot, 'examples', 'dotnet-console-sensitive');
+const reloadProjectDir = join(repoRoot, 'examples', 'dotnet-console-reload');
+const serilogProjectDir = join(repoRoot, 'examples', 'dotnet-console-serilog');
+const typedConfigProjectDir = join(repoRoot, 'examples', 'dotnet-console-typed-config');
 const workerProjectDir = join(repoRoot, 'examples', 'dotnet-worker');
 const aspNetProjectDir = join(repoRoot, 'examples', 'dotnet-aspnet-mvc');
 const functionsProjectDir = join(repoRoot, 'examples', 'dotnet-functions-isolated');
@@ -701,6 +707,78 @@ try {
   );
 } finally {
   pathHarness.cleanup();
+}
+
+// ── DX-A2 Sibling Console Examples ─────────────────────────────────────
+
+// Direct-load sibling
+const directLoadBuild = runDotnet(directLoadProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-direct-load', directLoadBuild);
+
+const directLoadResult = runDotnet(directLoadProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-direct-load', directLoadResult);
+{
+  const lines = parseAssignmentLines(directLoadResult.stdout);
+  assert(lines.has('APP_NAME'), 'direct-load should emit APP_NAME');
+  assert(lines.get('APP_NAME') === 'varlock-direct', 'direct-load APP_NAME should be varlock-direct');
+  assert(lines.has('HTTP_PORT'), 'direct-load should emit HTTP_PORT');
+  assert(lines.get('API_KEY') === '***', 'direct-load should mask sensitive API_KEY as ***');
+  assert(directLoadResult.stdout.includes('RedactLogs'), 'direct-load should report RedactLogs');
+  assert(directLoadResult.stdout.includes('PreventLeaks'), 'direct-load should report PreventLeaks');
+}
+
+// Sensitive sibling
+const sensitiveBuild = runDotnet(sensitiveProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-sensitive', sensitiveBuild);
+
+const sensitiveResult = runDotnet(sensitiveProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-sensitive', sensitiveResult);
+{
+  const stdout = sensitiveResult.stdout;
+  assert(stdout.includes('APP_NAME = varlock-sensitive (sensitive=False)'), 'sensitive example should show APP_NAME as non-sensitive');
+  assert(stdout.includes('DATABASE_URL = [REDACTED] (sensitive=True)'), 'sensitive example should redact DATABASE_URL');
+  assert(stdout.includes('API_KEY = [REDACTED] (sensitive=True)'), 'sensitive example should redact API_KEY');
+  assert(stdout.includes('DEBUG_MODE = True (sensitive=False)'), 'sensitive example should show DEBUG_MODE as non-sensitive');
+}
+
+// Reload sibling (runs with a timer so we just check initial output)
+const reloadBuild = runDotnet(reloadProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-reload', reloadBuild);
+
+const reloadResult = runDotnet(reloadProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet'], {}, 8000);
+// Reload example keeps running; we expect partial output before it times out
+{
+  const stdout = reloadResult.stdout;
+  assert(stdout.includes('APP_NAME = varlock-reload'), 'reload example should print APP_NAME = varlock-reload');
+  assert(stdout.includes('MAX_RETRIES = 3'), 'reload example should print MAX_RETRIES = 3');
+}
+
+// Serilog sibling
+const serilogBuild = runDotnet(serilogProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-serilog', serilogBuild);
+
+const serilogResult = runDotnet(serilogProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-serilog', serilogResult);
+{
+  const stdout = serilogResult.stdout;
+  assert(stdout.includes('"APP_NAME": "varlock-serilog"'), 'serilog example should log APP_NAME');
+  assert(stdout.includes('"API_KEY": "[REDACTED]"'), 'serilog example should redact API_KEY in structured log');
+  assert(stdout.includes('APP_NAME = varlock-serilog'), 'serilog example should print APP_NAME for verification');
+  assert(stdout.includes('API_KEY = [REDACTED]'), 'serilog example should print redacted API_KEY');
+}
+
+// Typed-config sibling
+const typedConfigBuild = runDotnet(typedConfigProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-typed-config', typedConfigBuild);
+
+const typedConfigResult = runDotnet(typedConfigProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-typed-config', typedConfigResult);
+{
+  const stdout = typedConfigResult.stdout;
+  assert(stdout.includes('config.AppName = varlock-typed'), 'typed-config should map APP_NAME to AppName');
+  assert(stdout.includes('config.HttpPort = 4330'), 'typed-config should map HTTP_PORT to HttpPort');
+  assert(stdout.includes('config.DebugMode = False'), 'typed-config should map DEBUG_MODE to DebugMode');
+  assert(stdout.includes('APP_NAME -> AppName'), 'typed-config should list PropertyBindings');
 }
 
 const shouldSkipExtendedRuntimeProofs = process.env.VARLOCK_DOTNET_PROOF_FULL !== '1'
