@@ -458,6 +458,31 @@ support_matrix:
       test: bridge contract fixture tests
       caveat: fixture payloads are the primary proof artifact and include a shared location-bearing schema-invalid parse-error envelope consumed by both CLI and .NET tests
       proof_status: proven
+    - id: dx-custom-schema-path
+      example: examples/dotnet-console-custom-schema-path/
+      test: bun run proof:dotnet custom-schema-path check
+      caveat: proves only the non-default SchemaPath override on the configuration provider; does not widen file-layout or working-directory claims
+      proof_status: proven
+    - id: dx-custom-working-directory
+      example: examples/dotnet-console-custom-working-dir/
+      test: bun run proof:dotnet custom-working-dir check
+      caveat: proves only that AddVarlock(...) can resolve the default .env.schema from an explicitly configured working directory
+      proof_status: proven
+    - id: dx-environment-name
+      example: examples/dotnet-console-environment-name/
+      test: bun run proof:dotnet environment-name check
+      caveat: proves that AddVarlock(...) forwards EnvironmentName into VarlockLoadOptions for runtimes that honor it; CLI-backed env-file resolution from that option alone remains unproven in the example surface
+      proof_status: proven
+    - id: dx-optional-startup
+      example: examples/dotnet-console-optional/
+      test: bun run proof:dotnet optional startup check
+      caveat: proves graceful startup with Optional=true and a missing configured entry point while ReloadOnChange stays false; later file appearance remains covered elsewhere
+      proof_status: proven
+    - id: dx-custom-runtime-injection
+      example: examples/dotnet-console-custom-runtime/
+      test: bun run proof:dotnet custom-runtime check
+      caveat: proves VarlockConfigurationSource.Runtime injection into the configuration-provider pipeline only; executable lookup and CLI-contract behavior are out of scope
+      proof_status: proven
   maintenance_rules:
     - every user-facing support claim maps to at least one ledger row
     - every row identifies the proving example app, the proving automated test, or a written non-applicable reason
@@ -544,6 +569,25 @@ dx_overhaul_kickoff:
       caveats:
         - individual examples may have varying levels of automated proof coverage
         - sibling examples demonstrate feature stories beyond the baseline but do not widen supported claims without explicit DX-X1 sync
+    - id: dx-a2b-sibling-batch
+      owner: O'Brien
+      control_lane: DX-A2b
+      shadow_lane: DX-X1
+      example: examples/dotnet-console-*/
+      implementation_status: complete
+      proof_status: proven
+      checked_artifacts:
+        - examples/dotnet-console-custom-schema-path/ demonstrates AddVarlock(...) with SchemaPath = "config/.env.schema"
+        - examples/dotnet-console-custom-working-dir/ demonstrates AddVarlock(...) with WorkingDirectory pointed at a sibling shared directory
+        - examples/dotnet-console-environment-name/ demonstrates provider-level EnvironmentName propagation into VarlockLoadOptions via a focused runtime-backed specimen
+        - examples/dotnet-console-optional/ demonstrates Optional = true startup behavior with a missing configured entry point
+        - examples/dotnet-console-custom-runtime/ demonstrates VarlockConfigurationSource.Runtime injection through a custom IVarlockRuntime
+      proof_artifacts:
+        - all five sibling example directories exist and are buildable
+        - bun run proof:dotnet exercises the second sibling batch with targeted runtime assertions
+      caveats:
+        - the optional example proves startup-only graceful degradation, not later file appearance or reload behavior
+        - the custom runtime example proves the injection seam only and does not stand in for CLI lookup or bridge-contract proof
     - id: dx-b2-metapackage
       owner: Data
       control_lane: DX-B2

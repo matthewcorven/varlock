@@ -153,6 +153,25 @@ This contract defines the first-wave control nodes that must stay green before w
   - no docs-ready onboarding claims until DX-X1 syncs the proving boundary
 - Ready-now verdict: **green**. All five sibling examples exist under `examples/`: `dotnet-console-direct-load`, `dotnet-console-sensitive`, `dotnet-console-reload`, `dotnet-console-serilog`, `dotnet-console-typed-config`. Each demonstrates a specific feature story beyond the baseline. `bun run proof:dotnet` exercises the examples that have proof hooks.
 
+### DX-A2b — Second sibling example batch
+
+- Owner: O'Brien
+- Reviewer: Picard
+- Status: **green** — all five second-batch sibling examples exist and are buildable
+- Allowed surface:
+  - `examples/dotnet-console-custom-schema-path/**`
+  - `examples/dotnet-console-custom-working-dir/**`
+  - `examples/dotnet-console-environment-name/**`
+  - `examples/dotnet-console-optional/**`
+  - `examples/dotnet-console-custom-runtime/**`
+  - `scripts/test-dotnet-proof.ts` for targeted sibling proof registration and assertions only
+- Explicit non-goals:
+  - no new package surface or runtime API changes
+  - no claim that `EnvironmentName` alone changes CLI-backed file selection; the example proves provider-level propagation into `VarlockLoadOptions` via an injected runtime seam only
+  - no claim that `Optional = true` proves later file appearance or reload behavior
+  - no claim that custom runtime injection stands in for executable lookup or bridge-contract proof
+- Ready-now verdict: **green**. All five sibling examples exist under `examples/`: `dotnet-console-custom-schema-path`, `dotnet-console-custom-working-dir`, `dotnet-console-environment-name`, `dotnet-console-optional`, and `dotnet-console-custom-runtime`. `bun run proof:dotnet` builds and runs each specimen with targeted assertions covering the narrow SchemaPath, WorkingDirectory, EnvironmentName propagation, Optional startup, and injected `IVarlockRuntime` seams.
+
 ### DX-B2 — Varlock metapackage
 
 - Owner: Data
@@ -252,14 +271,28 @@ This contract defines the first-wave control nodes that must stay green before w
   - consumers can use reflection to discover sensitive properties without referencing the metadata class
 - Ready-now verdict: **green**. `VarlockSensitiveAttribute` defined in `Varlock.DotNet`. C# type generation emits `[global::Varlock.DotNet.VarlockSensitive]` on sensitive properties. Golden fixtures updated. All 36 type-generation tests pass. All 50 .NET tests pass.
 
+## Control-set board
+
+Artifact-backed board rows for the active control set and the adjacent teaching-surface sequencing nodes. Statuses below are limited to what the current repository state can prove.
+
+| node | lane | status | owner | reviewer | proof artifact | definition of done | blocked by | last meaningful update | next gate |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `DX-A1` | Teaching surface | done | O'Brien | Picard | `examples/dotnet-console/**`; baseline assertions in `scripts/test-dotnet-proof.ts`; `bun run proof:dotnet` | Baseline console example stays the narrow happy path, remains runnable from its own directory, and its README/proof text are specific enough for `DX-X1` to sync without guesswork | none | Baseline example, README, schema, and proof hooks are checked in and already called green in this control set | Gate 2 — Track A teaching surface credible |
+| `DX-A2a` | Teaching surface | done | O'Brien | Tuvok | `examples/dotnet-console-direct-load/**`, `examples/dotnet-console-sensitive/**`, `examples/dotnet-console-reload/**`, `examples/dotnet-console-serilog/**`, `examples/dotnet-console-typed-config/**`; sibling proof hooks in `scripts/test-dotnet-proof.ts` | First sibling batch stays example-only, each example has its own README/schema/safe values, and the checked claims stay aligned with `bun run proof:dotnet` plus `DX-X1` caveat sync | none | Five sibling example directories plus build/run proof hooks are present; ledger row `dx-a2a-sibling-batch` marks the batch complete/proven | Gate 2 — Track A teaching surface credible |
+| `DX-A2b` | Teaching surface | done | O'Brien | Picard | `examples/dotnet-console-custom-schema-path/**`, `examples/dotnet-console-custom-working-dir/**`, `examples/dotnet-console-environment-name/**`, `examples/dotnet-console-optional/**`, `examples/dotnet-console-custom-runtime/**`; targeted sibling proof hooks in `scripts/test-dotnet-proof.ts`; `bun run proof:dotnet` | Second sibling batch stays example-only, each example has its own README/schema/safe values or explicit missing-entry setup, and the checked claims stay aligned with `bun run proof:dotnet` plus `DX-X1` caveat sync | none | Five second-batch sibling example directories plus build/run proof hooks are present; ledger row `dx-a2b-sibling-batch` marks the batch complete/proven | Gate 2 — Track A teaching surface credible |
+| `DX-A2c` | Teaching surface | not started | O'Brien | Tuvok | Planned third-batch example directories under `examples/` plus matching proof registration in `scripts/test-dotnet-proof.ts` | Coercion, validation, public-only, exec, composition, DI/options, explicit executable, and leak-prevention examples land with narrow claims, reviewer-safe boundaries, and proof paths that do not outrun current support language | none; `DX-A1` dependency is already satisfied | Proposal and oversight define the batch, but no third-batch sibling directories or proof hooks are checked in yet | Gate 2 — Track A teaching surface credible |
+| `DX-B1` | Library surface | done | Data | Picard | `packages/dotnet/Varlock.Extensions.Hosting/**`; `HostingExtensionsTests`; ASP.NET proof path in `bun run proof:dotnet` | `WebApplicationBuilder.AddVarlock()` remains thin sugar over existing configuration behavior, compiles/runs through the ASP.NET example, and stays within the current support boundary | none | `VarlockWebApplicationBuilderExtensions.cs` and focused hosting tests are landed; DX-X1 already synced docs and ledger caveats | Gate 3 — Track B library surface credible |
+| `DX-B3` | Library surface | done | Data | Picard | `packages/dotnet/Varlock.DotNet/Env.cs`; `EnvStaticApiTests`; ledger row `dx-env-static-load` | Static `Env.Load()` stays pure sugar over `VarlockCliRuntime`, preserves lookup and error semantics, and does not become the recommended default path before a proving specimen exists | direct-load specimen is still pending if the API is to be taught as a recommended path | Static API implementation and tests are landed; ledger caveat explicitly says specimen pending under `DX-A2a` | Gate 3 — Track B library surface credible |
+| `DX-X1` | Proof and support claims | in progress | O'Brien | Picard | `docs/proposals/dotnet-support-ledger.yml`; `docs/proposals/dotnet-dx-overhaul.md`; affected READMEs; `bun run proof:dotnet` | Every shipped overhaul claim has matching ledger state, README caveat text, and automated proof reference before it is treated as accepted | blocked only by any implementation lane that lands behavior without proof/docs sync | Control-set claims for `DX-A1`, `DX-B1`, `DX-B3`, and `DX-A2a` are already reflected in the current ledger/control-set snapshot, but `DX-A2b` and later lanes still have no proof-backed rows to close | Gate 4 — Overhaul closeout credible |
+
 ## Immediate execution verdict
 
-- Implemented and proven: `DX-A1` (baseline console example, proof passes), `DX-B1` (WebApplicationBuilder extensions, tests pass), `DX-B3` (static Env.Load, tests pass, specimen pending), `DX-A2a` (first sibling batch, all 5 examples exist), `DX-B2` (metapackage created and builds), `DX-B4` (DI registration, 5 tests pass), `DX-B8` (actionable errors, 4 tests pass), `DX-B5` ([VarlockSensitive] attribute, defined and emitted)
+- Implemented and proven: `DX-A1` (baseline console example, proof passes), `DX-B1` (WebApplicationBuilder extensions, tests pass), `DX-B3` (static Env.Load, tests pass, specimen pending), `DX-A2a` (first sibling batch, all 5 examples exist), `DX-A2b` (second sibling batch, all 5 examples exist), `DX-B2` (metapackage created and builds), `DX-B4` (DI registration, 5 tests pass), `DX-B8` (actionable errors, 4 tests pass), `DX-B5` ([VarlockSensitive] attribute, defined and emitted)
 - Immediately executable now: `DX-X1` (ongoing)
 - Docs sync completed for all first-wave control nodes (`DX-A1`, `DX-B1`, `DX-B3`, `DX-A2a`, `DX-B2`, `DX-B4`, `DX-B5`, `DX-B8`) by `DX-X1`
 
 ## Fan-out gaps before broader Wiggum spawning
 
-- The coordinator still needs one board row per control node carrying the exact fields already mandated in oversight: node, lane, status, owner, reviewer, proof artifact, definition of done, blocked by, last meaningful update, and next gate.
+- `DX-A2c` still has only a planning-state board row: no example directories, README artifacts, or proof hooks are landed yet.
 - `DX-B3` may execute now, but `DX-X1` must keep any package-doc wording narrow until a later direct-load specimen exists.
 - `DX-B1` should not be bundled with baseline-example rewrite work; that would hide two promises in one autonomous run and violate the control-set intent.
