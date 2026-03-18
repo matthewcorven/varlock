@@ -501,6 +501,14 @@ const customWorkingDirProjectDir = join(repoRoot, 'examples', 'dotnet-console-cu
 const environmentNameProjectDir = join(repoRoot, 'examples', 'dotnet-console-environment-name');
 const optionalProjectDir = join(repoRoot, 'examples', 'dotnet-console-optional');
 const customRuntimeProjectDir = join(repoRoot, 'examples', 'dotnet-console-custom-runtime');
+const coercionProjectDir = join(repoRoot, 'examples', 'dotnet-console-coercion');
+const validationProjectDir = join(repoRoot, 'examples', 'dotnet-console-validation');
+const publicOnlyProjectDir = join(repoRoot, 'examples', 'dotnet-console-public-only');
+const execProjectDir = join(repoRoot, 'examples', 'dotnet-console-exec');
+const compositionProjectDir = join(repoRoot, 'examples', 'dotnet-console-composition');
+const diOptionsProjectDir = join(repoRoot, 'examples', 'dotnet-console-di-options');
+const explicitExecutableProjectDir = join(repoRoot, 'examples', 'dotnet-console-explicit-executable');
+const leakPreventionProjectDir = join(repoRoot, 'examples', 'dotnet-console-leak-prevention');
 const workerProjectDir = join(repoRoot, 'examples', 'dotnet-worker');
 const aspNetProjectDir = join(repoRoot, 'examples', 'dotnet-aspnet-mvc');
 const functionsProjectDir = join(repoRoot, 'examples', 'dotnet-functions-isolated');
@@ -511,6 +519,8 @@ const wasmGeneratedTypeDir = join(wasmProjectDir, 'obj', 'Varlock');
 const wasmGeneratedTypePath = join(wasmGeneratedTypeDir, 'VarlockPublicConfig.g.cs');
 const aspNetGeneratedTypeDir = join(aspNetProjectDir, 'obj', 'Varlock');
 const aspNetGeneratedTypePath = join(aspNetGeneratedTypeDir, 'VarlockConfig.g.cs');
+const publicOnlyGeneratedTypeDir = join(publicOnlyProjectDir, 'obj', 'Varlock');
+const publicOnlyGeneratedTypePath = join(publicOnlyGeneratedTypeDir, 'VarlockPublicConfig.g.cs');
 
 const packedMsbuildPackage = packVarlockMsbuildPackage();
 try {
@@ -852,6 +862,157 @@ assertCommandSucceeded('dotnet run dotnet-console-custom-runtime', customRuntime
   assert(lines.get('HTTP_PORT') === '4343', 'custom-runtime should read HTTP_PORT from the injected runtime graph');
   assert(lines.get('FEATURE_ENABLED') === 'True', 'custom-runtime should read FEATURE_ENABLED from the injected runtime graph');
   assert(lines.get('RUNTIME_TYPE') === 'FakeVarlockRuntime', 'custom-runtime should report the injected runtime type');
+}
+
+// Coercion sibling
+const coercionBuild = runDotnet(coercionProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-coercion', coercionBuild);
+
+const coercionResult = runDotnet(coercionProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-coercion', coercionResult);
+{
+  const lines = parseAssignmentLines(coercionResult.stdout);
+  assert(lines.get('APP_NAME') === 'varlock-coercion', 'coercion should resolve APP_NAME from the committed example values');
+  assert(lines.get('MAX_CONNECTIONS') === '25', 'coercion should flatten numeric values into IConfiguration strings');
+  assert(lines.get('FEATURE_ENABLED') === 'True', 'coercion should flatten boolean values into IConfiguration strings');
+  assert(lines.get('REQUEST_TIMEOUT_SECONDS') === '1.5', 'coercion should flatten decimal values into IConfiguration strings');
+  assert(lines.get('MAX_CONNECTIONS_TYPE') === 'Int64', 'coercion should preserve integer graph values as Int64.');
+  assert(lines.get('FEATURE_ENABLED_TYPE') === 'Boolean', 'coercion should preserve boolean graph values as Boolean.');
+  assert(lines.get('REQUEST_TIMEOUT_SECONDS_TYPE') === 'Decimal', 'coercion should preserve decimal graph values as Decimal.');
+}
+
+// Validation sibling
+const validationBuild = runDotnet(validationProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-validation', validationBuild);
+
+const validationResult = runDotnet(validationProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assert(
+  validationResult.exitCode === 1,
+  `dotnet run dotnet-console-validation should exit with code 1.\n${validationResult.stdout}\n${validationResult.stderr}`,
+);
+{
+  const lines = parseAssignmentLines(validationResult.stdout);
+  assert(lines.get('VALIDATION_CATEGORY') === 'ResolutionFailed', 'validation should report the ResolutionFailed bridge category.');
+  assert(
+    (lines.get('VALIDATION_MESSAGE') ?? '').includes('Value is required but is currently empty'),
+    'validation should print the missing-required-value bridge message.',
+  );
+}
+
+// Public-only sibling
+const publicOnlyBuild = runDotnet(publicOnlyProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-public-only', publicOnlyBuild);
+assert(
+  fs.existsSync(getBuildOutputPath(publicOnlyProjectDir, 'dotnet-console-public-only', 'net10.0')),
+  'dotnet build proof should produce the public-only example assembly under bin/Debug/net10.0.',
+);
+assert(
+  fs.existsSync(publicOnlyGeneratedTypePath),
+  'dotnet build proof should generate the public-only C# specimen at examples/dotnet-console-public-only/obj/Varlock/VarlockPublicConfig.g.cs.',
+);
+
+const publicOnlyGeneratedTypeSrc = fs.readFileSync(publicOnlyGeneratedTypePath, 'utf8');
+assert(
+  !publicOnlyGeneratedTypeSrc.includes('SecretToken'),
+  'public-only generated type must exclude the sensitive SecretToken property.',
+);
+assert(
+  !publicOnlyGeneratedTypeSrc.includes('SensitiveKeys'),
+  'public-only generated type must exclude SensitiveKeys metadata.',
+);
+assert(
+  !publicOnlyGeneratedTypeSrc.includes('PropertyBinding'),
+  'public-only generated type must exclude PropertyBinding metadata.',
+);
+assert(
+  publicOnlyGeneratedTypeSrc.includes('PropertyKeys'),
+  'public-only generated type must keep PropertyKeys metadata.',
+);
+
+const publicOnlyResult = runDotnet(publicOnlyProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-public-only', publicOnlyResult);
+{
+  const lines = parseAssignmentLines(publicOnlyResult.stdout);
+  assert(
+    lines.get('PUBLIC_PROPERTIES') === 'AppName,FeatureEnabled,PublicBaseUrl',
+    'public-only should report only the non-sensitive generated properties.',
+  );
+  assert(lines.get('HAS_SECRET_TOKEN') === 'False', 'public-only should report that SecretToken is absent.');
+  assert(lines.get('HAS_SENSITIVE_KEYS_METADATA') === 'False', 'public-only should report that SensitiveKeys metadata is absent.');
+  assert(lines.get('HAS_PROPERTY_BINDINGS_METADATA') === 'False', 'public-only should report that PropertyBindings metadata is absent.');
+  assert(lines.get('PROPERTY_KEYS_COUNT') === '3', 'public-only should keep PropertyKeys for the three public properties.');
+}
+
+// Exec sibling
+const execBuild = runDotnet(execProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-exec', execBuild);
+
+const execResult = runDotnet(execProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-exec', execResult);
+{
+  const lines = parseAssignmentLines(execResult.stdout);
+  assert(lines.get('APP_NAME') === 'varlock-exec', 'exec should resolve APP_NAME from the checked-in example values.');
+  assert(lines.get('SERVICE_TOKEN') === '[REDACTED]', 'exec should redact the sensitive token in its proof output.');
+  assert(lines.get('SERVICE_TOKEN_PRESENT') === 'True', 'exec should resolve a non-empty token from the local command seam.');
+  assert(lines.get('SERVICE_TOKEN_IS_SENSITIVE') === 'True', 'exec should preserve sensitive metadata on the resolved token.');
+  assert(lines.get('EXEC_PROOF') === 'local-bun-command', 'exec should scope the proof to the local bun command seam.');
+}
+
+// Composition sibling
+const compositionBuild = runDotnet(compositionProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-composition', compositionBuild);
+
+const compositionResult = runDotnet(compositionProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-composition', compositionResult);
+{
+  const lines = parseAssignmentLines(compositionResult.stdout);
+  assert(lines.get('API_BASE_URL') === 'https://staging.api.varlock.test', 'composition should resolve API_BASE_URL from schema refs.');
+  assert(lines.get('USERS_ENDPOINT') === 'https://staging.api.varlock.test/users', 'composition should resolve USERS_ENDPOINT from composed values.');
+  assert(lines.get('ADMIN_ENDPOINT') === 'https://staging.api.varlock.test/admin', 'composition should resolve ADMIN_ENDPOINT from composed values.');
+}
+
+// DI/options sibling
+const diOptionsBuild = runDotnet(diOptionsProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-di-options', diOptionsBuild);
+
+const diOptionsResult = runDotnet(diOptionsProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-di-options', diOptionsResult);
+{
+  const lines = parseAssignmentLines(diOptionsResult.stdout);
+  assert(lines.get('APP_NAME') === 'varlock-di-options', 'di-options should resolve APP_NAME into the manual options object.');
+  assert(lines.get('HTTP_PORT') === '4350', 'di-options should resolve HTTP_PORT into the manual options object.');
+  assert(lines.get('FEATURE_ENABLED') === 'True', 'di-options should resolve FEATURE_ENABLED into the manual options object.');
+  assert(lines.get('OPTIONS_PATTERN') === 'manual-map', 'di-options should keep the proof scoped to the manual mapping pattern.');
+}
+
+// Explicit-executable sibling
+const explicitExecutableBuild = runDotnet(explicitExecutableProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-explicit-executable', explicitExecutableBuild);
+
+const explicitExecutableResult = runDotnet(explicitExecutableProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-explicit-executable', explicitExecutableResult);
+{
+  const lines = parseAssignmentLines(explicitExecutableResult.stdout);
+  assert(lines.get('APP_NAME') === 'varlock-explicit-executable', 'explicit-executable should resolve APP_NAME through the configured CLI path.');
+  assert(lines.get('EXECUTABLE_PATH') === '../../packages/varlock/bin/cli.js', 'explicit-executable should report the configured repo-relative CLI path.');
+  assert(lines.get('LOCAL_LOOKUP') === 'False', 'explicit-executable should disable local lookup in the proof specimen.');
+  assert(lines.get('PATH_LOOKUP') === 'False', 'explicit-executable should disable PATH lookup in the proof specimen.');
+}
+
+// Leak-prevention sibling
+const leakPreventionBuild = runDotnet(leakPreventionProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-leak-prevention', leakPreventionBuild);
+
+const leakPreventionResult = runDotnet(leakPreventionProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-leak-prevention', leakPreventionResult);
+{
+  const lines = parseAssignmentLines(leakPreventionResult.stdout);
+  assert(lines.get('APP_NAME') === 'varlock-leak-prevention', 'leak-prevention should resolve APP_NAME from the committed example values.');
+  assert(lines.get('PREVENT_LEAKS') === 'True', 'leak-prevention should surface graph.PreventLeaks as true.');
+  assert(lines.get('SECRET_TOKEN_PRESENT') === 'True', 'leak-prevention should show that the sensitive token is still present in configuration.');
+  assert(lines.get('SECRET_TOKEN_IS_SENSITIVE') === 'True', 'leak-prevention should preserve sensitive metadata on the token.');
+  assert(lines.get('DISPLAY_SECRET_TOKEN') === '[REDACTED]', 'leak-prevention should use the manual redaction helper for display.');
+  assert(lines.get('LEAK_PREVENTION_BOUNDARY') === 'metadata-only', 'leak-prevention should scope the proof to metadata-only behavior.');
 }
 
 const shouldSkipExtendedRuntimeProofs = process.env.VARLOCK_DOTNET_PROOF_FULL !== '1'

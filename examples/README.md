@@ -7,6 +7,7 @@ Current automated proof in `bun run proof:dotnet` covers:
 - baseline console and framework examples under `examples/dotnet-console/`, `examples/dotnet-aspnet-mvc/`, `examples/dotnet-worker/`, `examples/dotnet-functions-isolated/`, `examples/dotnet-blazor-server/`, `examples/dotnet-winforms/`, and `examples/dotnet-blazor-wasm-public/`
 - first console sibling batch: direct load, typed config, sensitive handling, Serilog redaction, and reload
 - second console sibling batch: custom schema path, custom working directory, provider-level environment fallback, optional startup, and custom runtime injection
+- third console sibling batch: coercion, expected validation failure, public-only build artifact filtering, local `exec()` command resolution, schema reference composition, manual DI/options mapping, explicit executable override, and metadata-only leak-prevention surfacing
 
 The console baseline still carries the executable-acquisition proof paths:
 
@@ -21,6 +22,9 @@ Run a specimen from the repository root after `bun install`:
 
 ```bash
 dotnet run --project examples/dotnet-console
+dotnet run --project examples/dotnet-console-coercion
 dotnet run --project examples/dotnet-console-custom-schema-path
+dotnet run --project examples/dotnet-console-explicit-executable
+dotnet build --project examples/dotnet-console-public-only && dotnet run --project examples/dotnet-console-public-only
 dotnet run --project examples/dotnet-aspnet-mvc -- --dump-config
 ```
