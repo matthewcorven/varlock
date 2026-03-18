@@ -223,11 +223,40 @@ This contract defines the first-wave control nodes that must stay green before w
   - all error messages are actionable — they tell the user what happened and what to do
 - Ready-now verdict: **green**. `CreateExecutableNotFoundException` lists searched path categories (node_modules, packages, PATH) based on enabled options plus install suggestion. `CreateMissingPayloadException` includes stderr (trimmed to 500 chars). 4 new tests pass in `BridgeContractAlignmentTests.cs`.
 
+### DX-B5 — `[VarlockSensitive]` attribute on generated properties
+
+- Owner: Data
+- Reviewer: Picard
+- Status: **green** — attribute defined and emitted by typegen
+- Allowed surface:
+  - `packages/dotnet/Varlock.DotNet/**` for attribute definition only
+  - `packages/varlock/src/env-graph/lib/type-generation.ts` for C# emission
+  - `packages/varlock/src/env-graph/test/**` for test fixtures and assertions
+- Explicit non-goals:
+  - no runtime enforcement or ASP.NET Data Protection integration
+  - no automatic JSON serialization filtering; consumers decide how to use the attribute
+  - no change to `VarlockConfigMetadata.SensitiveKeys` or `PropertyBinding.IsSensitive` — the attribute is additive
+- Required artifacts:
+  - `VarlockSensitiveAttribute` in `Varlock.DotNet` with `[AttributeUsage(AttributeTargets.Property)]`
+  - C# type generation emits `[global::Varlock.DotNet.VarlockSensitive]` on properties where `isSensitive === true`
+  - attribute is not emitted in `publicOnly=true` mode (sensitive items are stripped entirely)
+  - golden fixture files updated to include the attribute on sensitive properties
+- Proof commands:
+  - `dotnet build packages/dotnet/Varlock.DotNet/Varlock.DotNet.csproj`
+  - `bun run --filter varlock test:ci -- type-generation`
+- Acceptance criteria:
+  - the attribute is a passive metadata marker with no runtime behavior
+  - generated C# output includes `[global::Varlock.DotNet.VarlockSensitive]` on sensitive properties only
+  - `publicOnly=true` mode is unaffected (sensitive items already excluded)
+  - existing `SensitiveKeys` and `PropertyBinding.IsSensitive` metadata remains unchanged
+  - consumers can use reflection to discover sensitive properties without referencing the metadata class
+- Ready-now verdict: **green**. `VarlockSensitiveAttribute` defined in `Varlock.DotNet`. C# type generation emits `[global::Varlock.DotNet.VarlockSensitive]` on sensitive properties. Golden fixtures updated. All 36 type-generation tests pass. All 50 .NET tests pass.
+
 ## Immediate execution verdict
 
-- Implemented and proven: `DX-A1` (baseline console example, proof passes), `DX-B1` (WebApplicationBuilder extensions, tests pass), `DX-B3` (static Env.Load, tests pass, specimen pending), `DX-A2a` (first sibling batch, all 5 examples exist), `DX-B2` (metapackage created and builds), `DX-B4` (DI registration, 5 tests pass), `DX-B8` (actionable errors, 4 tests pass)
-- Immediately executable now: `DX-X1` (ongoing), `DX-B5` ([VarlockSensitive] attribute)
-- Docs sync completed for DX-B1 and DX-B3 by DX-X1; sync pending for DX-A2a, DX-B2, DX-B4, DX-B8
+- Implemented and proven: `DX-A1` (baseline console example, proof passes), `DX-B1` (WebApplicationBuilder extensions, tests pass), `DX-B3` (static Env.Load, tests pass, specimen pending), `DX-A2a` (first sibling batch, all 5 examples exist), `DX-B2` (metapackage created and builds), `DX-B4` (DI registration, 5 tests pass), `DX-B8` (actionable errors, 4 tests pass), `DX-B5` ([VarlockSensitive] attribute, defined and emitted)
+- Immediately executable now: `DX-X1` (ongoing)
+- Docs sync completed for DX-B1 and DX-B3 by DX-X1; sync pending for DX-A2a, DX-B2, DX-B4, DX-B5, DX-B8
 
 ## Fan-out gaps before broader Wiggum spawning
 

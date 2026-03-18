@@ -596,6 +596,26 @@ dx_overhaul_kickoff:
         - schema parse error translation and validation failure enhancement depend on CLI stderr structured output and are not yet addressed
         - error messages list searched path categories, not actual filesystem paths traversed
         - stderr inclusion is trimmed to 500 characters to prevent exception messages from becoming unwieldy
+    - id: dx-b5-varlock-sensitive-attribute
+      owner: Data
+      control_lane: DX-B5
+      shadow_lane: DX-X1
+      example: none
+      implementation_status: complete
+      proof_status: proven
+      checked_artifacts:
+        - packages/dotnet/Varlock.DotNet/VarlockSensitiveAttribute.cs defines a property-targeted attribute with AllowMultiple=false and Inherited=false
+        - packages/varlock/src/env-graph/lib/type-generation.ts emits [global::Varlock.DotNet.VarlockSensitive] on properties where isSensitive is true
+        - attribute is not emitted in publicOnly mode because sensitive items are stripped entirely
+        - golden fixtures packages/varlock/src/env-graph/test/fixtures/typegen-cs/VarlockConfig.g.cs and CustomizedAppConfig.g.cs include the attribute on the OPEN_AI_API_KEY property
+      proof_artifacts:
+        - dotnet build packages/dotnet/Varlock.DotNet/Varlock.DotNet.csproj succeeds
+        - bun run --filter varlock test:ci -- type-generation passes all 36 type-generation tests including golden fixture comparisons
+        - dotnet test packages/dotnet/Varlock.DotNet.Tests/Varlock.DotNet.Tests.csproj passes all 50 tests
+      caveats:
+        - the attribute is passive metadata with no runtime enforcement behavior
+        - existing VarlockConfigMetadata.SensitiveKeys and PropertyBinding.IsSensitive remain unchanged and are additive
+        - consumers choose how to use the attribute for reflection-based redaction, serialization filtering, or other purposes
 
 testing_matrix:
   owner: O'Brien
