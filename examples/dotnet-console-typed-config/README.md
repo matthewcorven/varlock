@@ -5,14 +5,14 @@ Demonstrates build-time type generation via `@generateTypes` — strongly-typed 
 ## What It Shows
 
 - `@generateTypes(lang="cs", path="...")` decorator in `.env.schema`
-- `VarlockEnabled=true` in the `.csproj` to enable MSBuild integration
+- MSBuild integration runs as soon as the package/targets are present; no `VarlockEnabled=true` property is required
 - `VarlockConfig` generated class with PascalCase properties and correct C# types
 - `VarlockConfigMetadata` with property bindings, key mappings, and sensitive key lists
 - Populating the generated type from `IConfiguration` using metadata
 
 ## How It Works
 
-During `dotnet build`, the Varlock MSBuild targets invoke `varlock typegen` to generate a `.g.cs` file from the `.env.schema`. This file is compiled into the project automatically.
+During `dotnet build`, the Varlock MSBuild targets invoke `varlock typegen` to generate a `.g.cs` file from the `.env.schema`. This file is compiled into the project automatically, with the installed/imported MSBuild package acting as the opt-in signal.
 
 ## When to Use This Pattern
 

@@ -16,6 +16,7 @@ Today this package does **not** ship a Roslyn source generator or analyzers. It 
 
 Installing `Varlock.SourceGeneration` brings in `Varlock.MSBuild`, which:
 
+- enables MSBuild type generation by default once the package is present
 - runs `varlock typegen` during real builds
 - writes generated C# to `obj/Varlock/`
 - respects MSBuild incremental inputs and outputs
@@ -30,6 +31,6 @@ Installing `Varlock.SourceGeneration` brings in `Varlock.MSBuild`, which:
 
 ## Current recommendation
 
-Keep `@generateTypes(lang=cs, path=...)` aligned with `VarlockGeneratedFile`, prefer `obj/Varlock/*.g.cs`, and build once before expecting generated types in the IDE.
+Keep `@generateTypes(lang=cs, path=...)` aligned with `VarlockGeneratedFile`, prefer `obj/Varlock/*.g.cs`, and build once before expecting generated types in the IDE. Set `VarlockEnabled=false` only if you need to temporarily disable generation after installing the package.
 
 Future analyzer or source-generator work stays behind an explicit follow-on phase. If user friction justifies that work later, this package name is where it belongs.

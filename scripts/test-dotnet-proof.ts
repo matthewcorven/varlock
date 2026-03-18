@@ -355,6 +355,7 @@ function escapeXml(value: string) {
 function packVarlockMsbuildPackage(): PackedPackage {
   const tempRoot = createRepoTempDirSync('varlock-msbuild-pack-proof');
   const packageSourceDir = join(tempRoot, 'nupkgs');
+  const packageVersion = `0.0.0-dxproof.${Date.now()}`;
   fs.mkdirSync(packageSourceDir, { recursive: true });
 
   const packageProjectDir = join(repoRoot, 'packages', 'dotnet', 'Varlock.MSBuild');
@@ -366,6 +367,7 @@ function packVarlockMsbuildPackage(): PackedPackage {
       '--nologo',
       '--verbosity',
       'quiet',
+      '-p:PackageVersion=' + packageVersion,
       '--output',
       packageSourceDir,
     ]),
@@ -384,7 +386,7 @@ function packVarlockMsbuildPackage(): PackedPackage {
   return {
     packagePath: join(packageSourceDir, packageFileName!),
     packageSourceDir,
-    version: packageFileName!.slice('Varlock.MSBuild.'.length, -'.nupkg'.length),
+    version: packageVersion,
     cleanup: () => {
       if (fs.existsSync(tempRoot)) {
         fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -407,7 +409,6 @@ function createMsbuildPackageProofProject(packageVersion: string, packageSourceD
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RestoreSources>${escapeXml(packageSourceDir)}</RestoreSources>
-    <VarlockEnabled>true</VarlockEnabled>
     <VarlockSchemaPath>.env.schema</VarlockSchemaPath>
     <VarlockGeneratedFile>$(BaseIntermediateOutputPath)Varlock/AppConfig.g.cs</VarlockGeneratedFile>
     <VarlockExecutablePath>${escapeXml(cliPath)}</VarlockExecutablePath>
@@ -437,16 +438,7 @@ FEATURE_ENABLED=true
 SECRET_TOKEN=proof-secret-value
 `;
 
-  const programFileContent = `using PackageProof.Generated;
-
-var generated = new AppConfig
-{
-  AppName = "package-proof",
-  AppPort = 4312,
-  FeatureEnabled = true,
-};
-
-Console.WriteLine(generated.AppName + ":" + AppConfigMetadata.PropertyBindings.Count);
+  const programFileContent = `Console.WriteLine("Varlock.MSBuild package proof");
 `;
 
   fs.writeFileSync(join(projectDir, 'VarlockMsbuildPackageProof.csproj'), projectFileContent, 'utf8');
@@ -509,8 +501,18 @@ try {
 
   try {
     assertCommandSucceeded(
+      'dotnet restore VarlockMsbuildPackageProof',
+      runDotnet(packageProofProject.projectDir, ['restore', '--nologo', '--verbosity', 'quiet']),
+    );
+
+    assertCommandSucceeded(
+      'dotnet msbuild /t:VarlockGenerateTypes VarlockMsbuildPackageProof',
+      runDotnet(packageProofProject.projectDir, ['msbuild', '/t:VarlockGenerateTypes', '/nologo', '/verbosity:quiet']),
+    );
+
+    assertCommandSucceeded(
       'dotnet build VarlockMsbuildPackageProof',
-      runDotnet(packageProofProject.projectDir, ['build', '--nologo', '--verbosity', 'quiet']),
+      runDotnet(packageProofProject.projectDir, ['build', '--no-restore', '--nologo', '--verbosity', 'quiet']),
     );
 
     assert(
@@ -530,6 +532,10 @@ try {
     assert(
       packageGeneratedTypeSrc.includes('public sealed partial class AppConfig'),
       'Package proof should generate the AppConfig type from the packed Varlock.MSBuild assets.',
+    );
+    assert(
+      !fs.readFileSync(join(packageProofProject.projectDir, 'VarlockMsbuildPackageProof.csproj'), 'utf8').includes('<VarlockEnabled>'),
+      'Package proof should rely on the installed Varlock.MSBuild package as the opt-in signal instead of an explicit VarlockEnabled property.',
     );
   } finally {
     packageProofProject.cleanup();

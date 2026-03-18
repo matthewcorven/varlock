@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <VarlockEnabled Condition="'$(VarlockEnabled)' == ''">false</VarlockEnabled>
+    <VarlockEnabled Condition="'$(VarlockEnabled)' == ''">true</VarlockEnabled>
     <VarlockGenerateTypes Condition="'$(VarlockGenerateTypes)' == ''">true</VarlockGenerateTypes>
     <VarlockValidateOnBuild Condition="'$(VarlockValidateOnBuild)' == ''">false</VarlockValidateOnBuild>
     <VarlockEnableLocalExecutableLookup Condition="'$(VarlockEnableLocalExecutableLookup)' == ''">true</VarlockEnableLocalExecutableLookup>

@@ -35,16 +35,15 @@ APP_PORT = @integer @default(5000)
 DATABASE_URL = @string @required
 ```
 
-Enable the MSBuild package in your `.csproj`:
+If your schema is not in the project root, point the build at it in your `.csproj`:
 
 ```xml
 <PropertyGroup>
-  <VarlockEnabled>true</VarlockEnabled>
   <VarlockSchemaPath>.env.schema</VarlockSchemaPath>
 </PropertyGroup>
 ```
 
-Now when you run `dotnet build`, Varlock generates `AppConfig.g.cs` automatically.
+Now when you run `dotnet build`, Varlock generates `AppConfig.g.cs` automatically. Installing `Varlock.MSBuild` is the opt-in signal; you only need `VarlockEnabled` if you want to turn the targets off explicitly.
 
 ## How it works
 
@@ -61,7 +60,7 @@ Control Varlock's MSBuild behavior with these properties in your `.csproj`:
 
 ```xml
 <PropertyGroup>
-  <!-- Enable or disable Varlock targets. Defaults to false for opt-in -->
+  <!-- Enable or disable Varlock targets. Defaults to true when the package is installed -->
   <VarlockEnabled>true</VarlockEnabled>
   
   <!-- Path to your schema file (relative to VarlockWorkingDirectory) -->
@@ -162,7 +161,7 @@ Each project generates its own type file independently.
 | "Schema not found" or path error | Verify `VarlockSchemaPath` matches your actual schema location |
 | Generated file path mismatch | Ensure `VarlockGeneratedFile` matches the `path=` in your `@generateTypes(...)` comment |
 | Generated types not in IDE | Run `dotnet clean && dotnet build` to regenerate from scratch |
-| Build succeeds but types missing | Check that `VarlockGenerateTypes` is `true` and the generated file is written to `obj/` |
+| Build succeeds but types missing | Check that `VarlockGenerateTypes` is `true`, `VarlockEnabled` was not explicitly set to `false`, and the generated file is written to `obj/` |
 
 See [Troubleshooting & diagnostics](/integrations/dotnet/troubleshooting/) for more help.
 
