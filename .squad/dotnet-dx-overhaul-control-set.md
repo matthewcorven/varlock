@@ -36,7 +36,8 @@ This contract defines the first-wave control nodes that must stay green before w
   - the lane needs a new support-contract decision or wants to recommend an onboarding flow broader than the existing baseline boundaries
   - the example needs package/API changes outside its own directory plus the baseline proof hook
   - the lane starts carrying reload, logging, sensitive, or typed-config claims that belong to later nodes
-- Ready-now verdict: green. This node has no upstream dependency and already has an obvious artifact home.
+- Status: **green** — implemented and proven
+- Ready-now verdict: green. All required artifacts exist and proof passes. The baseline example is a .NET 10 single-file top-level statements app using `Host.CreateApplicationBuilder` + `AddVarlock()`. Program.cs emits exact resolved values (APP_NAME, HTTP_PORT, FEATURE_ENABLED) plus provider type and schema path. README explicitly scopes claims. Proof script (`bun run proof:dotnet`) verifies exact values, repo-local/package-local/.bin/PATH executable discovery, and provider wiring. `dotnet build` and `dotnet run` succeed from the example directory.
 
 ### DX-B1 — `WebApplicationBuilder.AddVarlock()` entry point
 
@@ -138,8 +139,8 @@ This contract defines the first-wave control nodes that must stay green before w
 
 ## Immediate execution verdict
 
-- Implemented and proven: `DX-B1` (WebApplicationBuilder extensions, tests pass), `DX-B3` (static Env.Load, tests pass, specimen pending)
-- Immediately executable now: `DX-A1`, `DX-X1`
+- Implemented and proven: `DX-A1` (baseline console example, proof passes), `DX-B1` (WebApplicationBuilder extensions, tests pass), `DX-B3` (static Env.Load, tests pass, specimen pending)
+- Immediately executable now: `DX-X1` (ongoing), `DX-A2a` (first sibling batch), `DX-B2` (metapackage), `DX-B4` (DI registration), `DX-B5` ([VarlockSensitive] attribute), `DX-B8` (actionable errors)
 - Docs sync completed for DX-B1 and DX-B3 by DX-X1
 
 ## Fan-out gaps before broader Wiggum spawning

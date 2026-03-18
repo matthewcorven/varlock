@@ -476,19 +476,21 @@ dx_overhaul_kickoff:
       control_lane: DX-A1
       shadow_lane: DX-X1
       example: examples/dotnet-console/
-      implementation_status: in-progress
-      proof_status: planned
+      implementation_status: complete
+      proof_status: proven
       checked_artifacts:
-        - examples/dotnet-console/dotnet-console.csproj targets net10.0
-        - examples/dotnet-console/Program.cs is a checked-in console scaffold with an explicit Program class and direct VarlockCliRuntime.Load(new VarlockLoadOptions()) usage
-        - examples/dotnet-console/.env.schema contains the narrow string/number/boolean/sensitive schema used by the scaffold
+        - examples/dotnet-console/dotnet-console.csproj targets net10.0 with Microsoft.Extensions.Hosting and Varlock.Extensions.Configuration project references
+        - examples/dotnet-console/Program.cs is a single-file top-level statements app using Host.CreateApplicationBuilder + builder.Configuration.AddVarlock() to load config through IConfiguration
+        - examples/dotnet-console/.env.schema contains the narrow string/number/boolean schema used by the baseline (no sensitive, no plugins, no advanced decorators)
+        - examples/dotnet-console/.env provides safe committed values so dotnet run works from the directory without setup
+        - examples/dotnet-console/README.md explicitly scopes what the example proves and what it does not claim
       proof_artifacts:
-        - scripts/test-dotnet-proof.ts still references the pre-overhaul console specimen path, so the overhaul baseline has no repeatable proving test yet
-        - docs/proposals/dotnet-support.md and the support-matrix rows below remain tied to the earlier console proof slice until replacement proof lands
+        - scripts/test-dotnet-proof.ts asserts exact resolved values (APP_NAME=varlock-console, HTTP_PORT=4310, FEATURE_ENABLED=True), provider type (VarlockConfigurationProvider), and schema path (.env.schema)
+        - proof exercises repo-local, package-local, local .bin, and opt-in PATH executable discovery against the baseline example
+        - dotnet build produces bin/Debug/net10.0/dotnet-console.dll
+        - bun run proof:dotnet exits 0 with all baseline assertions passing
       caveats:
-        - the launched directory is not yet the planned single-file AddVarlock()/IConfiguration happy-path baseline from the overhaul proposal
-        - do not recommend examples/dotnet-console/ as the default onboarding path until the checked-in baseline shape and repeatable proof both land
-        - the scaffold targeting net10.0 does not widen supported target-framework claims on its own
+        - the scaffold targeting net10.0 does not widen supported target-framework claims on its own; the supported TFM boundary is governed by the support matrix and CI proof
     - id: dx-b1-webappbuilder
       owner: Data
       control_lane: DX-B1
