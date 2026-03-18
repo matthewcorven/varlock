@@ -83,7 +83,7 @@ Each entry below specifies the feature, the directory name, which packages are r
 |---|-----------|---------|----------|--------------|
 | 1 | `dotnet-console` | Defaults / happy path | Configuration | `AddVarlock()` with zero config — the baseline |
 | 2 | `dotnet-console-direct-load` | Direct CLI bridge (no IConfiguration) | DotNet | `VarlockCliRuntime.Load()` — raw graph access, item iteration, `IsSensitive` checks |
-| 3 | `dotnet-console-typed-config` | MSBuild type generation | Configuration, MSBuild | `<VarlockEnabled>true</VarlockEnabled>`, `@generateTypes` in schema, inject `IOptions<VarlockConfig>` |
+| 3 | `dotnet-console-typed-config` | MSBuild type generation | Configuration, MSBuild | installed/imported MSBuild package or targets act as the opt-in signal, `@generateTypes` in schema, inject `IOptions<VarlockConfig>` |
 | 4 | `dotnet-console-sensitive` | Sensitive value handling | Configuration | `@sensitive` decorator, demonstrating that sensitive values are loaded but should be redacted in output |
 | 5 | `dotnet-console-sensitive-serilog` | Serilog redaction | Configuration, Serilog | `WithVarlockRedaction()`, `WithVarlockMetadata()` — log redaction of sensitive values via structured logging |
 | 6 | `dotnet-console-reload` | File watching / hot reload | Configuration | `ReloadOnChange = true` on `VarlockConfigurationSource`, demonstrate config changing at runtime |
@@ -129,7 +129,7 @@ The existing framework examples remain but are simplified and refocused:
 
 ### A.4 — Shared `.env.schema` conventions
 
-Create a shared reference schema at `examples/dotnet-shared/.env.schema.reference` (not a buildable project, just a reference file) that documents every `@env-spec` decorator with inline comments. This isn't an example app — it's a cheat sheet.
+Create a shared reference schema at `examples/dotnet-shared/.env.schema.reference` (not a buildable project, just a reference file) that documents only the `@env-spec` decorators and schema patterns exercised by the checked-in `.NET` examples. This isn't an example app and is not part of `bun run proof:dotnet` — it's a bounded cheat sheet kept close to the specimens.
 
 ---
 
@@ -255,14 +255,14 @@ builder.AddVarlock<VarlockConfig>();
 ### B.7 — Auto-enable MSBuild from `@generateTypes` in schema
 
 **Package:** `Varlock.MSBuild`
-**What:** When the `.env.schema` contains `@generateTypes(lang="cs", ...)`, the MSBuild target should activate type generation automatically without requiring `<VarlockEnabled>true</VarlockEnabled>` in the `.csproj`.
+**What:** Installing `Varlock.MSBuild` or `Varlock.SourceGeneration` should act as the opt-in signal for CLI-driven C# generation, so projects with `@generateTypes(lang="cs", ...)` no longer need an explicit `<VarlockEnabled>true</VarlockEnabled>` in the `.csproj`.
 
 **Implementation options:**
 - (a) An MSBuild target that reads the schema file at evaluation time and sets `VarlockEnabled=true` if `@generateTypes` is found — complex and fragile.
 - (b) Keep `VarlockEnabled` but default it to `true` when the MSBuild package is installed (flip the default from `false` to `true` in props). The package being present IS the opt-in signal.
 - (c) A dotnet tool or analyzer that warns when `@generateTypes` is in the schema but `VarlockEnabled` is `false`.
 
-**Recommendation:** Option (b) is simplest. If you install `Varlock.MSBuild`, you want type generation. The current `false` default is overly cautious.
+**Implemented path:** Option (b). The shipped props now default `VarlockEnabled` to `true`, the typed-config example proves generation without an explicit property, and the packed-package proof in `scripts/test-dotnet-proof.ts` proves a PackageReference consumer generates `obj/Varlock/AppConfig.g.cs` with the package-installed default alone. Explicit `VarlockEnabled=false` remains the escape hatch.
 
 ### B.8 — Actionable error messages
 
@@ -349,7 +349,7 @@ Phase 2 — API (Track B, unblocked after Phase 1 baseline exists)
 - `ContractVersion`: `int?`
 
 **MSBuild properties** (8 configurable):
-- `VarlockEnabled` (default: `false`)
+- `VarlockEnabled` (default: `true` when the MSBuild package is installed; set `false` to disable generation explicitly)
 - `VarlockGenerateTypes` (default: `true`)
 - `VarlockValidateOnBuild` (reserved, currently no-op)
 - `VarlockSchemaPath`, `VarlockWorkingDirectory`, `VarlockGeneratedFile`

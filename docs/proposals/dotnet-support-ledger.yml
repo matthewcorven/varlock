@@ -428,6 +428,11 @@ support_matrix:
       test: bun run proof:dotnet typed-config check, public-only check, and packed Varlock.MSBuild package-consumer proof
       caveat: the proof covers focused console specimens plus the package-consumer asset story; framework examples no longer own C# generation claims
       proof_status: proven
+    - id: dx-msbuild-package-opt-in-default
+      example: examples/dotnet-console-typed-config/
+      test: bun run proof:dotnet typed-config check and packed Varlock.MSBuild package-consumer proof
+      caveat: proves installing Varlock.MSBuild or Varlock.SourceGeneration is enough to trigger type generation by default; explicit VarlockEnabled=false remains the escape hatch, and no schema-scanning auto-enable claim is made for projects without the package
+      proof_status: proven
     - id: dx-serilog-redaction
       example: examples/dotnet-console-serilog/
       test: bun run proof:dotnet console Serilog check
@@ -670,6 +675,22 @@ dx_overhaul_kickoff:
       caveats:
         - feature-heavy stories already covered by console siblings or package tests were intentionally removed from the framework examples
         - request-scoped and long-lived options reload semantics remain planned until a new focused proof artifact exists
+    - id: dx-a4-shared-reference-schema
+      owner: O'Brien
+      control_lane: DX-A4
+      shadow_lane: DX-X1
+      example: examples/dotnet-shared/
+      implementation_status: complete
+      proof_status: proven
+      checked_artifacts:
+        - examples/dotnet-shared/.env.schema.reference documents only the decorator and schema-pattern surface exercised by the checked-in .NET examples
+        - examples/dotnet-shared/README.md states the folder is reference material, not a runnable project or framework proof specimen
+        - examples/README.md points readers to dotnet-shared/ while keeping it explicitly outside bun run proof:dotnet
+      proof_artifacts:
+        - artifact-only lane: the proof boundary is the checked reference file plus README scoping, not a runnable example or automated matrix row
+      caveats:
+        - this lane adds discoverability only; it does not create any new support claim
+        - wider @env-spec surface remains documented in the main Varlock docs rather than the .NET examples tree
     - id: dx-b2-metapackage
       owner: Data
       control_lane: DX-B2
@@ -759,6 +780,23 @@ dx_overhaul_kickoff:
         - the attribute is passive metadata with no runtime enforcement behavior
         - existing VarlockConfigMetadata.SensitiveKeys and PropertyBinding.IsSensitive remain unchanged and are additive
         - consumers choose how to use the attribute for reflection-based redaction, serialization filtering, or other purposes
+    - id: dx-b7-msbuild-default-opt-in
+      owner: Geordi
+      control_lane: DX-B7
+      shadow_lane: DX-X1
+      example: examples/dotnet-console-typed-config/
+      implementation_status: complete
+      proof_status: proven
+      checked_artifacts:
+        - packages/dotnet/Varlock.MSBuild/build/Varlock.MSBuild.props defaults VarlockEnabled to true when the property is unset
+        - examples/dotnet-console-typed-config/dotnet-console-typed-config.csproj no longer carries an explicit VarlockEnabled property
+        - packages/dotnet/Varlock.MSBuild/README.md and packages/dotnet/Varlock.SourceGeneration/README.md describe package installation as the opt-in signal and reserve VarlockEnabled=false as the disable switch
+      proof_artifacts:
+        - bun run proof:dotnet packs Varlock.MSBuild, restores a temporary PackageReference consumer, runs VarlockGenerateTypes, builds the consumer, and asserts the temporary csproj does not contain VarlockEnabled
+        - bun run proof:dotnet also exercises examples/dotnet-console-typed-config/ without an explicit VarlockEnabled property
+      caveats:
+        - the proven claim is the package-installed default flip, not schema-file inspection that auto-enables generation without the package
+        - explicit VarlockEnabled=false remains supported for projects that need to suppress generation after installation
 
 testing_matrix:
   owner: O'Brien

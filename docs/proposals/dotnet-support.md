@@ -748,9 +748,10 @@ Recommended scope:
 
 ### Suggested properties
 
+Installing `Varlock.MSBuild` or `Varlock.SourceGeneration` is now the opt-in signal for build-time generation. Keep `VarlockEnabled` out of the normal happy path unless a project needs to disable the targets explicitly.
+
 ```xml
 <PropertyGroup>
-  <VarlockEnabled>true</VarlockEnabled>
   <VarlockSchemaPath>.env.schema</VarlockSchemaPath>
   <VarlockGenerateTypes>true</VarlockGenerateTypes>
   <VarlockValidateOnBuild>true</VarlockValidateOnBuild>
@@ -788,6 +789,8 @@ Those examples prove direct low-level runtime loading, `WebApplicationBuilder.Ad
 `dotnet watch` parity, plugin-backed resolution, and broader hosted-helper claims remain planned and should not be inferred from these specimens.
 
 The DX overhaul also now ships focused console siblings under `examples/dotnet-console-*` for direct load, typed config, sensitive handling, Serilog redaction, reload, custom schema path, custom working directory, provider-level environment fallback, optional startup, injected custom runtime behavior, coercion surfacing, expected validation failure, build-time public-only filtering, a local `exec()` command seam, schema reference composition, a manual DI/options pattern, explicit executable override, and metadata-only leak-prevention surfacing. Those siblings are teaching/proof artifacts for those exact seams only; they do not widen the app-type support matrix beyond the rows below.
+
+Shared reference material now also lives under `examples/dotnet-shared/`. That folder is intentionally not a runnable project or proof target; `.env.schema.reference` is a bounded cheat sheet for the decorator and schema-pattern surface the checked-in `.NET` examples actually exercise today.
 
 ## Support-Matrix Ledger
 

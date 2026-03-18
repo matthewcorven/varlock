@@ -216,6 +216,31 @@ This contract defines the first-wave control nodes that must stay green before w
   - no widening support claims for reload, Serilog, typed binding, or watch behavior just because the framework examples compile
 - Ready-now verdict: **green**. Framework examples now prove the framework seams only: MVC `WebApplicationBuilder.AddVarlock()` plus appsettings/User Secrets coexistence, Worker `HostApplicationBuilder.AddVarlock()`, Functions layering with `local.settings.json`, Blazor Server component access, WinForms direct runtime usage, and WASM public-only generation. Advanced feature proof ownership stays with the focused console siblings and package tests.
 
+### DX-A4 — Shared schema reference cheat sheet
+
+- Owner: O'Brien
+- Reviewer: Picard
+- Status: **green** — reference material added and scoped
+- Allowed surface:
+  - `examples/dotnet-shared/**`
+  - `examples/README.md`
+  - `docs/proposals/dotnet-dx-overhaul.md`, `docs/proposals/dotnet-support.md`, and `docs/proposals/dotnet-support-ledger.yml` for scoping sync only
+- Explicit non-goals:
+  - no runnable project, proof harness registration, or new support-matrix row
+  - no attempt to document the full Varlock schema language from the examples tree
+  - no new .NET support claim beyond discoverability of already-proven example surfaces
+- Required artifacts:
+  - `examples/dotnet-shared/.env.schema.reference`
+  - `examples/dotnet-shared/README.md`
+  - `examples/README.md` scoping text that keeps the folder outside `bun run proof:dotnet`
+- Proof commands:
+  - artifact-only lane; bounded by checked files and README scoping rather than a runnable proof command
+- Acceptance criteria:
+  - the reference file documents only decorators and schema patterns exercised by the checked-in .NET examples
+  - the folder is explicitly non-runnable and outside the framework proof matrix
+  - the examples index points to the cheat sheet without implying broader parser or support coverage
+- Ready-now verdict: **green**. `examples/dotnet-shared/.env.schema.reference` and its README are checked in, and `examples/README.md` points to the folder while keeping it explicitly outside `bun run proof:dotnet`.
+
 ### DX-B2 — Varlock metapackage
 
 - Owner: Data
@@ -286,6 +311,33 @@ This contract defines the first-wave control nodes that must stay green before w
   - `HostingExtensionsTests` proves overload count and end-to-end DI options binding
 - Ready-now verdict: **green**. Generic `AddVarlock<TConfig>` overloads are implemented for host and web builders and covered by `HostingExtensionsTests`.
 
+### DX-B7 — Package-installed MSBuild opt-in default
+
+- Owner: Geordi
+- Reviewer: Picard
+- Status: **green** — implemented and proof-backed
+- Allowed surface:
+  - `packages/dotnet/Varlock.MSBuild/**`
+  - `packages/dotnet/Varlock.SourceGeneration/**`
+  - `examples/dotnet-console-typed-config/**` where needed to keep the proving specimen honest
+  - `scripts/test-dotnet-proof.ts` for packed-package and typed-config proof alignment only
+- Explicit non-goals:
+  - no schema-file inspection that auto-enables type generation in projects without the package installed
+  - no new watch, IntelliSense, or analyzer claims
+  - no change to the existing targets, incremental inputs/outputs, or escape-hatch semantics beyond the default flip
+- Required artifacts:
+  - `Varlock.MSBuild.props` defaults `VarlockEnabled` to `true` when unset
+  - typed-config specimen proves generation without an explicit `VarlockEnabled` property
+  - packed-package proof path asserts a PackageReference consumer generates `obj/Varlock/AppConfig.g.cs` without carrying `VarlockEnabled` in the project file
+- Proof commands:
+  - `dotnet build examples/dotnet-console-typed-config/dotnet-console-typed-config.csproj`
+  - `bun run proof:dotnet`
+- Acceptance criteria:
+  - installing `Varlock.MSBuild` or `Varlock.SourceGeneration` is enough to trigger generation by default
+  - explicit `VarlockEnabled=false` remains the supported disable switch
+  - the lane does not claim schema-driven auto-enable in the absence of the package
+- Ready-now verdict: **green**. `Varlock.MSBuild.props` now defaults `VarlockEnabled` to true, the typed-config example no longer sets the property explicitly, and `bun run proof:dotnet` proves both the checked-in specimen and a packed PackageReference consumer generate C# without `VarlockEnabled` in the project file.
+
 ### DX-B8 — Actionable error messages
 
 - Owner: Data
@@ -349,16 +401,18 @@ Artifact-backed board rows for the active control set and the adjacent teaching-
 | `DX-A2a` | Teaching surface | done | O'Brien | Tuvok | `examples/dotnet-console-direct-load/**`, `examples/dotnet-console-sensitive/**`, `examples/dotnet-console-reload/**`, `examples/dotnet-console-serilog/**`, `examples/dotnet-console-typed-config/**`; sibling proof hooks in `scripts/test-dotnet-proof.ts` | First sibling batch stays example-only, each example has its own README/schema/safe values, and the checked claims stay aligned with `bun run proof:dotnet` plus `DX-X1` caveat sync | none | Five sibling example directories plus build/run proof hooks are present; ledger row `dx-a2a-sibling-batch` marks the batch complete/proven | Gate 2 — Track A teaching surface credible |
 | `DX-A2b` | Teaching surface | done | O'Brien | Picard | `examples/dotnet-console-custom-schema-path/**`, `examples/dotnet-console-custom-working-dir/**`, `examples/dotnet-console-environment-name/**`, `examples/dotnet-console-optional/**`, `examples/dotnet-console-custom-runtime/**`; targeted sibling proof hooks in `scripts/test-dotnet-proof.ts`; `bun run proof:dotnet` | Second sibling batch stays example-only, each example has its own README/schema/safe values or explicit missing-entry setup, and the checked claims stay aligned with `bun run proof:dotnet` plus `DX-X1` caveat sync | none | Five second-batch sibling example directories plus build/run proof hooks are present; ledger row `dx-a2b-sibling-batch` marks the batch complete/proven | Gate 2 — Track A teaching surface credible |
 | `DX-A2c` | Teaching surface | done | O'Brien | Tuvok | `examples/dotnet-console-coercion/**`, `examples/dotnet-console-validation/**`, `examples/dotnet-console-public-only/**`, `examples/dotnet-console-exec/**`, `examples/dotnet-console-composition/**`, `examples/dotnet-console-di-options/**`, `examples/dotnet-console-explicit-executable/**`, `examples/dotnet-console-leak-prevention/**`; targeted proof hooks in `scripts/test-dotnet-proof.ts`; `bun run proof:dotnet` | Third sibling batch stays example-only, each example has its own README/schema/safe values or explicit failure setup, and the checked claims stay aligned with `bun run proof:dotnet` plus DX-X1 caveat sync | none | Eight third-batch sibling example directories plus build/run proof hooks are present; ledger row `dx-a2c-sibling-batch` marks the batch complete/proven | Gate 2 — Track A teaching surface credible |
+| `DX-A4` | Teaching surface | done | O'Brien | Picard | `examples/dotnet-shared/**`; `examples/README.md`; scoped ledger/proposal sync | Shared reference material stays non-runnable, documents only the checked-in example surface, and does not invent new support claims | none | `examples/dotnet-shared/.env.schema.reference` and README are checked in; `examples/README.md` scopes the folder outside `bun run proof:dotnet` | Gate 2 — Track A teaching surface credible |
 | `DX-B1` | Library surface | done | Data | Picard | `packages/dotnet/Varlock.Extensions.Hosting/**`; `HostingExtensionsTests`; ASP.NET proof path in `bun run proof:dotnet` | `WebApplicationBuilder.AddVarlock()` remains thin sugar over existing configuration behavior, compiles/runs through the ASP.NET example, and stays within the current support boundary | none | `VarlockWebApplicationBuilderExtensions.cs` and focused hosting tests are landed; DX-X1 already synced docs and ledger caveats | Gate 3 — Track B library surface credible |
 | `DX-B3` | Library surface | done | Data | Picard | `packages/dotnet/Varlock.DotNet/Env.cs`; `EnvStaticApiTests`; ledger row `dx-env-static-load` | Static `Env.Load()` stays pure sugar over `VarlockCliRuntime`, preserves lookup and error semantics, and does not become the recommended default path before a proving specimen exists | direct-load specimen is still pending if the API is to be taught as a recommended path | Static API implementation and tests are landed; ledger caveat explicitly says specimen pending under `DX-A2a` | Gate 3 — Track B library surface credible |
 | `DX-B6` | Library surface | done | Data | Picard | `packages/dotnet/Varlock.Extensions.Hosting/VarlockHostApplicationBuilderExtensions.cs`; `packages/dotnet/Varlock.Extensions.Hosting/VarlockWebApplicationBuilderExtensions.cs`; `packages/dotnet/Varlock.DotNet.Tests/HostingExtensionsTests.cs` | Generic `AddVarlock<TConfig>()` overloads on both host and web builders wire existing AddVarlock configuration plus standard options binding without altering runtime semantics | none | Four generic overloads are present (host/web, parameterless/configure) and `HostingExtensionsTests` proves options binding for both builder types | Gate 3 — Track B library surface credible |
-| `DX-X1` | Proof and support claims | in progress | O'Brien | Picard | `docs/proposals/dotnet-support-ledger.yml`; `docs/proposals/dotnet-dx-overhaul.md`; affected READMEs; `bun run proof:dotnet` | Every shipped overhaul claim has matching ledger state, README caveat text, and automated proof reference before it is treated as accepted | blocked only by any implementation lane that lands behavior without proof/docs sync | Control-set claims for `DX-A1`, `DX-B1`, `DX-B3`, `DX-B6`, `DX-A2a`, `DX-A2b`, and `DX-A2c` are now reflected in the current ledger/control-set snapshot; later lanes remain subject to the same proof-first sync | Gate 4 — Overhaul closeout credible |
+| `DX-B7` | Library surface | done | Geordi | Picard | `packages/dotnet/Varlock.MSBuild/build/Varlock.MSBuild.props`; `examples/dotnet-console-typed-config/**`; packed-package proof in `scripts/test-dotnet-proof.ts` | Package installation acts as the opt-in signal for generation, explicit disable remains available, and no schema-scanning auto-enable claim is introduced | none | Props default flipped to true, typed-config specimen dropped explicit VarlockEnabled, and proof now covers a real PackageReference consumer | Gate 3 — Track B library surface credible |
+| `DX-X1` | Proof and support claims | in progress | O'Brien | Picard | `docs/proposals/dotnet-support-ledger.yml`; `docs/proposals/dotnet-dx-overhaul.md`; affected READMEs; `bun run proof:dotnet` | Every shipped overhaul claim has matching ledger state, README caveat text, and automated proof reference before it is treated as accepted | blocked only by any implementation lane that lands behavior without proof/docs sync | Control-set claims for `DX-A1`, `DX-A2a`, `DX-A2b`, `DX-A2c`, `DX-A3`, `DX-A4`, `DX-B1`, `DX-B3`, `DX-B6`, and `DX-B7` are now reflected in the current ledger/control-set snapshot; later lanes remain subject to the same proof-first sync | Gate 4 — Overhaul closeout credible |
 
 ## Immediate execution verdict
 
-- Implemented and proven: `DX-A1` (baseline console example, proof passes), `DX-B1` (WebApplicationBuilder extensions, tests pass), `DX-B3` (static Env.Load, tests pass, specimen pending), `DX-A2a` (first sibling batch, all 5 examples exist), `DX-A2b` (second sibling batch, all 5 examples exist), `DX-A2c` (third sibling batch, all 8 examples exist and are proof-backed), `DX-B2` (metapackage created and builds), `DX-B4` (DI registration, 5 tests pass), `DX-B6` (generic `AddVarlock<TConfig>()` overloads implemented and tested), `DX-B8` (actionable errors, 4 tests pass), `DX-B5` ([VarlockSensitive] attribute, defined and emitted)
+- Implemented and proven: `DX-A1` (baseline console example, proof passes), `DX-B1` (WebApplicationBuilder extensions, tests pass), `DX-B3` (static Env.Load, tests pass, specimen pending), `DX-A2a` (first sibling batch, all 5 examples exist), `DX-A2b` (second sibling batch, all 5 examples exist), `DX-A2c` (third sibling batch, all 8 examples exist and are proof-backed), `DX-A3` (framework examples simplified and re-scoped), `DX-A4` (shared schema reference scoped and checked in), `DX-B2` (metapackage created and builds), `DX-B4` (DI registration, 5 tests pass), `DX-B5` ([VarlockSensitive] attribute, defined and emitted), `DX-B6` (generic `AddVarlock<TConfig>()` overloads implemented and tested), `DX-B7` (package-installed MSBuild opt-in default proven), `DX-B8` (actionable errors, 4 tests pass)
 - Immediately executable now: `DX-X1` (ongoing)
-- Docs sync completed for all first-wave control nodes (`DX-A1`, `DX-B1`, `DX-B3`, `DX-B6`, `DX-A2a`, `DX-A2b`, `DX-A2c`, `DX-B2`, `DX-B4`, `DX-B5`, `DX-B8`) by `DX-X1`
+- Docs sync completed for all first-wave control nodes (`DX-A1`, `DX-B1`, `DX-B3`, `DX-B6`, `DX-A2a`, `DX-A2b`, `DX-A2c`, `DX-A3`, `DX-A4`, `DX-B2`, `DX-B4`, `DX-B5`, `DX-B7`, `DX-B8`) by `DX-X1`
 
 ## Fan-out gaps before broader Wiggum spawning
 
