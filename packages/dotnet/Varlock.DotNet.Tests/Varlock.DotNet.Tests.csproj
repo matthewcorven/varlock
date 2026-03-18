@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\Varlock.DotNet\Varlock.DotNet.csproj" />
     <ProjectReference Include="..\Varlock.Serilog\Varlock.Serilog.csproj" />
     <ProjectReference Include="..\Varlock.Extensions.Configuration\Varlock.Extensions.Configuration.csproj" />

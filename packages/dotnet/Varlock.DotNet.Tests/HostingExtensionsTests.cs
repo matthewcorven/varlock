@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Hosting;
 using Varlock.DotNet;
 using Varlock.Extensions.Configuration;
@@ -119,6 +120,74 @@ public sealed class HostingExtensionsTests
         var parameters = method.GetParameters();
         Assert.Equal(2, parameters.Length);
         Assert.Equal(typeof(HostApplicationBuilder), parameters[0].ParameterType);
+        Assert.Equal(typeof(Action<VarlockConfigurationSource>), parameters[1].ParameterType);
+      });
+  }
+
+  [Fact]
+  public void WebApplicationBuilder_AddVarlock_parameterless_delegates_to_configuration()
+  {
+    var runtime = new RecordingRuntime();
+    var builder = WebApplication.CreateBuilder();
+
+    builder.AddVarlock((source) =>
+    {
+      source.Runtime = runtime;
+      source.SchemaPath = "proof.env.schema";
+    });
+
+    Assert.Equal("bar", builder.Configuration["FOO"]);
+    var source = Assert.Single(builder.Configuration.Sources.OfType<VarlockConfigurationSource>());
+    Assert.NotNull(source);
+  }
+
+  [Fact]
+  public void WebApplicationBuilder_AddVarlock_with_configure_delegates_to_configuration()
+  {
+    var runtime = new RecordingRuntime();
+    var explicitWorkingDirectory = TestPaths.CreateTempDirectory("varlock-web-hosting-tests");
+
+    try
+    {
+      var builder = WebApplication.CreateBuilder();
+
+      builder.AddVarlock((source) =>
+      {
+        source.Runtime = runtime;
+        source.WorkingDirectory = explicitWorkingDirectory;
+      });
+
+      Assert.Equal(Path.GetFullPath(explicitWorkingDirectory), runtime.LastOptions?.WorkingDirectory);
+      Assert.Equal("bar", builder.Configuration["FOO"]);
+    }
+    finally
+    {
+      Directory.Delete(explicitWorkingDirectory, recursive: true);
+    }
+  }
+
+  [Fact]
+  public void Hosting_package_exposes_exactly_two_webapplicationbuilder_addvarlock_overloads()
+  {
+    var methods = typeof(VarlockWebApplicationBuilderExtensions)
+      .GetMethods(BindingFlags.Public | BindingFlags.Static)
+      .Where(method => method.Name == nameof(VarlockWebApplicationBuilderExtensions.AddVarlock))
+      .OrderBy(method => method.GetParameters().Length)
+      .ToArray();
+
+    Assert.Collection(
+      methods,
+      method =>
+      {
+        var parameters = method.GetParameters();
+        Assert.Single(parameters);
+        Assert.Equal(typeof(WebApplicationBuilder), parameters[0].ParameterType);
+      },
+      method =>
+      {
+        var parameters = method.GetParameters();
+        Assert.Equal(2, parameters.Length);
+        Assert.Equal(typeof(WebApplicationBuilder), parameters[0].ParameterType);
         Assert.Equal(typeof(Action<VarlockConfigurationSource>), parameters[1].ParameterType);
       });
   }
