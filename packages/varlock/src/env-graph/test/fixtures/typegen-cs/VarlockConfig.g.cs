@@ -25,6 +25,7 @@ namespace Varlock.Generated
     /// <summary>Original key: OPEN_AI_API_KEY.</summary>
     /// <summary>Sensitive.</summary>
     /// <summary>external API key</summary>
+    [global::Varlock.DotNet.VarlockSensitive]
     public string OpenAiApiKey { get; set; } = string.Empty;
 
   }

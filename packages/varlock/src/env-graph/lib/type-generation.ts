@@ -489,6 +489,10 @@ export async function generateCsTypesSrc(items: Array<TypeGenItemInfo>, options?
       csSrc.push(`    /// <summary>${escapeXmlDoc(docLine)}</summary>`);
     }
 
+    if (member.info.isSensitive) {
+      csSrc.push('    [global::Varlock.DotNet.VarlockSensitive]');
+    }
+
     const { typeName, initializer } = getCsTypeForItem(member.info);
     csSrc.push(`    public ${typeName} ${member.propertyName} { get; set; }${initializer}`);
     csSrc.push('');
