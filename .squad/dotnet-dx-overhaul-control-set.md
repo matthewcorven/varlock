@@ -42,6 +42,7 @@ This contract defines the first-wave control nodes that must stay green before w
 
 - Owner: Data
 - Reviewer: Picard
+- Status: **green** — implemented and tested
 - Allowed surface:
   - `packages/dotnet/Varlock.Extensions.Hosting/**`
   - `packages/dotnet/Varlock.DotNet.Tests/**` for hosting-surface tests only
@@ -68,7 +69,7 @@ This contract defines the first-wave control nodes that must stay green before w
   - implementing the API requires a new package, a non-trivial TFM split, or a product-contract decision about default install surface
   - the lane starts absorbing DI registration, typed binding, or metapackage work from later nodes
   - the proof path depends on a baseline example contract that `DX-A1` has not yet stabilized
-- Ready-now verdict: yellow. The code seam exists now, but per the approved dependency map this node should not fan out until `DX-A1` has landed or is demonstrably stable as the docs anchor.
+- Ready-now verdict: **green**. Implementation complete: two `WebApplicationBuilder.AddVarlock()` overloads in `VarlockWebApplicationBuilderExtensions.cs` (net10.0 only, thin delegation to `builder.Configuration.AddVarlock()`), tests passing in `HostingExtensionsTests.cs`. Docs and ledger synced by DX-X1.
 
 ### DX-B3 — Static `Varlock.DotNet.Env.Load()` convenience entry point
 
@@ -98,7 +99,7 @@ This contract defines the first-wave control nodes that must stay green before w
   - the lane needs a new direct-load example to justify itself as a recommended user path; that is a cross-node dependency and should be routed through `DX-A2a`
   - the façade starts accumulating policy, caching, DI, or configuration-provider behavior instead of staying a thin wrapper
   - docs try to promote the API ahead of `DX-X1` proof/accounting updates
-- Ready-now verdict: green, with a narrow closure rule. This node is executable now as a library-and-tests slice, but it is not docs-ready as a recommended path until a proving specimen is synced later.
+- Ready-now verdict: **green** (library complete, tests pass). Static `Env.Load()` façade is implemented in `packages/dotnet/Varlock.DotNet/Env.cs` with 3 sync and 2 async overloads, tests passing in `EnvStaticApiTests.cs`. Specimen pending — not docs-ready as a recommended onboarding path until a proving direct-load example exists and DX-X1 syncs the claim.
 
 ### DX-X1 — Proof/docs/ledger sync
 
@@ -137,8 +138,9 @@ This contract defines the first-wave control nodes that must stay green before w
 
 ## Immediate execution verdict
 
-- Immediately executable now: `DX-A1`, `DX-B3`, `DX-X1`
-- Not yet executable under the approved dependency map: `DX-B1` until `DX-A1` is landed or at least stable enough to serve as the baseline docs anchor and proof reference
+- Implemented and proven: `DX-B1` (WebApplicationBuilder extensions, tests pass), `DX-B3` (static Env.Load, tests pass, specimen pending)
+- Immediately executable now: `DX-A1`, `DX-X1`
+- Docs sync completed for DX-B1 and DX-B3 by DX-X1
 
 ## Fan-out gaps before broader Wiggum spawning
 

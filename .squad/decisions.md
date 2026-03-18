@@ -73,6 +73,39 @@
 - Directive: Prefer Wiggum-driven execution to maximize goal completion, and refine definitions of done so subagents receive explicit, completion-oriented acceptance criteria for the `.NET` DX overhaul.
 - Why: user request captured for team memory and coordinator routing.
 
+### 2026-03-17: Env static façade is pure delegation
+
+- Initiative: `dotnet-dx-overhaul`
+- Node: `DX-B3`
+- Source: Data (Bridge/Hosting Lead)
+- Decision: `Varlock.DotNet.Env` is a static class with `Load()` and `LoadAsync()` overloads that delegate to a fresh `VarlockCliRuntime()` instance each call. No global caching, no singleton registration, no DI semantics.
+- Why: per control-set constraints — the façade is convenience sugar only and must not change executable lookup, handshake, error categories, or bridge contract behavior.
+
+### 2026-03-17: Multi-targeting for Varlock.Extensions.Hosting
+
+- Initiative: `dotnet-dx-overhaul`
+- Node: `DX-B1`
+- Source: Data (Bridge/Hosting Lead)
+- Decision: `Varlock.Extensions.Hosting` csproj now targets `netstandard2.0;net10.0` (overriding Directory.Build.props). The `TargetFramework` (singular) property must be explicitly cleared when overriding with `TargetFrameworks` (plural), otherwise MSBuild resolves ProjectReferences to the wrong TFM. The `Microsoft.AspNetCore.App` FrameworkReference is conditioned on `net10.0` only.
+- Why: `WebApplicationBuilder` lives in the ASP.NET Core shared framework and requires a net10.0+ TFM with `FrameworkReference` — it cannot be used from netstandard2.0. The existing `HostApplicationBuilder` extensions remain available on netstandard2.0 via `Microsoft.Extensions.Hosting`.
+
+### 2026-03-17: Ralph wrapper owns CLI surface compatibility
+
+- Initiative: `repo-tooling`
+- Source: Geordi
+- Decision: Treat `--prompt-template` as a required wrapper input, not a guaranteed Ralph CLI flag. The wrapper must detect the installed Ralph surface from `ralph --help`, pre-render the selected template into a generated prompt file when `--prompt-template` is unavailable, and omit `--abort-promise` when the current Ralph build does not advertise it.
+- Why: the checked-in helper had drifted ahead of the installed Ralph build and failed before the loop even started. Compatibility belongs in the wrapper because the orchestration docs and prompt templates still need a stable interface.
+- Honest limitation: older Ralph builds without `--abort-promise` cannot honor early BLOCKED/FAILURE exits. The wrapper should stay runnable and say that limitation plainly.
+
+### 2026-03-17: DX-X1 ledger and docs sync for DX-B1 and DX-B3
+
+- Initiative: `dotnet-dx-overhaul`
+- Node: `DX-X1`
+- Source: O'Brien (Distribution & Proof Lead)
+- Decision: Completed docs/ledger sync pass for DX-B1 (`WebApplicationBuilder.AddVarlock()`) and DX-B3 (`Env.Load()` static façade). Ledger marked complete/proven for both. Control-set board updated: DX-B1 yellow → green, DX-B3 green (library complete, specimen pending).
+- Constraints: DX-B1 .NET 10 multi-target is implementation detail, not public support claim. DX-B3 static API is non-recommended until proving specimen exists. No claim promoted without automated test backing.
+- Why: keeps ledger, docs, and control-set in sync with landed implementation per DX-X1 standing obligations.
+
 ### 2026-03-16: Repo-owned temp artifacts must root under `.tmp/`
 
 - Initiative: `repo-hygiene`
