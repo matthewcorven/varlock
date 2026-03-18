@@ -256,7 +256,7 @@ This contract defines the first-wave control nodes that must stay green before w
 
 - Implemented and proven: `DX-A1` (baseline console example, proof passes), `DX-B1` (WebApplicationBuilder extensions, tests pass), `DX-B3` (static Env.Load, tests pass, specimen pending), `DX-A2a` (first sibling batch, all 5 examples exist), `DX-B2` (metapackage created and builds), `DX-B4` (DI registration, 5 tests pass), `DX-B8` (actionable errors, 4 tests pass), `DX-B5` ([VarlockSensitive] attribute, defined and emitted)
 - Immediately executable now: `DX-X1` (ongoing)
-- Docs sync completed for DX-B1 and DX-B3 by DX-X1; sync pending for DX-A2a, DX-B2, DX-B4, DX-B5, DX-B8
+- Docs sync completed for all first-wave control nodes (`DX-A1`, `DX-B1`, `DX-B3`, `DX-A2a`, `DX-B2`, `DX-B4`, `DX-B5`, `DX-B8`) by `DX-X1`
 
 ## Fan-out gaps before broader Wiggum spawning
 
