@@ -85,7 +85,7 @@ Each entry below specifies the feature, the directory name, which packages are r
 | 2 | `dotnet-console-direct-load` | Direct CLI bridge (no IConfiguration) | DotNet | `VarlockCliRuntime.Load()` — raw graph access, item iteration, `IsSensitive` checks |
 | 3 | `dotnet-console-typed-config` | MSBuild type generation | Configuration, MSBuild | installed/imported MSBuild package or targets act as the opt-in signal, `@generateTypes` in schema, inject `IOptions<VarlockConfig>` |
 | 4 | `dotnet-console-sensitive` | Sensitive value handling | Configuration | `@sensitive` decorator, demonstrating that sensitive values are loaded but should be redacted in output |
-| 5 | `dotnet-console-sensitive-serilog` | Serilog redaction | Configuration, Serilog | `WithVarlockRedaction()`, `WithVarlockMetadata()` — log redaction of sensitive values via structured logging |
+| 5 | `dotnet-console-serilog` | Serilog redaction | Configuration, Serilog | `WithVarlockRedaction()`, `WithVarlockMetadata()` — log redaction of sensitive values via structured logging |
 | 6 | `dotnet-console-reload` | File watching / hot reload | Configuration | `ReloadOnChange = true` on `VarlockConfigurationSource`, demonstrate config changing at runtime |
 | 7 | `dotnet-console-custom-schema-path` | Non-default schema location | Configuration | `AddVarlock(source => source.SchemaPath = "config/.env.schema")` — schema in a subdirectory |
 | 8 | `dotnet-console-custom-working-dir` | Custom working directory | Configuration | `AddVarlock(source => source.WorkingDirectory = "../shared")` — load schema from a different directory |
@@ -288,7 +288,7 @@ Phase 1 — Examples (Track A)
        - dotnet-console-direct-load (#2)
        - dotnet-console-typed-config (#3)
        - dotnet-console-sensitive (#4)
-       - dotnet-console-sensitive-serilog (#5)
+       - dotnet-console-serilog (#5)
        - dotnet-console-reload (#6)
   A.2  Create second batch of siblings:
        - dotnet-console-custom-schema-path (#7)

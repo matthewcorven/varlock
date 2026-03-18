@@ -195,3 +195,15 @@ Completed final lead review of all P3-A1c deliverables (Azure Functions isolated
 
 - 2026-03-20: When a proposal artifact is already committed and measurements have been rerun with consistent results, the right closeout is to mark all constituent todos done in one pass rather than re-executing each step. Repeated re-measurement to chase identical conclusions wastes cycles.
 - 2026-03-20: Slight measurement variance between runs (~6% median shift: 164→174 ms) on the same host is normal thermal/load noise, not evidence of regression. Phase gates should define an acceptable variance band rather than expecting exact reproducibility.
+
+## Full Overhaul Diff-vs-Proposal Review (2026-03-18)
+
+Conducted comprehensive lane-by-lane review of all 15 DX-overhaul lanes against `docs/proposals/dotnet-dx-overhaul.md`. Key findings:
+
+- **127 files changed, proof green, 52 .NET tests pass.** The overhaul is substantively complete.
+- **19/19 proposed console examples delivered** (with one naming deviation: proposal said `dotnet-console-sensitive-serilog`, implementation shipped `dotnet-console-serilog` — reasonable simplification).
+- **All 8 Track B APIs delivered** and match proposal signatures. B2 metapackage, B4 DI registration, B5 `[VarlockSensitive]` attribute, B6 generic `AddVarlock<TConfig>()`, B7 MSBuild default flip, B8 actionable errors — all landed and tested.
+- **Two support-matrix rows intentionally regressed** from proven→planned during A3 framework example simplification: `IOptionsSnapshot<T>` scoped reload and `IOptionsMonitor<T>` long-lived reload. The old framework-backed specimens were removed when feature demos moved out of framework examples. This is honest and documented in both the ledger and support doc; the underlying provider mechanics remain proven by `ReloadTests`.
+- **DX-X1 is marked "in progress"** in the control-set but all ledger/docs/proof sync work for the 14 done lanes is complete. The "in progress" status is structurally correct — DX-X1 is a standing lane that tracks ongoing sync obligations.
+- **No scope creep detected.** No native runtime, Roslyn generator, analyzer, or .NET-native plugin work was introduced. All NO-GO boundaries remain respected.
+- **Pre-push cleanup:** The proposal should be updated to reflect the `dotnet-console-serilog` name (or the directory should be renamed to match). Non-blocking but worth aligning before public push.

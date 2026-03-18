@@ -37,6 +37,15 @@
 ## Learnings
 
 <!-- Append learnings below -->
+- 2026-03-18: Full DX Overhaul security review (127 files, 2762 ins, 855 del). Overall PASS WITH NOTES. No critical or medium findings. Key security observations:
+  - All 22 committed `.env` files contain safe example values. Two files use `sk-live-abc123` and `sk-test-12345` patterns that could trigger secret-scanning tools despite being obviously fake.
+  - DI registration uses `TryAddSingleton` throughout — safe against overwrites.
+  - `publicOnly=true` generation correctly excludes sensitive properties, `SensitiveKeys[]`, `PropertyBindings` class, and `IsSensitive` flag. Generation-time boundary is the only boundary; no runtime enforcement exists or is claimed.
+  - `VarlockSensitiveAttribute` is emitted only on properties where `isSensitive === true` in the schema. Confirmed in `type-generation.ts` line 493.
+  - B7 VarlockEnabled default flip (false→true): no security surface expansion. The MSBuild targets fail-fast with clear errors if schema or executable is missing. The behavioral change is that projects installing `Varlock.MSBuild` without a `.env.schema` will get a build error instead of silent no-op — this is noisy but not a security risk.
+  - Bridge contract v1 preserved. Error messages include filesystem paths (schema path, executable path) but these are developer-visible local paths, not production secrets.
+  - `exec()` example uses benign `bun -e "process.stdout.write('varlock-exec-secret')"` — a local string-echo with no network, no file system mutation, no privilege escalation.
+  - Leak-prevention example correctly demonstrates metadata-only boundary: `PreventLeaks` flag is surfaced but not enforced, sensitive value display uses manual `VarlockRedactionHelper.Redact()`, and README documents the non-enforcing boundary.
 - 2026-03-13: Picard assigned Tuvok first ownership of the machine-readable bridge contract, including a versioned success shape, stable error categories, and reproducible fixtures for success, missing executable, version mismatch, schema invalid, resolution failed, and plugin load failed.
 - 2026-03-13: Data's bridge slice depends on those contract outputs before the initial `Varlock.DotNet` and configuration-provider skeleton should advance, so contract stability is the gating artifact for the first runtime implementation.
 - 2026-03-13: The first engine-side bridge slice now uses `varlock load --format json-full --bridge-contract 1` with JSON envelopes on stdout for both success and failure; executable discovery remains a caller-side contract because the CLI cannot truthfully self-report launch failures.
