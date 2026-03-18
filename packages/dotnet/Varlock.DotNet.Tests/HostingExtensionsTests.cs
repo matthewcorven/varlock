@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Varlock.DotNet;
 using Varlock.Extensions.Configuration;
 using Varlock.Extensions.Hosting;
@@ -100,29 +101,36 @@ public sealed class HostingExtensionsTests
   }
 
   [Fact]
-  public void Hosting_package_exposes_exactly_two_hostapplicationbuilder_addvarlock_overloads()
+  public void Hosting_package_exposes_expected_hostapplicationbuilder_addvarlock_overloads()
   {
     var methods = typeof(VarlockHostApplicationBuilderExtensions)
       .GetMethods(BindingFlags.Public | BindingFlags.Static)
       .Where(method => method.Name == nameof(VarlockHostApplicationBuilderExtensions.AddVarlock))
-      .OrderBy(method => method.GetParameters().Length)
       .ToArray();
 
-    Assert.Collection(
-      methods,
-      method =>
-      {
-        var parameters = method.GetParameters();
-        Assert.Single(parameters);
-        Assert.Equal(typeof(HostApplicationBuilder), parameters[0].ParameterType);
-      },
-      method =>
-      {
-        var parameters = method.GetParameters();
-        Assert.Equal(2, parameters.Length);
-        Assert.Equal(typeof(HostApplicationBuilder), parameters[0].ParameterType);
-        Assert.Equal(typeof(Action<VarlockConfigurationSource>), parameters[1].ParameterType);
-      });
+    Assert.Equal(4, methods.Length);
+
+    Assert.Contains(methods, method =>
+      !method.IsGenericMethod
+      && method.GetParameters().Length == 1
+      && method.GetParameters()[0].ParameterType == typeof(HostApplicationBuilder));
+
+    Assert.Contains(methods, method =>
+      !method.IsGenericMethod
+      && method.GetParameters().Length == 2
+      && method.GetParameters()[0].ParameterType == typeof(HostApplicationBuilder)
+      && method.GetParameters()[1].ParameterType == typeof(Action<VarlockConfigurationSource>));
+
+    Assert.Contains(methods, method =>
+      method.IsGenericMethod
+      && method.GetParameters().Length == 1
+      && method.GetParameters()[0].ParameterType == typeof(HostApplicationBuilder));
+
+    Assert.Contains(methods, method =>
+      method.IsGenericMethod
+      && method.GetParameters().Length == 2
+      && method.GetParameters()[0].ParameterType == typeof(HostApplicationBuilder)
+      && method.GetParameters()[1].ParameterType == typeof(Action<VarlockConfigurationSource>));
   }
 
   [Fact]
@@ -168,29 +176,36 @@ public sealed class HostingExtensionsTests
   }
 
   [Fact]
-  public void Hosting_package_exposes_exactly_two_webapplicationbuilder_addvarlock_overloads()
+  public void Hosting_package_exposes_expected_webapplicationbuilder_addvarlock_overloads()
   {
     var methods = typeof(VarlockWebApplicationBuilderExtensions)
       .GetMethods(BindingFlags.Public | BindingFlags.Static)
       .Where(method => method.Name == nameof(VarlockWebApplicationBuilderExtensions.AddVarlock))
-      .OrderBy(method => method.GetParameters().Length)
       .ToArray();
 
-    Assert.Collection(
-      methods,
-      method =>
-      {
-        var parameters = method.GetParameters();
-        Assert.Single(parameters);
-        Assert.Equal(typeof(WebApplicationBuilder), parameters[0].ParameterType);
-      },
-      method =>
-      {
-        var parameters = method.GetParameters();
-        Assert.Equal(2, parameters.Length);
-        Assert.Equal(typeof(WebApplicationBuilder), parameters[0].ParameterType);
-        Assert.Equal(typeof(Action<VarlockConfigurationSource>), parameters[1].ParameterType);
-      });
+    Assert.Equal(4, methods.Length);
+
+    Assert.Contains(methods, method =>
+      !method.IsGenericMethod
+      && method.GetParameters().Length == 1
+      && method.GetParameters()[0].ParameterType == typeof(WebApplicationBuilder));
+
+    Assert.Contains(methods, method =>
+      !method.IsGenericMethod
+      && method.GetParameters().Length == 2
+      && method.GetParameters()[0].ParameterType == typeof(WebApplicationBuilder)
+      && method.GetParameters()[1].ParameterType == typeof(Action<VarlockConfigurationSource>));
+
+    Assert.Contains(methods, method =>
+      method.IsGenericMethod
+      && method.GetParameters().Length == 1
+      && method.GetParameters()[0].ParameterType == typeof(WebApplicationBuilder));
+
+    Assert.Contains(methods, method =>
+      method.IsGenericMethod
+      && method.GetParameters().Length == 2
+      && method.GetParameters()[0].ParameterType == typeof(WebApplicationBuilder)
+      && method.GetParameters()[1].ParameterType == typeof(Action<VarlockConfigurationSource>));
   }
 
   [Fact]
@@ -290,6 +305,47 @@ public sealed class HostingExtensionsTests
     var graph = app.Services.GetService<VarlockResolvedGraph>();
     Assert.NotNull(graph);
     Assert.True(graph!.Items.ContainsKey("FOO"));
+  }
+
+  [Fact]
+  public void AddVarlock_of_t_binds_options_from_configuration()
+  {
+    var runtime = new RecordingRuntime();
+    var builder = Host.CreateApplicationBuilder();
+
+    builder.AddVarlock<ProofOptions>(source =>
+    {
+      source.Runtime = runtime;
+      source.SchemaPath = "proof.env.schema";
+    });
+
+    using var host = builder.Build();
+    var options = host.Services.GetRequiredService<IOptions<ProofOptions>>().Value;
+
+    Assert.Equal("bar", options.FOO);
+  }
+
+  [Fact]
+  public void WebApplicationBuilder_AddVarlock_of_t_binds_options_from_configuration()
+  {
+    var runtime = new RecordingRuntime();
+    var builder = WebApplication.CreateBuilder();
+
+    builder.AddVarlock<ProofOptions>(source =>
+    {
+      source.Runtime = runtime;
+      source.SchemaPath = "proof.env.schema";
+    });
+
+    using var app = builder.Build();
+    var options = app.Services.GetRequiredService<IOptions<ProofOptions>>().Value;
+
+    Assert.Equal("bar", options.FOO);
+  }
+
+  private sealed class ProofOptions
+  {
+    public string? FOO { get; set; }
   }
 
   private sealed class RecordingRuntime : IVarlockRuntime

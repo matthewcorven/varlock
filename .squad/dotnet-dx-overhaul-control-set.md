@@ -172,6 +172,29 @@ This contract defines the first-wave control nodes that must stay green before w
   - no claim that custom runtime injection stands in for executable lookup or bridge-contract proof
 - Ready-now verdict: **green**. All five sibling examples exist under `examples/`: `dotnet-console-custom-schema-path`, `dotnet-console-custom-working-dir`, `dotnet-console-environment-name`, `dotnet-console-optional`, and `dotnet-console-custom-runtime`. `bun run proof:dotnet` builds and runs each specimen with targeted assertions covering the narrow SchemaPath, WorkingDirectory, EnvironmentName propagation, Optional startup, and injected `IVarlockRuntime` seams.
 
+### DX-A2c — Third sibling example batch
+
+- Owner: O'Brien
+- Reviewer: Tuvok
+- Status: **green** — all eight third-batch sibling examples exist and are buildable
+- Allowed surface:
+  - `examples/dotnet-console-coercion/**`
+  - `examples/dotnet-console-validation/**`
+  - `examples/dotnet-console-public-only/**`
+  - `examples/dotnet-console-exec/**`
+  - `examples/dotnet-console-composition/**`
+  - `examples/dotnet-console-di-options/**`
+  - `examples/dotnet-console-explicit-executable/**`
+  - `examples/dotnet-console-leak-prevention/**`
+  - `scripts/test-dotnet-proof.ts` for targeted sibling proof registration and assertions only
+- Explicit non-goals:
+  - no new package surface or runtime API changes
+  - no claim that the public-only specimen adds runtime protection; it proves generated-file filtering only
+  - no claim that the exec specimen proves a general secret-manager story; it is scoped to the checked-in local command seam
+  - no claim that the DI/options specimen establishes `AddVarlock<T>()` or generated-type binder support; it proves the current manual mapping pattern only
+  - no claim that the leak-prevention specimen proves automatic interception or enforcement; it proves metadata-only `PreventLeaks` surfacing plus manual helper output
+- Ready-now verdict: **green**. All eight sibling examples exist under `examples/`: `dotnet-console-coercion`, `dotnet-console-validation`, `dotnet-console-public-only`, `dotnet-console-exec`, `dotnet-console-composition`, `dotnet-console-di-options`, `dotnet-console-explicit-executable`, and `dotnet-console-leak-prevention`. `bun run proof:dotnet` builds and runs each specimen with targeted assertions covering coercion, expected validation failure, public-only generated-file filtering, the local `exec()` command seam, schema reference composition, the manual DI/options pattern, explicit executable override, and metadata-only leak-prevention surfacing.
+
 ### DX-B2 — Varlock metapackage
 
 - Owner: Data
@@ -202,8 +225,8 @@ This contract defines the first-wave control nodes that must stay green before w
   - `packages/dotnet/Varlock.Extensions.Hosting/**`
   - `packages/dotnet/Varlock.DotNet.Tests/**` for DI-specific tests only
 - Explicit non-goals:
-  - no typed binding (`AddVarlock<T>()`) — that belongs to DX-B6
   - no scoped or transient lifetime; singletons only via TryAddSingleton
+  - no generated-type aware binding semantics beyond standard `Configure<TConfig>(builder.Configuration)`
 - Required artifacts:
   - `TryAddSingleton<IVarlockRuntime>(runtime)` registered when `AddVarlock()` is called
   - `TryAddSingleton<VarlockResolvedGraph>` factory registered using the graph from the configuration source
@@ -217,6 +240,30 @@ This contract defines the first-wave control nodes that must stay green before w
   - TryAddSingleton semantics mean pre-registered services are not overwritten
   - WebApplicationBuilder and HostApplicationBuilder extensions both register the same DI services
 - Ready-now verdict: **green**. Implementation complete in both hosting extension files. Internal `RegisterServices` method shared between both builder types. 5 new tests pass in `HostingExtensionsTests.cs`.
+
+### DX-B6 — `AddVarlock<TConfig>()` convenience overloads
+
+- Owner: Data
+- Reviewer: Picard
+- Status: **green** — implemented and tested
+- Allowed surface:
+  - `packages/dotnet/Varlock.Extensions.Hosting/**`
+  - `packages/dotnet/Varlock.DotNet.Tests/**` for hosting/options tests only
+- Explicit non-goals:
+  - no generated-type specific binder behavior; this is standard options binding only
+  - no reload semantic changes; existing `IOptionsMonitor<T>` behavior remains unchanged
+- Required artifacts:
+  - `HostApplicationBuilder.AddVarlock<TConfig>()` and `HostApplicationBuilder.AddVarlock<TConfig>(Action<VarlockConfigurationSource>)`
+  - `WebApplicationBuilder.AddVarlock<TConfig>()` and `WebApplicationBuilder.AddVarlock<TConfig>(Action<VarlockConfigurationSource>)` on net10.0
+  - generic overloads delegate to existing `AddVarlock(...)` and then call `services.Configure<TConfig>(configuration)`
+  - tests proving overload surface and options binding for both host and web builder paths
+- Proof commands:
+  - `dotnet test packages/dotnet/Varlock.DotNet.Tests/Varlock.DotNet.Tests.csproj --filter HostingExtensionsTests`
+- Acceptance criteria:
+  - generic overloads exist on both builder extension classes without changing existing overload behavior
+  - options binding runs through the default .NET options binder with no custom binder semantics
+  - `HostingExtensionsTests` proves overload count and end-to-end DI options binding
+- Ready-now verdict: **green**. Generic `AddVarlock<TConfig>` overloads are implemented for host and web builders and covered by `HostingExtensionsTests`.
 
 ### DX-B8 — Actionable error messages
 
@@ -280,19 +327,19 @@ Artifact-backed board rows for the active control set and the adjacent teaching-
 | `DX-A1` | Teaching surface | done | O'Brien | Picard | `examples/dotnet-console/**`; baseline assertions in `scripts/test-dotnet-proof.ts`; `bun run proof:dotnet` | Baseline console example stays the narrow happy path, remains runnable from its own directory, and its README/proof text are specific enough for `DX-X1` to sync without guesswork | none | Baseline example, README, schema, and proof hooks are checked in and already called green in this control set | Gate 2 — Track A teaching surface credible |
 | `DX-A2a` | Teaching surface | done | O'Brien | Tuvok | `examples/dotnet-console-direct-load/**`, `examples/dotnet-console-sensitive/**`, `examples/dotnet-console-reload/**`, `examples/dotnet-console-serilog/**`, `examples/dotnet-console-typed-config/**`; sibling proof hooks in `scripts/test-dotnet-proof.ts` | First sibling batch stays example-only, each example has its own README/schema/safe values, and the checked claims stay aligned with `bun run proof:dotnet` plus `DX-X1` caveat sync | none | Five sibling example directories plus build/run proof hooks are present; ledger row `dx-a2a-sibling-batch` marks the batch complete/proven | Gate 2 — Track A teaching surface credible |
 | `DX-A2b` | Teaching surface | done | O'Brien | Picard | `examples/dotnet-console-custom-schema-path/**`, `examples/dotnet-console-custom-working-dir/**`, `examples/dotnet-console-environment-name/**`, `examples/dotnet-console-optional/**`, `examples/dotnet-console-custom-runtime/**`; targeted sibling proof hooks in `scripts/test-dotnet-proof.ts`; `bun run proof:dotnet` | Second sibling batch stays example-only, each example has its own README/schema/safe values or explicit missing-entry setup, and the checked claims stay aligned with `bun run proof:dotnet` plus `DX-X1` caveat sync | none | Five second-batch sibling example directories plus build/run proof hooks are present; ledger row `dx-a2b-sibling-batch` marks the batch complete/proven | Gate 2 — Track A teaching surface credible |
-| `DX-A2c` | Teaching surface | not started | O'Brien | Tuvok | Planned third-batch example directories under `examples/` plus matching proof registration in `scripts/test-dotnet-proof.ts` | Coercion, validation, public-only, exec, composition, DI/options, explicit executable, and leak-prevention examples land with narrow claims, reviewer-safe boundaries, and proof paths that do not outrun current support language | none; `DX-A1` dependency is already satisfied | Proposal and oversight define the batch, but no third-batch sibling directories or proof hooks are checked in yet | Gate 2 — Track A teaching surface credible |
+| `DX-A2c` | Teaching surface | done | O'Brien | Tuvok | `examples/dotnet-console-coercion/**`, `examples/dotnet-console-validation/**`, `examples/dotnet-console-public-only/**`, `examples/dotnet-console-exec/**`, `examples/dotnet-console-composition/**`, `examples/dotnet-console-di-options/**`, `examples/dotnet-console-explicit-executable/**`, `examples/dotnet-console-leak-prevention/**`; targeted proof hooks in `scripts/test-dotnet-proof.ts`; `bun run proof:dotnet` | Third sibling batch stays example-only, each example has its own README/schema/safe values or explicit failure setup, and the checked claims stay aligned with `bun run proof:dotnet` plus DX-X1 caveat sync | none | Eight third-batch sibling example directories plus build/run proof hooks are present; ledger row `dx-a2c-sibling-batch` marks the batch complete/proven | Gate 2 — Track A teaching surface credible |
 | `DX-B1` | Library surface | done | Data | Picard | `packages/dotnet/Varlock.Extensions.Hosting/**`; `HostingExtensionsTests`; ASP.NET proof path in `bun run proof:dotnet` | `WebApplicationBuilder.AddVarlock()` remains thin sugar over existing configuration behavior, compiles/runs through the ASP.NET example, and stays within the current support boundary | none | `VarlockWebApplicationBuilderExtensions.cs` and focused hosting tests are landed; DX-X1 already synced docs and ledger caveats | Gate 3 — Track B library surface credible |
 | `DX-B3` | Library surface | done | Data | Picard | `packages/dotnet/Varlock.DotNet/Env.cs`; `EnvStaticApiTests`; ledger row `dx-env-static-load` | Static `Env.Load()` stays pure sugar over `VarlockCliRuntime`, preserves lookup and error semantics, and does not become the recommended default path before a proving specimen exists | direct-load specimen is still pending if the API is to be taught as a recommended path | Static API implementation and tests are landed; ledger caveat explicitly says specimen pending under `DX-A2a` | Gate 3 — Track B library surface credible |
-| `DX-X1` | Proof and support claims | in progress | O'Brien | Picard | `docs/proposals/dotnet-support-ledger.yml`; `docs/proposals/dotnet-dx-overhaul.md`; affected READMEs; `bun run proof:dotnet` | Every shipped overhaul claim has matching ledger state, README caveat text, and automated proof reference before it is treated as accepted | blocked only by any implementation lane that lands behavior without proof/docs sync | Control-set claims for `DX-A1`, `DX-B1`, `DX-B3`, and `DX-A2a` are already reflected in the current ledger/control-set snapshot, but `DX-A2b` and later lanes still have no proof-backed rows to close | Gate 4 — Overhaul closeout credible |
+| `DX-B6` | Library surface | done | Data | Picard | `packages/dotnet/Varlock.Extensions.Hosting/VarlockHostApplicationBuilderExtensions.cs`; `packages/dotnet/Varlock.Extensions.Hosting/VarlockWebApplicationBuilderExtensions.cs`; `packages/dotnet/Varlock.DotNet.Tests/HostingExtensionsTests.cs` | Generic `AddVarlock<TConfig>()` overloads on both host and web builders wire existing AddVarlock configuration plus standard options binding without altering runtime semantics | none | Four generic overloads are present (host/web, parameterless/configure) and `HostingExtensionsTests` proves options binding for both builder types | Gate 3 — Track B library surface credible |
+| `DX-X1` | Proof and support claims | in progress | O'Brien | Picard | `docs/proposals/dotnet-support-ledger.yml`; `docs/proposals/dotnet-dx-overhaul.md`; affected READMEs; `bun run proof:dotnet` | Every shipped overhaul claim has matching ledger state, README caveat text, and automated proof reference before it is treated as accepted | blocked only by any implementation lane that lands behavior without proof/docs sync | Control-set claims for `DX-A1`, `DX-B1`, `DX-B3`, `DX-B6`, `DX-A2a`, `DX-A2b`, and `DX-A2c` are now reflected in the current ledger/control-set snapshot; later lanes remain subject to the same proof-first sync | Gate 4 — Overhaul closeout credible |
 
 ## Immediate execution verdict
 
-- Implemented and proven: `DX-A1` (baseline console example, proof passes), `DX-B1` (WebApplicationBuilder extensions, tests pass), `DX-B3` (static Env.Load, tests pass, specimen pending), `DX-A2a` (first sibling batch, all 5 examples exist), `DX-A2b` (second sibling batch, all 5 examples exist), `DX-B2` (metapackage created and builds), `DX-B4` (DI registration, 5 tests pass), `DX-B8` (actionable errors, 4 tests pass), `DX-B5` ([VarlockSensitive] attribute, defined and emitted)
+- Implemented and proven: `DX-A1` (baseline console example, proof passes), `DX-B1` (WebApplicationBuilder extensions, tests pass), `DX-B3` (static Env.Load, tests pass, specimen pending), `DX-A2a` (first sibling batch, all 5 examples exist), `DX-A2b` (second sibling batch, all 5 examples exist), `DX-A2c` (third sibling batch, all 8 examples exist and are proof-backed), `DX-B2` (metapackage created and builds), `DX-B4` (DI registration, 5 tests pass), `DX-B6` (generic `AddVarlock<TConfig>()` overloads implemented and tested), `DX-B8` (actionable errors, 4 tests pass), `DX-B5` ([VarlockSensitive] attribute, defined and emitted)
 - Immediately executable now: `DX-X1` (ongoing)
-- Docs sync completed for all first-wave control nodes (`DX-A1`, `DX-B1`, `DX-B3`, `DX-A2a`, `DX-B2`, `DX-B4`, `DX-B5`, `DX-B8`) by `DX-X1`
+- Docs sync completed for all first-wave control nodes (`DX-A1`, `DX-B1`, `DX-B3`, `DX-B6`, `DX-A2a`, `DX-A2b`, `DX-A2c`, `DX-B2`, `DX-B4`, `DX-B5`, `DX-B8`) by `DX-X1`
 
 ## Fan-out gaps before broader Wiggum spawning
 
-- `DX-A2c` still has only a planning-state board row: no example directories, README artifacts, or proof hooks are landed yet.
 - `DX-B3` may execute now, but `DX-X1` must keep any package-doc wording narrow until a later direct-load specimen exists.
 - `DX-B1` should not be bundled with baseline-example rewrite work; that would hide two promises in one autonomous run and violate the control-set intent.

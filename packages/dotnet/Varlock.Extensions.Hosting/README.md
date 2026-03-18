@@ -108,6 +108,20 @@ builder.Configuration.AddVarlock(source =>
 });
 ```
 
+For hosted options binding convenience, generic overloads are available on both builders:
+
+```csharp
+builder.AddVarlock<MyAppOptions>();
+
+// Or with source configuration
+builder.AddVarlock<MyAppOptions>(source =>
+{
+    source.ReloadOnChange = true;
+});
+```
+
+These overloads are convenience wrappers over `AddVarlock(...)` plus standard `services.Configure<TConfig>(builder.Configuration)` binding.
+
 ## Accessing configuration
 
 Use standard .NET patterns for configuration access:

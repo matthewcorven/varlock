@@ -41,6 +41,38 @@ public static class VarlockHostApplicationBuilderExtensions
     return builder;
   }
 
+  public static HostApplicationBuilder AddVarlock<TConfig>(this HostApplicationBuilder builder)
+    where TConfig : class
+  {
+    if (builder is null)
+    {
+      throw new ArgumentNullException(nameof(builder));
+    }
+
+    return builder.AddVarlock<TConfig>(_ => { });
+  }
+
+  public static HostApplicationBuilder AddVarlock<TConfig>(
+    this HostApplicationBuilder builder,
+    Action<VarlockConfigurationSource> configure)
+    where TConfig : class
+  {
+    if (builder is null)
+    {
+      throw new ArgumentNullException(nameof(builder));
+    }
+
+    if (configure is null)
+    {
+      throw new ArgumentNullException(nameof(configure));
+    }
+
+    builder.AddVarlock(configure);
+    builder.Services.Configure<TConfig>(builder.Configuration);
+
+    return builder;
+  }
+
   internal static void RegisterServices(IServiceCollection services, VarlockConfigurationSource source)
   {
     var runtime = source.Runtime ?? new VarlockCliRuntime();

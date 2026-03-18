@@ -483,6 +483,46 @@ support_matrix:
       test: bun run proof:dotnet custom-runtime check
       caveat: proves VarlockConfigurationSource.Runtime injection into the configuration-provider pipeline only; executable lookup and CLI-contract behavior are out of scope
       proof_status: proven
+    - id: dx-coercion-surface
+      example: examples/dotnet-console-coercion/
+      test: bun run proof:dotnet coercion check
+      caveat: proves IConfiguration string flattening plus boolean/numeric VarlockResolvedGraph value types only; no new binder claim
+      proof_status: proven
+    - id: dx-validation-failure-surface
+      example: examples/dotnet-console-validation/
+      test: bun run proof:dotnet validation check
+      caveat: example intentionally exits 1 after printing bridge category/message for a missing required key; proves the startup failure surface, not recovery behavior
+      proof_status: proven
+    - id: dx-public-only-console-boundary
+      example: examples/dotnet-console-public-only/
+      test: bun run proof:dotnet public-only check
+      caveat: proves build-time generated-file filtering only; sensitive property names and sensitive metadata are excluded while PropertyKeys metadata remains
+      proof_status: proven
+    - id: dx-exec-local-command-seam
+      example: examples/dotnet-console-exec/
+      test: bun run proof:dotnet exec check
+      caveat: proven only for a checked-in local `bun -e ...` command seam; not a broader secret-manager support claim
+      proof_status: proven
+    - id: dx-schema-reference-composition
+      example: examples/dotnet-console-composition/
+      test: bun run proof:dotnet composition check
+      caveat: proves `${}` reference composition into final configuration values; no broader inheritance or `@extends` claim is made here
+      proof_status: proven
+    - id: dx-manual-di-options-pattern
+      example: examples/dotnet-console-di-options/
+      test: bun run proof:dotnet di-options check
+      caveat: proves a user-authored manual IOptionsMonitor<T> mapping from IConfiguration only; no AddVarlock<T>() or generated-type binder claim
+      proof_status: proven
+    - id: dx-explicit-executable-path
+      example: examples/dotnet-console-explicit-executable/
+      test: bun run proof:dotnet explicit-executable check
+      caveat: proves a repo-relative explicit ExecutablePath override with local and PATH lookup disabled in the specimen
+      proof_status: proven
+    - id: dx-prevent-leaks-metadata-surface
+      example: examples/dotnet-console-leak-prevention/
+      test: bun run proof:dotnet leak-prevention check
+      caveat: proves VarlockResolvedGraph.PreventLeaks plus manual redaction-helper output only; no automatic interception or enforcement is implied
+      proof_status: proven
   maintenance_rules:
     - every user-facing support claim maps to at least one ledger row
     - every row identifies the proving example app, the proving automated test, or a written non-applicable reason
@@ -588,6 +628,31 @@ dx_overhaul_kickoff:
       caveats:
         - the optional example proves startup-only graceful degradation, not later file appearance or reload behavior
         - the custom runtime example proves the injection seam only and does not stand in for CLI lookup or bridge-contract proof
+    - id: dx-a2c-sibling-batch
+      owner: O'Brien
+      control_lane: DX-A2c
+      shadow_lane: DX-X1
+      example: examples/dotnet-console-*/
+      implementation_status: complete
+      proof_status: proven
+      checked_artifacts:
+        - examples/dotnet-console-coercion/ demonstrates IConfiguration string flattening together with boolean and numeric VarlockResolvedGraph value types
+        - examples/dotnet-console-validation/ demonstrates the expected startup failure surface for a missing required key
+        - examples/dotnet-console-public-only/ demonstrates build-time `publicOnly=true` C# generation with sensitive properties and sensitive metadata excluded
+        - examples/dotnet-console-exec/ demonstrates a local `exec()` command seam resolved through the CLI bridge
+        - examples/dotnet-console-composition/ demonstrates schema reference composition through `${}` expansions
+        - examples/dotnet-console-di-options/ demonstrates a manual IOptionsMonitor<T> registration pattern backed by IConfiguration
+        - examples/dotnet-console-explicit-executable/ demonstrates an explicit ExecutablePath override with automatic lookup disabled
+        - examples/dotnet-console-leak-prevention/ demonstrates the metadata-only PreventLeaks surface plus manual redaction helper output
+      proof_artifacts:
+        - all eight third-batch sibling example directories exist and are buildable
+        - bun run proof:dotnet exercises the third sibling batch with targeted runtime assertions and generated-file validation
+      caveats:
+        - the validation example intentionally exits non-zero and proves the failure surface, not any recovery story
+        - the public-only example proves generated-file filtering only; it does not add a runtime protection claim
+        - the exec example is scoped to the checked-in local command seam and does not widen external secret-manager claims
+        - the DI/options example proves a manual mapping pattern only; it does not establish AddVarlock<T>() or generated-type binder support
+        - the leak-prevention example proves metadata-only behavior for PreventLeaks and manual redaction-helper output only
     - id: dx-b2-metapackage
       owner: Data
       control_lane: DX-B2
@@ -622,6 +687,23 @@ dx_overhaul_kickoff:
         - DI services use TryAddSingleton to avoid overwriting pre-registered services
         - VarlockResolvedGraph is registered as a factory that lazily resolves from the configuration source's last loaded graph
         - this is singleton-scoped DI only; scoped or transient lifetimes are not supported
+    - id: dx-b6-generic-hosted-binding
+      owner: Data
+      control_lane: DX-B6
+      shadow_lane: DX-X1
+      example: none
+      implementation_status: complete
+      proof_status: proven
+      checked_artifacts:
+        - packages/dotnet/Varlock.Extensions.Hosting/VarlockHostApplicationBuilderExtensions.cs adds AddVarlock<TConfig>() and AddVarlock<TConfig>(Action<VarlockConfigurationSource>) overloads that delegate to AddVarlock(...) and then call services.Configure<TConfig>(configuration)
+        - packages/dotnet/Varlock.Extensions.Hosting/VarlockWebApplicationBuilderExtensions.cs adds the same generic overload pair for WebApplicationBuilder on net10.0
+        - packages/dotnet/Varlock.DotNet.Tests/HostingExtensionsTests.cs proves host/web overload surface and generic options binding
+      proof_artifacts:
+        - dotnet test packages/dotnet/Varlock.DotNet.Tests/Varlock.DotNet.Tests.csproj --filter HostingExtensionsTests passes with generic overload and options-binding assertions
+      caveats:
+        - convenience only: generic overloads use standard options binding and do not add generated-type-specific binder behavior
+        - generic overloads preserve existing AddVarlock(...) semantics; they do not alter reload or runtime behavior
+        - WebApplicationBuilder generic overloads are net10.0-only, matching the existing web builder extension availability
     - id: dx-b8-actionable-errors
       owner: Data
       control_lane: DX-B8
