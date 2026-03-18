@@ -496,6 +496,11 @@ const sensitiveProjectDir = join(repoRoot, 'examples', 'dotnet-console-sensitive
 const reloadProjectDir = join(repoRoot, 'examples', 'dotnet-console-reload');
 const serilogProjectDir = join(repoRoot, 'examples', 'dotnet-console-serilog');
 const typedConfigProjectDir = join(repoRoot, 'examples', 'dotnet-console-typed-config');
+const customSchemaPathProjectDir = join(repoRoot, 'examples', 'dotnet-console-custom-schema-path');
+const customWorkingDirProjectDir = join(repoRoot, 'examples', 'dotnet-console-custom-working-dir');
+const environmentNameProjectDir = join(repoRoot, 'examples', 'dotnet-console-environment-name');
+const optionalProjectDir = join(repoRoot, 'examples', 'dotnet-console-optional');
+const customRuntimeProjectDir = join(repoRoot, 'examples', 'dotnet-console-custom-runtime');
 const workerProjectDir = join(repoRoot, 'examples', 'dotnet-worker');
 const aspNetProjectDir = join(repoRoot, 'examples', 'dotnet-aspnet-mvc');
 const functionsProjectDir = join(repoRoot, 'examples', 'dotnet-functions-isolated');
@@ -779,6 +784,74 @@ assertCommandSucceeded('dotnet run dotnet-console-typed-config', typedConfigResu
   assert(stdout.includes('config.HttpPort = 4330'), 'typed-config should map HTTP_PORT to HttpPort');
   assert(stdout.includes('config.DebugMode = False'), 'typed-config should map DEBUG_MODE to DebugMode');
   assert(stdout.includes('APP_NAME -> AppName'), 'typed-config should list PropertyBindings');
+}
+
+// Custom-schema-path sibling
+const customSchemaPathBuild = runDotnet(customSchemaPathProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-custom-schema-path', customSchemaPathBuild);
+
+const customSchemaPathResult = runDotnet(customSchemaPathProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-custom-schema-path', customSchemaPathResult);
+{
+  const lines = parseAssignmentLines(customSchemaPathResult.stdout);
+  assert(lines.get('APP_NAME') === 'varlock-custom-schema', 'custom-schema-path should load APP_NAME from config/.env');
+  assert(lines.get('HTTP_PORT') === '4340', 'custom-schema-path should load HTTP_PORT from config/.env');
+  assert(lines.get('VARLOCK_SCHEMA_PATH') === 'config/.env.schema', 'custom-schema-path should report the configured non-default schema path');
+}
+
+// Custom-working-dir sibling
+const customWorkingDirBuild = runDotnet(customWorkingDirProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-custom-working-dir', customWorkingDirBuild);
+
+const customWorkingDirResult = runDotnet(customWorkingDirProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-custom-working-dir', customWorkingDirResult);
+{
+  const lines = parseAssignmentLines(customWorkingDirResult.stdout);
+  assert(lines.get('APP_NAME') === 'varlock-working-dir', 'custom-working-dir should load APP_NAME from the shared working directory');
+  assert(lines.get('HTTP_PORT') === '4341', 'custom-working-dir should load HTTP_PORT from the shared working directory');
+  assert(lines.get('VARLOCK_SCHEMA_PATH') === '.env.schema', 'custom-working-dir should keep the default schema file name');
+  assert(lines.get('VARLOCK_WORKING_DIRECTORY_NAME') === 'shared', 'custom-working-dir should report the configured working-directory name');
+}
+
+// Environment-name sibling
+const environmentNameBuild = runDotnet(environmentNameProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-environment-name', environmentNameBuild);
+
+const environmentNameResult = runDotnet(environmentNameProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-environment-name', environmentNameResult);
+{
+  const lines = parseAssignmentLines(environmentNameResult.stdout);
+  assert(lines.get('APP_NAME') === 'varlock-production', 'environment-name should load the production override value');
+  assert(lines.get('API_BASE_URL') === 'https://api.production.varlock.test', 'environment-name should load .env.production overrides through EnvironmentName');
+  assert(lines.get('VARLOCK_ENVIRONMENT_NAME') === 'production', 'environment-name should report the configured environment name');
+}
+
+// Optional sibling
+const optionalBuild = runDotnet(optionalProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-optional', optionalBuild);
+
+const optionalResult = runDotnet(optionalProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-optional', optionalResult);
+{
+  const lines = parseAssignmentLines(optionalResult.stdout);
+  assert(lines.get('APP_NAME') === '(missing)', 'optional should keep APP_NAME empty when the configured schema entry point is missing');
+  assert(lines.get('HTTP_PORT') === '(missing)', 'optional should keep HTTP_PORT empty when the configured schema entry point is missing');
+  assert(lines.get('VARLOCK_OPTIONAL') === 'True', 'optional should report Optional = true');
+  assert(lines.get('VARLOCK_WORKING_DIRECTORY_NAME') === 'missing-config', 'optional should report the configured missing working directory');
+}
+
+// Custom-runtime sibling
+const customRuntimeBuild = runDotnet(customRuntimeProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-custom-runtime', customRuntimeBuild);
+
+const customRuntimeResult = runDotnet(customRuntimeProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-custom-runtime', customRuntimeResult);
+{
+  const lines = parseAssignmentLines(customRuntimeResult.stdout);
+  assert(lines.get('APP_NAME') === 'varlock-custom-runtime', 'custom-runtime should read APP_NAME from the injected runtime graph');
+  assert(lines.get('HTTP_PORT') === '4343', 'custom-runtime should read HTTP_PORT from the injected runtime graph');
+  assert(lines.get('FEATURE_ENABLED') === 'True', 'custom-runtime should read FEATURE_ENABLED from the injected runtime graph');
+  assert(lines.get('RUNTIME_TYPE') === 'FakeVarlockRuntime', 'custom-runtime should report the injected runtime type');
 }
 
 const shouldSkipExtendedRuntimeProofs = process.env.VARLOCK_DOTNET_PROOF_FULL !== '1'
