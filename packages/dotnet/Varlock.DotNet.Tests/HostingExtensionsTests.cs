@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Varlock.DotNet;
 using Varlock.Extensions.Configuration;
@@ -23,7 +24,7 @@ public sealed class HostingExtensionsTests
 
     try
     {
-      Environment.CurrentDirectory = Path.Combine(TestPaths.RepositoryRoot, "examples", "dotnet-console-net8");
+      Environment.CurrentDirectory = Path.Combine(TestPaths.RepositoryRoot, "examples", "dotnet-console");
 
       var builder = new HostApplicationBuilder();
 
@@ -190,6 +191,105 @@ public sealed class HostingExtensionsTests
         Assert.Equal(typeof(WebApplicationBuilder), parameters[0].ParameterType);
         Assert.Equal(typeof(Action<VarlockConfigurationSource>), parameters[1].ParameterType);
       });
+  }
+
+  [Fact]
+  public void AddVarlock_registers_IVarlockRuntime_in_DI()
+  {
+    var runtime = new RecordingRuntime();
+    var builder = Host.CreateApplicationBuilder();
+
+    builder.AddVarlock(source =>
+    {
+      source.Runtime = runtime;
+      source.SchemaPath = "proof.env.schema";
+    });
+
+    using var host = builder.Build();
+    var resolved = host.Services.GetService<IVarlockRuntime>();
+    Assert.Same(runtime, resolved);
+  }
+
+  [Fact]
+  public void AddVarlock_registers_VarlockResolvedGraph_in_DI()
+  {
+    var runtime = new RecordingRuntime();
+    var builder = Host.CreateApplicationBuilder();
+
+    builder.AddVarlock(source =>
+    {
+      source.Runtime = runtime;
+      source.SchemaPath = "proof.env.schema";
+    });
+
+    using var host = builder.Build();
+    var graph = host.Services.GetService<VarlockResolvedGraph>();
+    Assert.NotNull(graph);
+    Assert.True(graph!.Items.ContainsKey("FOO"));
+    Assert.Equal("bar", graph.Items["FOO"].Value);
+  }
+
+  [Fact]
+  public void AddVarlock_does_not_overwrite_preregistered_IVarlockRuntime()
+  {
+    var userRuntime = new RecordingRuntime();
+    var sourceRuntime = new RecordingRuntime();
+    var builder = Host.CreateApplicationBuilder();
+
+    builder.Services.AddSingleton<IVarlockRuntime>(userRuntime);
+    builder.AddVarlock(source =>
+    {
+      source.Runtime = sourceRuntime;
+      source.SchemaPath = "proof.env.schema";
+    });
+
+    using var host = builder.Build();
+    var resolved = host.Services.GetService<IVarlockRuntime>();
+    Assert.Same(userRuntime, resolved);
+  }
+
+  [Fact]
+  public void AddVarlock_uses_default_runtime_when_source_runtime_is_null()
+  {
+    var originalCurrentDirectory = Environment.CurrentDirectory;
+
+    try
+    {
+      Environment.CurrentDirectory = Path.Combine(TestPaths.RepositoryRoot, "examples", "dotnet-console");
+
+      var builder = Host.CreateApplicationBuilder();
+      builder.AddVarlock();
+
+      using var host = builder.Build();
+      var resolved = host.Services.GetService<IVarlockRuntime>();
+      Assert.NotNull(resolved);
+      Assert.IsType<VarlockCliRuntime>(resolved);
+    }
+    finally
+    {
+      Environment.CurrentDirectory = originalCurrentDirectory;
+    }
+  }
+
+  [Fact]
+  public void WebApplicationBuilder_AddVarlock_registers_DI_services()
+  {
+    var runtime = new RecordingRuntime();
+    var builder = WebApplication.CreateBuilder();
+
+    builder.AddVarlock(source =>
+    {
+      source.Runtime = runtime;
+      source.SchemaPath = "proof.env.schema";
+    });
+
+    using var app = builder.Build();
+    var resolvedRuntime = app.Services.GetService<IVarlockRuntime>();
+    Assert.Same(runtime, resolvedRuntime);
+
+    var graph = app.Services.GetService<VarlockResolvedGraph>();
+    Assert.NotNull(graph);
+    Assert.True(graph!.Items.ContainsKey("FOO"));
   }
 
   private sealed class RecordingRuntime : IVarlockRuntime

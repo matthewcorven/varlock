@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Varlock</AssemblyName>
+    <RootNamespace>Varlock</RootNamespace>
+    <PackageId>Varlock</PackageId>
+    <Description>Varlock metapackage — bundles Varlock.DotNet, Varlock.Extensions.Configuration, Varlock.Extensions.Hosting, and Varlock.MSBuild for a single-package onboarding experience.</Description>
+    <IsPackable>true</IsPackable>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Varlock.DotNet/Varlock.DotNet.csproj" />
+    <ProjectReference Include="../Varlock.Extensions.Configuration/Varlock.Extensions.Configuration.csproj" />
+    <ProjectReference Include="../Varlock.Extensions.Hosting/Varlock.Extensions.Hosting.csproj" />
+    <ProjectReference Include="../Varlock.MSBuild/Varlock.MSBuild.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

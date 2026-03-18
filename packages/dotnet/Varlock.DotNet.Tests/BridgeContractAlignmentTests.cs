@@ -443,6 +443,106 @@ public sealed class BridgeContractAlignmentTests
     }
   }
 
+  [Fact]
+  public void ResolveExecutable_not_found_message_includes_searched_paths_and_install_suggestion()
+  {
+    var root = TestPaths.CreateTempDirectory("varlock-dotnet-tests");
+    var originalPath = Environment.GetEnvironmentVariable("PATH");
+
+    try
+    {
+      var workingDirectory = Path.Combine(root, "app");
+      Directory.CreateDirectory(workingDirectory);
+
+      // Clear PATH to an empty temp dir so PATH lookup finds nothing
+      var emptyPathDir = Path.Combine(root, "empty-bin");
+      Directory.CreateDirectory(emptyPathDir);
+      Environment.SetEnvironmentVariable("PATH", emptyPathDir);
+
+      var exception = Assert.Throws<VarlockBridgeException>(() =>
+        VarlockCliRuntime.ResolveExecutable(new VarlockLoadOptions
+        {
+          WorkingDirectory = workingDirectory,
+          EnableLocalExecutableLookup = false,
+          EnablePathLookup = true,
+        }));
+
+      Assert.Equal(VarlockBridgeErrorCategory.ExecutableNotFound, exception.Category);
+      Assert.Contains("Varlock CLI not found", exception.Message);
+      Assert.Contains("PATH", exception.Message);
+      Assert.Contains("npm install --save-dev varlock", exception.Message);
+    }
+    finally
+    {
+      Environment.SetEnvironmentVariable("PATH", originalPath);
+
+      if (Directory.Exists(root))
+      {
+        Directory.Delete(root, recursive: true);
+      }
+    }
+  }
+
+  [Fact]
+  public void ResolveExecutable_not_found_message_omits_local_paths_when_lookup_disabled()
+  {
+    var root = TestPaths.CreateTempDirectory("varlock-dotnet-tests");
+
+    try
+    {
+      var workingDirectory = Path.Combine(root, "app");
+      Directory.CreateDirectory(workingDirectory);
+
+      var exception = Assert.Throws<VarlockBridgeException>(() =>
+        VarlockCliRuntime.ResolveExecutable(new VarlockLoadOptions
+        {
+          WorkingDirectory = workingDirectory,
+          EnableLocalExecutableLookup = false,
+          EnablePathLookup = false,
+        }));
+
+      Assert.Equal(VarlockBridgeErrorCategory.ExecutableNotFound, exception.Category);
+      Assert.DoesNotContain("node_modules", exception.Message);
+      Assert.Contains("all lookup paths are disabled", exception.Message);
+    }
+    finally
+    {
+      if (Directory.Exists(root))
+      {
+        Directory.Delete(root, recursive: true);
+      }
+    }
+  }
+
+  [Fact]
+  public void ParseCliOutput_missing_payload_includes_stderr_when_available()
+  {
+    var exception = Assert.Throws<VarlockBridgeException>(() =>
+      VarlockCliRuntime.ParseCliOutput(
+        standardOutput: string.Empty,
+        standardError: "Error: Cannot find module 'varlock'\n    at Function.resolve",
+        exitCode: 1));
+
+    Assert.Equal(VarlockBridgeErrorCategory.BridgeInternalError, exception.Category);
+    Assert.Contains("exited with code 1", exception.Message);
+    Assert.Contains("CLI stderr:", exception.Message);
+    Assert.Contains("Cannot find module", exception.Message);
+  }
+
+  [Fact]
+  public void ParseCliOutput_missing_payload_without_stderr_omits_stderr_section()
+  {
+    var exception = Assert.Throws<VarlockBridgeException>(() =>
+      VarlockCliRuntime.ParseCliOutput(
+        standardOutput: string.Empty,
+        standardError: null,
+        exitCode: 0));
+
+    Assert.Equal(VarlockBridgeErrorCategory.BridgeInternalError, exception.Category);
+    Assert.Contains("empty machine-readable payload", exception.Message);
+    Assert.DoesNotContain("CLI stderr:", exception.Message);
+  }
+
   private static string ReadSharedBridgeFixture(string fixtureFileName)
   {
     var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", fixtureFileName);

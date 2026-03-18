@@ -392,16 +392,74 @@ public sealed class VarlockCliRuntime : IVarlockRuntime
     string? standardOutput,
     string? standardError)
   {
-    var message = exitCode != 0
-      ? $"The Varlock CLI exited with code {exitCode} without returning a valid bridge payload."
-      : "The Varlock CLI returned an empty machine-readable payload.";
+    var messageBuilder = new StringBuilder();
+
+    if (exitCode != 0)
+    {
+      messageBuilder.Append($"The Varlock CLI exited with code {exitCode} without returning a valid bridge payload.");
+    }
+    else
+    {
+      messageBuilder.Append("The Varlock CLI returned an empty machine-readable payload.");
+    }
+
+    if (!string.IsNullOrWhiteSpace(standardError))
+    {
+      var trimmedStderr = standardError!.Trim();
+      if (trimmedStderr.Length > 500)
+      {
+        trimmedStderr = trimmedStderr.Substring(0, 500) + "...";
+      }
+
+      messageBuilder.Append(" CLI stderr: ");
+      messageBuilder.Append(trimmedStderr);
+    }
 
     return new VarlockBridgeException(
       VarlockBridgeErrorCategory.BridgeInternalError,
-      message,
+      messageBuilder.ToString(),
       exitCode: exitCode,
       standardOutput: standardOutput,
       standardError: standardError);
+  }
+
+  private static VarlockBridgeException CreateExecutableNotFoundException(VarlockLoadOptions options)
+  {
+    var messageBuilder = new StringBuilder();
+    messageBuilder.Append("Varlock CLI not found.");
+
+    var searchedPaths = new List<string>();
+    var workingDirectory = options.GetWorkingDirectory();
+
+    if (options.EnableLocalExecutableLookup)
+    {
+      searchedPaths.Add("node_modules/varlock/bin/");
+      searchedPaths.Add("node_modules/.bin/varlock");
+      searchedPaths.Add("packages/varlock/bin/ (repo-local)");
+    }
+
+    if (options.EnablePathLookup)
+    {
+      searchedPaths.Add("PATH");
+    }
+
+    if (searchedPaths.Count > 0)
+    {
+      messageBuilder.Append(" Searched: ");
+      messageBuilder.Append(string.Join(", ", searchedPaths));
+      messageBuilder.Append('.');
+    }
+
+    messageBuilder.Append(" Install with: npm install --save-dev varlock");
+
+    if (!options.EnableLocalExecutableLookup && !options.EnablePathLookup)
+    {
+      messageBuilder.Append(" (all lookup paths are disabled — set ExecutablePath, EnableLocalExecutableLookup, or EnablePathLookup)");
+    }
+
+    return new VarlockBridgeException(
+      VarlockBridgeErrorCategory.ExecutableNotFound,
+      messageBuilder.ToString());
   }
 
   private static VarlockBridgeException CreateHandshakeFailureException(
@@ -666,11 +724,7 @@ public sealed class VarlockCliRuntime : IVarlockRuntime
       }
     }
 
-    throw new VarlockBridgeException(
-      VarlockBridgeErrorCategory.ExecutableNotFound,
-      options.EnablePathLookup
-        ? "Unable to locate a Varlock executable. Configure ExecutablePath, install a local package copy, or make 'varlock' discoverable from PATH."
-        : "Unable to locate a Varlock executable. Configure ExecutablePath or enable a local/package-managed lookup path.");
+    throw CreateExecutableNotFoundException(options);
   }
 
   private static string ResolveExplicitExecutable(string executablePath, string workingDirectory)
