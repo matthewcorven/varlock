@@ -443,6 +443,16 @@ support_matrix:
       test: "plugin failure handling proven in BridgeContractAlignmentTests.cs"
       caveat: "positive plugin-backed .NET example deferred beyond v1; pending real-world project adoption and CI integration story"
       proof_status: "deferred-v1"
+    - id: dx-webappbuilder-addvarlock
+      example: examples/dotnet-aspnet-mvc/
+      test: dotnet test packages/dotnet/Varlock.DotNet.Tests/Varlock.DotNet.Tests.csproj (HostingExtensionsTests)
+      caveat: available on net10.0 only; thin delegation to builder.Configuration.AddVarlock() with no new semantics; .NET 10 multi-target is implementation detail until CI proves it explicitly
+      proof_status: proven
+    - id: dx-env-static-load
+      example: none (specimen pending under DX-A2a)
+      test: dotnet test packages/dotnet/Varlock.DotNet.Tests/Varlock.DotNet.Tests.csproj (EnvStaticApiTests)
+      caveat: convenience façade over VarlockCliRuntime for non-hosted/simple scenarios; not the recommended default path until a proving specimen exists; no caching, singleton, or DI semantics
+      proof_status: proven
     - id: dx-machine-readable-errors
       example: none
       test: bridge contract fixture tests
@@ -453,6 +463,65 @@ support_matrix:
     - every row identifies the proving example app, the proving automated test, or a written non-applicable reason
     - caveats remain in the ledger after a row is proven
     - removed claims are deleted or marked intentionally deferred rather than left stale
+
+dx_overhaul_kickoff:
+  proposal_refs:
+    - path: docs/proposals/dotnet-dx-overhaul.md
+      lines: [29, 110]
+    - path: docs/proposals/dotnet-dx-overhaul-proof-plan.md
+      lines: [1, 26]
+  lanes:
+    - id: dx-a1-baseline-shadow
+      owner: O'Brien
+      control_lane: DX-A1
+      shadow_lane: DX-X1
+      example: examples/dotnet-console/
+      implementation_status: in-progress
+      proof_status: planned
+      checked_artifacts:
+        - examples/dotnet-console/dotnet-console.csproj targets net10.0
+        - examples/dotnet-console/Program.cs is a checked-in console scaffold with an explicit Program class and direct VarlockCliRuntime.Load(new VarlockLoadOptions()) usage
+        - examples/dotnet-console/.env.schema contains the narrow string/number/boolean/sensitive schema used by the scaffold
+      proof_artifacts:
+        - scripts/test-dotnet-proof.ts still references the pre-overhaul console specimen path, so the overhaul baseline has no repeatable proving test yet
+        - docs/proposals/dotnet-support.md and the support-matrix rows below remain tied to the earlier console proof slice until replacement proof lands
+      caveats:
+        - the launched directory is not yet the planned single-file AddVarlock()/IConfiguration happy-path baseline from the overhaul proposal
+        - do not recommend examples/dotnet-console/ as the default onboarding path until the checked-in baseline shape and repeatable proof both land
+        - the scaffold targeting net10.0 does not widen supported target-framework claims on its own
+    - id: dx-b1-webappbuilder
+      owner: Data
+      control_lane: DX-B1
+      shadow_lane: DX-X1
+      example: examples/dotnet-aspnet-mvc/
+      implementation_status: complete
+      proof_status: proven
+      checked_artifacts:
+        - packages/dotnet/Varlock.Extensions.Hosting/VarlockWebApplicationBuilderExtensions.cs provides two overloads of WebApplicationBuilder.AddVarlock() guarded by #if NET10_0_OR_GREATER
+        - packages/dotnet/Varlock.Extensions.Hosting/Varlock.Extensions.Hosting.csproj multi-targets netstandard2.0;net10.0 with FrameworkReference Microsoft.AspNetCore.App on net10.0
+        - packages/dotnet/Varlock.DotNet.Tests/HostingExtensionsTests.cs proves overload count and delegation behavior
+      proof_artifacts:
+        - dotnet test packages/dotnet/Varlock.DotNet.Tests/Varlock.DotNet.Tests.csproj passes HostingExtensionsTests
+      caveats:
+        - WebApplicationBuilder extensions are available only on net10.0; the netstandard2.0 target of the hosting package does not expose them
+        - this is thin delegation to builder.Configuration.AddVarlock() with no new semantics; the .NET 10 multi-target is implementation detail, not a public support claim, until CI proves it explicitly
+        - the existing HostApplicationBuilder overloads remain the documented default until proof and docs agree on the broader story
+    - id: dx-b3-env-load
+      owner: Data
+      control_lane: DX-B3
+      shadow_lane: DX-X1
+      example: none
+      implementation_status: complete
+      proof_status: proven
+      checked_artifacts:
+        - packages/dotnet/Varlock.DotNet/Env.cs provides static Load() (3 sync overloads) and LoadAsync() (2 async overloads)
+        - packages/dotnet/Varlock.DotNet.Tests/EnvStaticApiTests.cs proves default-option, configured-option, and async parity
+      proof_artifacts:
+        - dotnet test packages/dotnet/Varlock.DotNet.Tests/Varlock.DotNet.Tests.csproj passes EnvStaticApiTests
+      caveats:
+        - pure sugar over VarlockCliRuntime with no caching, singleton, or DI semantics
+        - not the recommended default path for hosted applications; use AddVarlock() on HostApplicationBuilder or WebApplicationBuilder instead
+        - not docs-ready as a recommended onboarding path until a proving specimen (direct-load example) exists and DX-X1 syncs the claim
 
 testing_matrix:
   owner: O'Brien

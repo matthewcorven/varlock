@@ -95,6 +95,48 @@ See [Troubleshooting & diagnostics](/integrations/dotnet/troubleshooting/) for d
 
 For most applications, use [`Varlock.Extensions.Configuration`](/integrations/dotnet/getting-started/) instead. It provides standard `IConfiguration` integration and handles the bridge details for you.
 
+## Quick start with `Env.Load()`
+
+For simple non-hosted scenarios (console apps, scripts, utilities), the static `Env` class provides a convenience façade over the CLI bridge:
+
+```csharp
+using Varlock.DotNet;
+
+// Load with defaults — discovers schema and executable automatically
+var graph = Env.Load();
+
+// Access resolved values
+Console.WriteLine(graph["MY_API_KEY"]);
+```
+
+With configuration:
+
+```csharp
+var graph = Env.Load(options =>
+{
+    options.SchemaPath = ".env.schema";
+    options.WorkingDirectory = "/path/to/project";
+});
+```
+
+Async variant:
+
+```csharp
+var graph = await Env.LoadAsync();
+```
+
+> **Note:** `Env.Load()` is pure sugar over `VarlockCliRuntime` — it creates a new runtime instance on every call with no caching, singleton state, or DI registration. For hosted applications (ASP.NET Core, Worker Services), use [`Varlock.Extensions.Hosting`](/packages/dotnet/) with `AddVarlock()` instead, which integrates properly with `IConfiguration` and the host lifecycle.
+
+### Available overloads
+
+| Method | Description |
+|--------|-------------|
+| `Env.Load()` | Load with default options |
+| `Env.Load(VarlockLoadOptions)` | Load with explicit options object |
+| `Env.Load(Action<VarlockLoadOptions>)` | Load with configuration delegate |
+| `Env.LoadAsync(CancellationToken)` | Async load with default options |
+| `Env.LoadAsync(VarlockLoadOptions, CancellationToken)` | Async load with explicit options |
+
 ## Related packages
 
 - **[Varlock.Extensions.Configuration](/integrations/dotnet/getting-started/)** — Integration with `IConfigurationBuilder` (recommended for most apps)

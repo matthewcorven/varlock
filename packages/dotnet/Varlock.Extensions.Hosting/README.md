@@ -1,8 +1,8 @@
 # Varlock.Extensions.Hosting
 
-`HostApplicationBuilder` integration for Varlock. Use this in modern .NET hosted applications like ASP.NET Core, Worker Services, and Generic Host applications.
+`HostApplicationBuilder` and `WebApplicationBuilder` integration for Varlock. Use this in modern .NET hosted applications like ASP.NET Core, Worker Services, and Generic Host applications.
 
-This package provides a clean `AddVarlock()` extension that handles Varlock setup in the standard .NET dependency injection container.
+This package provides clean `AddVarlock()` extensions that handle Varlock setup in the standard .NET dependency injection container.
 
 ## Installation
 
@@ -12,7 +12,25 @@ dotnet add package Varlock.Extensions.Hosting
 
 ## Basic usage
 
-For **ASP.NET Core MVC/Minimal APIs**:
+For **ASP.NET Core MVC/Minimal APIs** (requires .NET 10+):
+
+```csharp
+using Varlock.Extensions.Hosting;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add Varlock directly on the builder (net10.0+ only)
+builder.AddVarlock();
+
+// Continue with standard setup
+builder.Services.AddControllersWithViews();
+
+var app = builder.Build();
+app.MapControllers();
+app.Run();
+```
+
+For **ASP.NET Core on earlier target frameworks** (netstandard2.0 compatible):
 
 ```csharp
 using Varlock.Extensions.Hosting;
@@ -52,6 +70,27 @@ builder.Services.AddHostedService<MyBackgroundService>();
 var host = builder.Build();
 await host.RunAsync();
 ```
+
+## WebApplicationBuilder.AddVarlock() (net10.0+)
+
+On .NET 10 and later, `WebApplicationBuilder` gains direct `AddVarlock()` extension methods that mirror the existing `HostApplicationBuilder` overloads:
+
+```csharp
+// Parameterless — uses default options
+builder.AddVarlock();
+
+// With configuration delegate
+builder.AddVarlock(source =>
+{
+    source.SchemaPath = ".env.schema";
+    source.ReloadOnChange = true;
+    source.Optional = false;
+});
+```
+
+These are thin sugar over `builder.Configuration.AddVarlock()` — they do not alter provider order, options, or runtime semantics. The `builder.Configuration.AddVarlock()` call remains available on all target frameworks.
+
+> **Note:** The `WebApplicationBuilder` overloads require the `net10.0` target framework. On earlier frameworks, use `builder.Configuration.AddVarlock()` directly.
 
 ## Configuration options
 
