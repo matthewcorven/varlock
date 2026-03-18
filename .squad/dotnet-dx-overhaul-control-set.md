@@ -137,11 +137,97 @@ This contract defines the first-wave control nodes that must stay green before w
   - proposed wording contradicts `docs/proposals/dotnet-support.md`, the support ledger, or existing P4 NO-GO decisions
 - Ready-now verdict: green. This node should run from day one and never wait for overhaul closeout.
 
+### DX-A2a — First sibling example batch
+
+- Owner: O'Brien
+- Reviewer: Picard
+- Status: **green** — all five sibling examples exist and are buildable
+- Allowed surface:
+  - `examples/dotnet-console-direct-load/**`
+  - `examples/dotnet-console-sensitive/**`
+  - `examples/dotnet-console-reload/**`
+  - `examples/dotnet-console-serilog/**`
+  - `examples/dotnet-console-typed-config/**`
+- Explicit non-goals:
+  - no new package surface or runtime API changes
+  - no docs-ready onboarding claims until DX-X1 syncs the proving boundary
+- Ready-now verdict: **green**. All five sibling examples exist under `examples/`: `dotnet-console-direct-load`, `dotnet-console-sensitive`, `dotnet-console-reload`, `dotnet-console-serilog`, `dotnet-console-typed-config`. Each demonstrates a specific feature story beyond the baseline. `bun run proof:dotnet` exercises the examples that have proof hooks.
+
+### DX-B2 — Varlock metapackage
+
+- Owner: Data
+- Reviewer: Picard
+- Status: **green** — metapackage created and builds
+- Allowed surface:
+  - `packages/dotnet/Varlock/**`
+- Explicit non-goals:
+  - no source code; this is a dependency-only bundle
+  - Varlock.Serilog deliberately excluded as opt-in
+  - Varlock.SourceGeneration excluded (pulled transitively by MSBuild)
+- Required artifacts:
+  - `packages/dotnet/Varlock/Varlock.csproj` with ProjectReference to Varlock.DotNet, Varlock.Extensions.Configuration, Varlock.Extensions.Hosting, and Varlock.MSBuild
+  - `packages/dotnet/Varlock/README.md` documenting bundled packages and opt-in Serilog exclusion
+- Proof commands:
+  - `dotnet build packages/dotnet/Varlock/Varlock.csproj`
+- Acceptance criteria:
+  - the metapackage builds with zero warnings and produces no output assembly (`IncludeBuildOutput=false`)
+  - a consumer referencing only `Varlock` transitively obtains all four core packages
+- Ready-now verdict: **green**. Metapackage csproj and README created. `dotnet build` succeeds with 0 warnings. No source code — pure dependency bundle.
+
+### DX-B4 — DI registration for IVarlockRuntime
+
+- Owner: Data
+- Reviewer: Picard
+- Status: **green** — implemented and tested
+- Allowed surface:
+  - `packages/dotnet/Varlock.Extensions.Hosting/**`
+  - `packages/dotnet/Varlock.DotNet.Tests/**` for DI-specific tests only
+- Explicit non-goals:
+  - no typed binding (`AddVarlock<T>()`) — that belongs to DX-B6
+  - no scoped or transient lifetime; singletons only via TryAddSingleton
+- Required artifacts:
+  - `TryAddSingleton<IVarlockRuntime>(runtime)` registered when `AddVarlock()` is called
+  - `TryAddSingleton<VarlockResolvedGraph>` factory registered using the graph from the configuration source
+  - DI registration shared between `HostApplicationBuilder` and `WebApplicationBuilder` extensions via internal `RegisterServices` method
+  - test coverage proving registration, TryAdd semantics (no overwrite of pre-registered services), null-runtime default, and WebApplicationBuilder parity
+- Proof commands:
+  - `dotnet test packages/dotnet/Varlock.DotNet.Tests/Varlock.DotNet.Tests.csproj --filter HostingExtensionsTests`
+- Acceptance criteria:
+  - `IVarlockRuntime` is injectable from DI after calling `AddVarlock()`
+  - `VarlockResolvedGraph` is injectable and lazily resolved from the configuration source
+  - TryAddSingleton semantics mean pre-registered services are not overwritten
+  - WebApplicationBuilder and HostApplicationBuilder extensions both register the same DI services
+- Ready-now verdict: **green**. Implementation complete in both hosting extension files. Internal `RegisterServices` method shared between both builder types. 5 new tests pass in `HostingExtensionsTests.cs`.
+
+### DX-B8 — Actionable error messages
+
+- Owner: Data
+- Reviewer: Picard
+- Status: **green** — implemented and tested
+- Allowed surface:
+  - `packages/dotnet/Varlock.DotNet/**`
+  - `packages/dotnet/Varlock.DotNet.Tests/**` for error message tests only
+- Explicit non-goals:
+  - no schema parse error translation (depends on CLI stderr structured output)
+  - no validation failure enhancement beyond what the CLI bridge already provides
+- Required artifacts:
+  - `CreateExecutableNotFoundException` method listing searched path categories and install suggestion
+  - `CreateMissingPayloadException` with stderr content inclusion when available
+  - test coverage for searched paths, disabled lookup messages, and stderr inclusion
+- Proof commands:
+  - `dotnet test packages/dotnet/Varlock.DotNet.Tests/Varlock.DotNet.Tests.csproj --filter BridgeContractAlignmentTests`
+- Acceptance criteria:
+  - executable-not-found errors list which path categories were searched and suggest `npm install --save-dev varlock`
+  - both-lookups-disabled errors explain that all lookup paths are disabled
+  - missing payload errors include trimmed CLI stderr when available
+  - all error messages are actionable — they tell the user what happened and what to do
+- Ready-now verdict: **green**. `CreateExecutableNotFoundException` lists searched path categories (node_modules, packages, PATH) based on enabled options plus install suggestion. `CreateMissingPayloadException` includes stderr (trimmed to 500 chars). 4 new tests pass in `BridgeContractAlignmentTests.cs`.
+
 ## Immediate execution verdict
 
-- Implemented and proven: `DX-A1` (baseline console example, proof passes), `DX-B1` (WebApplicationBuilder extensions, tests pass), `DX-B3` (static Env.Load, tests pass, specimen pending)
-- Immediately executable now: `DX-X1` (ongoing), `DX-A2a` (first sibling batch), `DX-B2` (metapackage), `DX-B4` (DI registration), `DX-B5` ([VarlockSensitive] attribute), `DX-B8` (actionable errors)
-- Docs sync completed for DX-B1 and DX-B3 by DX-X1
+- Implemented and proven: `DX-A1` (baseline console example, proof passes), `DX-B1` (WebApplicationBuilder extensions, tests pass), `DX-B3` (static Env.Load, tests pass, specimen pending), `DX-A2a` (first sibling batch, all 5 examples exist), `DX-B2` (metapackage created and builds), `DX-B4` (DI registration, 5 tests pass), `DX-B8` (actionable errors, 4 tests pass)
+- Immediately executable now: `DX-X1` (ongoing), `DX-B5` ([VarlockSensitive] attribute)
+- Docs sync completed for DX-B1 and DX-B3 by DX-X1; sync pending for DX-A2a, DX-B2, DX-B4, DX-B8
 
 ## Fan-out gaps before broader Wiggum spawning
 

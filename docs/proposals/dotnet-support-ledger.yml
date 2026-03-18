@@ -525,6 +525,78 @@ dx_overhaul_kickoff:
         - not the recommended default path for hosted applications; use AddVarlock() on HostApplicationBuilder or WebApplicationBuilder instead
         - not docs-ready as a recommended onboarding path until a proving specimen (direct-load example) exists and DX-X1 syncs the claim
 
+    - id: dx-a2a-sibling-batch
+      owner: O'Brien
+      control_lane: DX-A2a
+      shadow_lane: DX-X1
+      example: examples/dotnet-console-*/
+      implementation_status: complete
+      proof_status: proven
+      checked_artifacts:
+        - examples/dotnet-console-direct-load/ demonstrates Env.Load() static convenience without IConfiguration or DI
+        - examples/dotnet-console-sensitive/ demonstrates sensitive value handling and redaction metadata
+        - examples/dotnet-console-reload/ demonstrates configuration reload-on-change behavior
+        - examples/dotnet-console-serilog/ demonstrates Serilog integration with VarlockConfigMetadata for log redaction
+        - examples/dotnet-console-typed-config/ demonstrates generated typed configuration binding with IOptions<T>
+      proof_artifacts:
+        - all five sibling example directories exist and are buildable
+        - bun run proof:dotnet exercises examples with proof hooks
+      caveats:
+        - individual examples may have varying levels of automated proof coverage
+        - sibling examples demonstrate feature stories beyond the baseline but do not widen supported claims without explicit DX-X1 sync
+    - id: dx-b2-metapackage
+      owner: Data
+      control_lane: DX-B2
+      shadow_lane: DX-X1
+      example: none
+      implementation_status: complete
+      proof_status: proven
+      checked_artifacts:
+        - packages/dotnet/Varlock/Varlock.csproj is a dependency-only metapackage with IncludeBuildOutput=false and ProjectReference to Varlock.DotNet, Varlock.Extensions.Configuration, Varlock.Extensions.Hosting, and Varlock.MSBuild
+        - packages/dotnet/Varlock/README.md documents bundled packages, install command, and deliberate Serilog exclusion
+      proof_artifacts:
+        - dotnet build packages/dotnet/Varlock/Varlock.csproj succeeds with 0 warnings
+      caveats:
+        - Varlock.Serilog is deliberately excluded as an opt-in dependency
+        - Varlock.SourceGeneration is excluded because it is pulled transitively by Varlock.MSBuild
+        - this is a project-local metapackage; NuGet publishing is a separate concern
+    - id: dx-b4-di-registration
+      owner: Data
+      control_lane: DX-B4
+      shadow_lane: DX-X1
+      example: none
+      implementation_status: complete
+      proof_status: proven
+      checked_artifacts:
+        - packages/dotnet/Varlock.Extensions.Hosting/VarlockHostApplicationBuilderExtensions.cs registers IVarlockRuntime and VarlockResolvedGraph via TryAddSingleton after AddVarlock() is called
+        - packages/dotnet/Varlock.Extensions.Hosting/VarlockWebApplicationBuilderExtensions.cs delegates to shared RegisterServices method for DI parity
+        - internal RegisterServices(IServiceCollection, VarlockConfigurationSource) method is shared between both builder extension types
+      proof_artifacts:
+        - dotnet test packages/dotnet/Varlock.DotNet.Tests/Varlock.DotNet.Tests.csproj --filter HostingExtensionsTests passes 5 new DI-specific tests
+        - tests verify IVarlockRuntime registration, VarlockResolvedGraph factory, TryAdd no-overwrite semantics, null-runtime default to VarlockCliRuntime, and WebApplicationBuilder DI parity
+      caveats:
+        - DI services use TryAddSingleton to avoid overwriting pre-registered services
+        - VarlockResolvedGraph is registered as a factory that lazily resolves from the configuration source's last loaded graph
+        - this is singleton-scoped DI only; scoped or transient lifetimes are not supported
+    - id: dx-b8-actionable-errors
+      owner: Data
+      control_lane: DX-B8
+      shadow_lane: DX-X1
+      example: none
+      implementation_status: complete
+      proof_status: proven
+      checked_artifacts:
+        - packages/dotnet/Varlock.DotNet/VarlockCliRuntime.cs contains CreateExecutableNotFoundException listing searched path categories (node_modules, packages, PATH) and install suggestion
+        - packages/dotnet/Varlock.DotNet/VarlockCliRuntime.cs contains improved CreateMissingPayloadException including CLI stderr content (trimmed to 500 chars) when available
+        - ResolveExecutable now delegates to CreateExecutableNotFoundException for consistent error formatting
+      proof_artifacts:
+        - dotnet test packages/dotnet/Varlock.DotNet.Tests/Varlock.DotNet.Tests.csproj --filter BridgeContractAlignmentTests passes 4 new error assertion tests
+        - tests verify searched paths inclusion, install suggestion, disabled-lookup message, stderr inclusion, and clean message without stderr
+      caveats:
+        - schema parse error translation and validation failure enhancement depend on CLI stderr structured output and are not yet addressed
+        - error messages list searched path categories, not actual filesystem paths traversed
+        - stderr inclusion is trimmed to 500 characters to prevent exception messages from becoming unwieldy
+
 testing_matrix:
   owner: O'Brien
   proposal_refs:
