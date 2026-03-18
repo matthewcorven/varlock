@@ -4,11 +4,10 @@
 
 <div class="text-center">
     <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+    <p>This example keeps the proof narrow: Varlock is added through <code>WebApplicationBuilder</code> and its values flow into MVC alongside normal ASP.NET configuration sources.</p>
 </div>
 
-@* 👈 Varlock: display configuration values loaded from .env.schema *@
-<h2>Varlock Configuration</h2>
+<h2>Configuration Check</h2>
 <table class="table table-striped">
     <thead>
         <tr>
@@ -21,7 +20,7 @@
         {
             <tr>
                 <td>@item.Key</td>
-                <td><code>@item.Display</code></td>
+                <td><code>@item.Value</code></td>
             </tr>
         }
     </tbody>

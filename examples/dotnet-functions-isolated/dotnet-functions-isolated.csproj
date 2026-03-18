@@ -9,10 +9,6 @@
     <RootNamespace>dotnet_functions_isolated</RootNamespace>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <VarlockEnabled>true</VarlockEnabled>
-  </PropertyGroup>
-
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.ApplicationInsights.WorkerService" Version="2.23.0" />
@@ -25,8 +21,5 @@
   <ItemGroup>
     <ProjectReference Include="../../packages/dotnet/Varlock.Extensions.Configuration/Varlock.Extensions.Configuration.csproj" />
   </ItemGroup>
-
-  <Import Project="../../packages/dotnet/Varlock.MSBuild/build/Varlock.MSBuild.props" Condition="Exists('../../packages/dotnet/Varlock.MSBuild/build/Varlock.MSBuild.props')" />
-  <Import Project="../../packages/dotnet/Varlock.MSBuild/build/Varlock.MSBuild.targets" Condition="Exists('../../packages/dotnet/Varlock.MSBuild/build/Varlock.MSBuild.targets')" />
 
 </Project>

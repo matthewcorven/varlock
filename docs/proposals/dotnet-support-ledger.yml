@@ -335,33 +335,33 @@ support_matrix:
     - id: claim-aspnet-provider
       example: examples/dotnet-aspnet-mvc-net8/
       test: bun run proof:dotnet ASP.NET provider check
-      caveat: startup-only provider ordering over appsettings; options binding and reload remain out of slice
+      caveat: startup-only WebApplicationBuilder integration with appsettings ordering and User Secrets coexistence; reload, typed binding, and Serilog live in focused sibling or test lanes
       proof_status: proven
     - id: claim-worker-monitor
       example: examples/dotnet-worker-net8/
-      test: worker IOptionsMonitor<T> reload test
-      caveat: proves long-lived reload behavior
-      proof_status: planned
+      test: bun run proof:dotnet worker host check
+      caveat: proves HostApplicationBuilder.AddVarlock() wiring for a hosted service, not reload semantics
+      proof_status: proven
     - id: claim-functions-isolated
       example: examples/dotnet-functions-isolated-net8/
-      test: functions isolated startup smoke test
+      test: bun run proof:dotnet functions isolated startup check
       caveat: documents coexistence with local.settings.json
-      proof_status: planned
+      proof_status: proven
     - id: claim-winforms-legacy
       example: examples/dotnet-winforms-net48/
-      test: legacy desktop bridge smoke test
+      test: bun run proof:dotnet winforms legacy bridge check
       caveat: minimum supported legacy target stays explicit
-      proof_status: planned
+      proof_status: proven
     - id: claim-blazor-server
       example: examples/dotnet-blazor-server-net8/
-      test: blazor server hosting smoke test
+      test: bun run proof:dotnet blazor server hosting startup check
       caveat: proves server-side config access only
-      proof_status: planned
+      proof_status: proven
     - id: claim-blazor-wasm-public
       example: examples/dotnet-blazor-wasm-net8-public/
-      test: wasm public-config build validation test
+      test: bun run proof:dotnet wasm public-only generation boundary check
       caveat: proves sensitive values do not cross the public boundary
-      proof_status: planned
+      proof_status: proven
   developer_experience:
     - id: dx-dotnet-run
       example: examples/dotnet-console-net8/
@@ -405,33 +405,33 @@ support_matrix:
       proof_status: proven
     - id: dx-local-settings
       example: examples/dotnet-functions-isolated-net8/
-      test: Azure Functions config layering test
+      test: bun run proof:dotnet Azure Functions config layering test
       caveat: functions-specific only
-      proof_status: planned
+      proof_status: proven
     - id: dx-options-binding
-      example: examples/dotnet-aspnet-mvc-net8/
-      test: options binding test
-      caveat: covers user-authored and generated POCOs where supported
-      proof_status: planned
+      example: examples/dotnet-console-di-options/
+      test: bun run proof:dotnet di-options check
+      caveat: covers the current manual hosted options pattern only; generated-type and convenience-overload stories are tracked separately
+      proof_status: proven
     - id: dx-options-snapshot
-      example: examples/dotnet-aspnet-mvc-net8/
-      test: snapshot reload test
-      caveat: request-scoped semantics stay explicit
+      example: none (focused specimen removed by DX-A3)
+      test: no dedicated proof artifact currently checked in
+      caveat: request-scoped semantics remain part of the product target, but the old framework-backed specimen was intentionally removed when feature demos moved out of framework examples
       proof_status: planned
     - id: dx-options-monitor
-      example: examples/dotnet-worker-net8/
-      test: monitor reload test
-      caveat: proves last-known-good preservation
+      example: none (focused specimen removed by DX-A3)
+      test: ReloadTests cover provider reload mechanics, not a dedicated IOptionsMonitor<T> specimen
+      caveat: long-lived reload semantics remain planned until a narrow proof artifact exists again
       proof_status: planned
     - id: dx-csharp-generation
-      example: examples/dotnet-aspnet-mvc-net8/
-      test: bun run proof:dotnet generated-type binder check
-      caveat: proof now covers checked-in fixture parity plus example-backed generation and binder validation; MSBuild-automated generation remains planned under P2-B1
+      example: examples/dotnet-console-typed-config/ + examples/dotnet-console-public-only/
+      test: bun run proof:dotnet typed-config check, public-only check, and packed Varlock.MSBuild package-consumer proof
+      caveat: the proof covers focused console specimens plus the package-consumer asset story; framework examples no longer own C# generation claims
       proof_status: proven
     - id: dx-serilog-redaction
-      example: examples/dotnet-aspnet-mvc-net8/
-      test: bun run proof:dotnet ASP.NET --serilog-proof check
-      caveat: Serilog-specific destructuring redaction only; exact case-sensitive key matches inside {@obj} are redacted to [REDACTED], `WithVarlockMetadata(graph)` adds metadata only, and scalar params remain raw
+      example: examples/dotnet-console-serilog/
+      test: bun run proof:dotnet console Serilog check
+      caveat: Serilog-specific structured logging only; console specimen proves redaction without implying broader hosting semantics
       proof_status: proven
     - id: dx-non-serilog-fallback
       example: examples/dotnet-console-net8/
@@ -653,6 +653,23 @@ dx_overhaul_kickoff:
         - the exec example is scoped to the checked-in local command seam and does not widen external secret-manager claims
         - the DI/options example proves a manual mapping pattern only; it does not establish AddVarlock<T>() or generated-type binder support
         - the leak-prevention example proves metadata-only behavior for PreventLeaks and manual redaction-helper output only
+    - id: dx-a3-framework-simplification
+      owner: O'Brien
+      control_lane: DX-A3
+      shadow_lane: DX-X1
+      example: examples/dotnet-aspnet-mvc/ + examples/dotnet-worker/ + examples/dotnet-functions-isolated/ + examples/dotnet-blazor-server/ + examples/dotnet-winforms/ + examples/dotnet-blazor-wasm-public/
+      implementation_status: complete
+      proof_status: proven
+      checked_artifacts:
+        - framework examples now keep only framework-specific integration code paths and minimal schemas
+        - each framework example README scopes the supported boundary in plain language
+        - MVC proves WebApplicationBuilder integration plus appsettings/User Secrets coexistence
+        - Worker proves HostApplicationBuilder integration, Functions proves local.settings coexistence, Blazor Server proves component access, WinForms proves direct runtime usage, and WASM proves public-only generation
+      proof_artifacts:
+        - bun run proof:dotnet builds every framework example and runs narrow dump-config assertions for MVC, Worker, Functions, Blazor Server, and WinForms, plus generated-file assertions for WASM
+      caveats:
+        - feature-heavy stories already covered by console siblings or package tests were intentionally removed from the framework examples
+        - request-scoped and long-lived options reload semantics remain planned until a new focused proof artifact exists
     - id: dx-b2-metapackage
       owner: Data
       control_lane: DX-B2

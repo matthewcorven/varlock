@@ -2,14 +2,12 @@ namespace dotnet_worker;
 
 public class Worker(ILogger<Worker> logger, IConfiguration configuration) : BackgroundService // 👈 Varlock: inject IConfiguration
 {
-    // 👈 Varlock: known keys from .env.schema
-    private static readonly string[] VarlockKeys = ["APP_NAME", "APP_PORT", "FEATURE_ENABLED"];
+    private static readonly string[] Keys = ["APP_NAME", "WORKER_MESSAGE"];
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // 👈 Varlock: log configuration values on startup
-        logger.LogInformation("Varlock configuration:");
-        foreach (var key in VarlockKeys)
+        logger.LogInformation("Worker started with Varlock configuration:");
+        foreach (var key in Keys)
         {
             logger.LogInformation("  {Key} = {Value}", key, configuration[key] ?? "(null)");
         }

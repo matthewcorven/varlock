@@ -9,6 +9,15 @@ Current automated proof in `bun run proof:dotnet` covers:
 - second console sibling batch: custom schema path, custom working directory, provider-level environment fallback, optional startup, and custom runtime injection
 - third console sibling batch: coercion, expected validation failure, public-only build artifact filtering, local `exec()` command resolution, schema reference composition, manual DI/options mapping, explicit executable override, and metadata-only leak-prevention surfacing
 
+The framework examples are intentionally narrower than the console siblings:
+
+- `dotnet-aspnet-mvc` proves `WebApplicationBuilder.AddVarlock()` plus coexistence with `appsettings.json` and User Secrets
+- `dotnet-worker` proves `HostApplicationBuilder.AddVarlock()` inside a hosted service setup
+- `dotnet-functions-isolated` proves configuration layering with `local.settings.json`
+- `dotnet-blazor-server` proves server-side component access through `IConfiguration`
+- `dotnet-winforms` proves direct `VarlockCliRuntime.Load()` usage in desktop code
+- `dotnet-blazor-wasm-public` proves only the build-time `publicOnly=true` boundary
+
 The console baseline still carries the executable-acquisition proof paths:
 
 1. repo-local lookup to `packages/varlock/bin/cli.js`

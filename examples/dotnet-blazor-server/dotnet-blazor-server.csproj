@@ -9,15 +9,8 @@
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <VarlockEnabled>true</VarlockEnabled>
-  </PropertyGroup>
-
   <ItemGroup>
-    <ProjectReference Include="../../packages/dotnet/Varlock.Extensions.Configuration/Varlock.Extensions.Configuration.csproj" />
+    <ProjectReference Include="../../packages/dotnet/Varlock.Extensions.Hosting/Varlock.Extensions.Hosting.csproj" />
   </ItemGroup>
-
-  <Import Project="../../packages/dotnet/Varlock.MSBuild/build/Varlock.MSBuild.props" Condition="Exists('../../packages/dotnet/Varlock.MSBuild/build/Varlock.MSBuild.props')" />
-  <Import Project="../../packages/dotnet/Varlock.MSBuild/build/Varlock.MSBuild.targets" Condition="Exists('../../packages/dotnet/Varlock.MSBuild/build/Varlock.MSBuild.targets')" />
 
 </Project>

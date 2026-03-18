@@ -8,7 +8,7 @@ namespace dotnet_functions_isolated;
 // 👈 Varlock: HTTP-triggered function that displays configuration values loaded from .env.schema
 public class ConfigFunction(IConfiguration configuration)
 {
-    private static readonly string[] VarlockKeys = ["APP_NAME", "APP_PORT", "FEATURE_ENABLED"];
+    private static readonly string[] Keys = ["APP_NAME", "FUNCTIONS_ONLY_KEY"];
 
     [Function("Config")]
     public HttpResponseData Run([HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequestData req)
@@ -16,8 +16,8 @@ public class ConfigFunction(IConfiguration configuration)
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "text/plain; charset=utf-8");
 
-        response.WriteString("Varlock configuration:\n");
-        foreach (var key in VarlockKeys)
+        response.WriteString("Functions configuration:\n");
+        foreach (var key in Keys)
         {
             var value = configuration[key] ?? "(null)";
             response.WriteString($"  {key} = {value}\n");

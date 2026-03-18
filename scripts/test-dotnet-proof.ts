@@ -22,49 +22,29 @@ type ConsoleBaselineOutput = {
 
 type AspNetPayload = {
   AppName: string;
-  AppPort: number;
-  FeatureEnabled: boolean;
   AppSettingsOnly: string;
-  SecretTokenPresent: boolean;
   UserSecretsOnly: string;
-};
-
-type AspNetSerilogPayload = {
-  graphRedactLogs: boolean;
-  eventRedactLogs: boolean;
-  destructuredSecretToken: string;
-  destructuredAppName: string;
-  destructuredCaseMismatchSecretToken: string;
-  scalarSecretToken: string;
 };
 
 type WorkerPayload = {
   AppName: string;
-  AppPort: number;
-  FeatureEnabled: boolean;
+  WorkerMessage: string;
 };
 
 type FunctionsPayload = {
   AppName: string;
-  AppPort: number;
-  FeatureEnabled: boolean;
   FunctionsOnlyKey?: string;
 };
 
 type BlazorPayload = {
   AppName: string;
-  AppPort: number;
-  FeatureEnabled: boolean;
+  ComponentMessage: string;
 };
 
 type WinFormsPayload = {
-  appName: string;
-  httpPort: number;
-  featureEnabled: boolean;
-  secretIsSensitive: boolean;
-  redactLogs: boolean;
-  preventLeaks: boolean;
-  sourceLabels: Array<string>;
+  AppName: string;
+  WindowTitle: string;
+  SchemaSourcePresent: boolean;
 };
 
 type ExecutableHarness = {
@@ -108,6 +88,22 @@ function runDotnet(projectDir: string, args: Array<string>, envOverrides: NodeJS
     stderr: result.stderr ?? '',
     exitCode: result.status ?? (result.signal ? 0 : 1),
   };
+}
+
+function runBuiltAssembly(
+  projectDir: string,
+  assemblyName: string,
+  targetFramework: string,
+  args: Array<string>,
+  envOverrides: NodeJS.ProcessEnv = {},
+  timeoutMs?: number,
+): CommandResult {
+  return runDotnet(
+    projectDir,
+    [getBuildOutputPath(projectDir, assemblyName, targetFramework), ...args],
+    envOverrides,
+    timeoutMs,
+  );
 }
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -198,36 +194,20 @@ function assertConsoleBaselineOutput(output: ConsoleBaselineOutput, proofLabel: 
 }
 
 function assertAspNetPayload(payload: AspNetPayload, proofLabel: string, expectedUserSecretsOnly = '') {
-  assert(payload.AppName === 'varlock-web', `${proofLabel} should let Varlock override APP_NAME from appsettings.`);
-  assert(payload.AppPort === 4311, `${proofLabel} should let Varlock override APP_PORT from appsettings.`);
-  assert(payload.FeatureEnabled === true, `${proofLabel} should let Varlock override FEATURE_ENABLED from appsettings.`);
+  assert(payload.AppName === 'varlock-mvc', `${proofLabel} should let Varlock override APP_NAME from appsettings.`);
   assert(
     payload.AppSettingsOnly === 'retained-from-appsettings',
     `${proofLabel} should keep unrelated appsettings keys intact.`,
   );
-  assert(payload.SecretTokenPresent === true, `${proofLabel} should surface Varlock-backed secret presence.`);
   assert(payload.UserSecretsOnly === expectedUserSecretsOnly, `${proofLabel} should preserve the expected User Secrets-only value.`);
-}
-
-function assertAspNetSerilogPayload(payload: AspNetSerilogPayload) {
-  assert(payload.graphRedactLogs === true, 'ASP.NET Serilog proof should observe graph.RedactLogs from the loaded graph.');
-  assert(payload.eventRedactLogs === payload.graphRedactLogs, 'ASP.NET Serilog proof should enrich VarlockRedactLogs metadata without mutating it.');
-  assert(payload.destructuredSecretToken === '[REDACTED]', 'ASP.NET Serilog proof should use the literal [REDACTED] for exact, case-sensitive sensitive-key matches during destructuring.');
-  assert(payload.destructuredAppName === 'varlock-web', 'ASP.NET Serilog proof should leave non-sensitive destructured values unchanged.');
-  assert(
-    payload.destructuredCaseMismatchSecretToken === 'web-secret-value',
-    'ASP.NET Serilog proof should use exact case-sensitive key matching rather than redacting mismatched keys.',
-  );
-  assert(
-    payload.scalarSecretToken === 'web-secret-value',
-    'ASP.NET Serilog proof should show that scalar message-template parameters remain raw.',
-  );
 }
 
 function assertWorkerPayload(payload: WorkerPayload, proofLabel: string) {
   assert(payload.AppName === 'varlock-worker', `${proofLabel} should resolve APP_NAME from Varlock.`);
-  assert(payload.AppPort === 4313, `${proofLabel} should coerce APP_PORT to a number.`);
-  assert(payload.FeatureEnabled === true, `${proofLabel} should coerce FEATURE_ENABLED to a boolean.`);
+  assert(
+    payload.WorkerMessage === 'BackgroundService received configuration from Varlock',
+    `${proofLabel} should expose the worker-specific message from Varlock.`,
+  );
 }
 
 function createExecutableHarness(
@@ -361,11 +341,6 @@ function clearUserSecrets(projectDir: string) {
     'dotnet user-secrets clear',
     runDotnet(projectDir, ['user-secrets', 'clear']),
   );
-}
-
-function schemaUsesUnsupportedCoerceDecorator(projectDir: string) {
-  const schemaPath = join(projectDir, '.env.schema');
-  return fs.existsSync(schemaPath) && fs.readFileSync(schemaPath, 'utf8').includes('@coerce=');
 }
 
 function escapeXml(value: string) {
@@ -517,8 +492,6 @@ const winFormsProjectDir = join(repoRoot, 'examples', 'dotnet-winforms');
 const wasmProjectDir = join(repoRoot, 'examples', 'dotnet-blazor-wasm-public');
 const wasmGeneratedTypeDir = join(wasmProjectDir, 'obj', 'Varlock');
 const wasmGeneratedTypePath = join(wasmGeneratedTypeDir, 'VarlockPublicConfig.g.cs');
-const aspNetGeneratedTypeDir = join(aspNetProjectDir, 'obj', 'Varlock');
-const aspNetGeneratedTypePath = join(aspNetGeneratedTypeDir, 'VarlockConfig.g.cs');
 const publicOnlyGeneratedTypeDir = join(publicOnlyProjectDir, 'obj', 'Varlock');
 const publicOnlyGeneratedTypePath = join(publicOnlyGeneratedTypeDir, 'VarlockPublicConfig.g.cs');
 
@@ -565,12 +538,6 @@ try {
   packedMsbuildPackage.cleanup();
 }
 
-fs.rmSync(aspNetGeneratedTypeDir, { recursive: true, force: true });
-assert(
-  !fs.existsSync(aspNetGeneratedTypePath),
-  'proof:dotnet should start from a clean obj/Varlock/ generated-output path before MSBuild generation runs.',
-);
-
 assertCommandSucceeded(
   'dotnet build dotnet-console',
   runDotnet(consoleProjectDir, ['build', '--nologo', '--verbosity', 'quiet']),
@@ -587,10 +554,6 @@ assertCommandSucceeded(
 assert(
   fs.existsSync(getBuildOutputPath(aspNetProjectDir, 'dotnet-aspnet-mvc', 'net10.0')),
   'dotnet build proof should produce the ASP.NET example assembly under bin/Debug/net10.0.',
-);
-assert(
-  fs.existsSync(aspNetGeneratedTypePath),
-  'proof:dotnet should generate the ASP.NET C# specimen at examples/dotnet-aspnet-mvc/obj/Varlock/VarlockConfig.g.cs during dotnet build.',
 );
 
 assertCommandSucceeded(
@@ -640,33 +603,6 @@ assertCommandSucceeded(
 assert(
   fs.existsSync(wasmGeneratedTypePath),
   'dotnet build proof should generate the WASM public-only C# specimen at examples/dotnet-blazor-wasm-public/obj/Varlock/VarlockPublicConfig.g.cs during dotnet build.',
-);
-
-const aspNetGeneratedTypeSrc = fs.readFileSync(aspNetGeneratedTypePath, 'utf8');
-assert(
-  aspNetGeneratedTypeSrc.includes('namespace Varlock.Generated'),
-  'proof:dotnet should generate the ASP.NET specimen with the configured Varlock.Generated namespace.',
-);
-assert(
-  aspNetGeneratedTypeSrc.includes('public sealed partial class VarlockConfig'),
-  'proof:dotnet should generate the ASP.NET specimen with the configured VarlockConfig type name.',
-);
-
-const aspNetGeneratedTypeMtimeMs = fs.statSync(aspNetGeneratedTypePath).mtimeMs;
-
-assertCommandSucceeded(
-  'dotnet build dotnet-aspnet-mvc incremental',
-  runDotnet(aspNetProjectDir, ['build', '--nologo', '--verbosity', 'quiet']),
-);
-
-const aspNetGeneratedTypeSrcAfterIncrementalBuild = fs.readFileSync(aspNetGeneratedTypePath, 'utf8');
-assert(
-  aspNetGeneratedTypeSrcAfterIncrementalBuild === aspNetGeneratedTypeSrc,
-  'proof:dotnet should keep ASP.NET generated C# output deterministic across identical builds.',
-);
-assert(
-  fs.statSync(aspNetGeneratedTypePath).mtimeMs === aspNetGeneratedTypeMtimeMs,
-  'proof:dotnet should not rewrite the ASP.NET generated C# file when MSBuild inputs are unchanged.',
 );
 
 const consoleResult = runDotnet(consoleProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
@@ -1015,19 +951,6 @@ assertCommandSucceeded('dotnet run dotnet-console-leak-prevention', leakPreventi
   assert(lines.get('LEAK_PREVENTION_BOUNDARY') === 'metadata-only', 'leak-prevention should scope the proof to metadata-only behavior.');
 }
 
-const shouldSkipExtendedRuntimeProofs = process.env.VARLOCK_DOTNET_PROOF_FULL !== '1'
-  && [
-    aspNetProjectDir,
-    workerProjectDir,
-    functionsProjectDir,
-    blazorProjectDir,
-  ].some(schemaUsesUnsupportedCoerceDecorator);
-
-if (shouldSkipExtendedRuntimeProofs) {
-  console.log('Extended .NET runtime proofs skipped: non-baseline examples still declare @coerce, which the current CLI bridge rejects. Set VARLOCK_DOTNET_PROOF_FULL=1 to force the broader suite.');
-  process.exit(0);
-}
-
 const aspNetResult = runDotnet(aspNetProjectDir, [
   'run',
   '--no-build',
@@ -1040,40 +963,6 @@ const aspNetResult = runDotnet(aspNetProjectDir, [
 const aspNetPayload = parseJsonOutput<AspNetPayload>('dotnet-aspnet-mvc-net8', aspNetResult);
 assertAspNetPayload(aspNetPayload, 'ASP.NET baseline proof');
 
-const aspNetOptionsResult = runDotnet(aspNetProjectDir, [
-  'run',
-  '--no-build',
-  '--no-launch-profile',
-  '--verbosity',
-  'quiet',
-  '--',
-  '--options-proof',
-]);
-const aspNetOptionsPayload = parseJsonOutput<AspNetPayload>('dotnet-aspnet-mvc-net8 options', aspNetOptionsResult);
-assertAspNetPayload(aspNetOptionsPayload, 'ASP.NET options proof');
-
-// Hosted ASP.NET MVC Serilog specimen: destructuring redaction, metadata-only enrichment,
-// case-sensitive key matching, and scalar-template non-coverage.
-const aspNetSerilogResult = runDotnet(aspNetProjectDir, [
-  'run',
-  '--no-build',
-  '--no-launch-profile',
-  '--verbosity',
-  'quiet',
-  '--',
-  '--serilog-proof',
-]);
-assertCommandSucceeded('dotnet-aspnet-mvc-net8 --serilog-proof', aspNetSerilogResult);
-
-const aspNetSerilogLines = parseTaggedLines(aspNetSerilogResult.stdout, ['SERILOG_PROOF']);
-assert(
-  aspNetSerilogLines.has('SERILOG_PROOF'),
-  'ASP.NET Serilog proof should emit a SERILOG_PROOF line.',
-);
-
-const aspNetSerilogPayload = JSON.parse(aspNetSerilogLines.get('SERILOG_PROOF')!) as AspNetSerilogPayload;
-assertAspNetSerilogPayload(aspNetSerilogPayload);
-
 const workerResult = runDotnet(workerProjectDir, [
   'run',
   '--no-build',
@@ -1085,21 +974,14 @@ const workerResult = runDotnet(workerProjectDir, [
 const workerPayload = parseJsonOutput<WorkerPayload>('dotnet-worker-net8', workerResult);
 assertWorkerPayload(workerPayload, 'Worker example through HostApplicationBuilder.AddVarlock()');
 
-const functionsResult = runDotnet(functionsProjectDir, [
-  'run',
-  '--no-build',
-  '--verbosity',
-  'quiet',
-  '--',
+const functionsResult = runBuiltAssembly(functionsProjectDir, 'dotnet-functions-isolated', 'net10.0', [
   '--dump-config',
 ]);
 const functionsPayload = parseJsonOutput<FunctionsPayload>('dotnet-functions-isolated-net8', functionsResult);
 
 assert(functionsPayload.AppName === 'varlock-functions', 'Functions example should resolve APP_NAME from Varlock.');
-assert(functionsPayload.AppPort === 7071, 'Functions example should coerce APP_PORT to a number.');
-assert(functionsPayload.FeatureEnabled === true, 'Functions example should coerce FEATURE_ENABLED to a boolean.');
 assert(
-  typeof functionsPayload.FunctionsOnlyKey === 'string',
+  functionsPayload.FunctionsOnlyKey === 'retained-from-local-settings',
   'Functions example should preserve local.settings.json keys alongside Varlock configuration.',
 );
 
@@ -1114,8 +996,10 @@ const blazorResult = runDotnet(blazorProjectDir, [
 const blazorPayload = parseJsonOutput<BlazorPayload>('dotnet-blazor-server-net8', blazorResult);
 
 assert(blazorPayload.AppName === 'varlock-blazor-server', 'Blazor Server example should resolve APP_NAME from Varlock.');
-assert(blazorPayload.AppPort === 5280, 'Blazor Server example should coerce APP_PORT to a number.');
-assert(blazorPayload.FeatureEnabled === true, 'Blazor Server example should coerce FEATURE_ENABLED to a boolean.');
+assert(
+  blazorPayload.ComponentMessage === 'Loaded from IConfiguration inside a Razor component',
+  'Blazor Server example should expose the component-specific message from Varlock.',
+);
 
 // --- Proof: WinForms legacy bridge (non-hosted direct runtime) ---
 
@@ -1123,16 +1007,9 @@ if (isWindows) {
   const winFormsResult = runDotnet(winFormsProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet', '--', '--dump-config']);
   const winFormsPayload = parseJsonOutput<WinFormsPayload>('dotnet-winforms-net48', winFormsResult);
 
-  assert(winFormsPayload.appName === 'varlock-winforms', 'WinForms example should resolve APP_NAME from Varlock.');
-  assert(winFormsPayload.httpPort === 4311, 'WinForms example should coerce HTTP_PORT to a number.');
-  assert(winFormsPayload.featureEnabled === true, 'WinForms example should coerce FEATURE_ENABLED to a boolean.');
-  assert(winFormsPayload.secretIsSensitive === true, 'WinForms example should preserve sensitive metadata.');
-  assert(winFormsPayload.redactLogs === true, 'WinForms example should surface RedactLogs from the graph.');
-  assert(winFormsPayload.preventLeaks === true, 'WinForms example should surface PreventLeaks from the graph.');
-  assert(
-    winFormsPayload.sourceLabels.some((label) => label.includes('.env.schema')),
-    'WinForms example should report the schema source in its resolved graph.',
-  );
+  assert(winFormsPayload.AppName === 'varlock-winforms', 'WinForms example should resolve APP_NAME from Varlock.');
+  assert(winFormsPayload.WindowTitle === 'Varlock WinForms', 'WinForms example should resolve WINDOW_TITLE from Varlock.');
+  assert(winFormsPayload.SchemaSourcePresent === true, 'WinForms example should report the schema source in its resolved graph.');
 } else {
   console.log('WinForms runtime proof skipped (Windows-only).');
 }
@@ -1155,8 +1032,8 @@ assert(
   'WASM public-only generated type must not contain IsSensitive metadata.',
 );
 assert(
-  !wasmGeneratedTypeSrc.includes('API_KEY'),
-  'WASM public-only generated type must not contain the sensitive API_KEY property.',
+  !wasmGeneratedTypeSrc.includes('SecretToken'),
+  'WASM public-only generated type must not contain the sensitive SecretToken property.',
 );
 
 // Public-only type must still have non-sensitive properties
@@ -1165,12 +1042,8 @@ assert(
   'WASM public-only generated type should contain the non-sensitive AppName property.',
 );
 assert(
-  wasmGeneratedTypeSrc.includes('public double AppPort'),
-  'WASM public-only generated type should contain the non-sensitive AppPort property.',
-);
-assert(
-  wasmGeneratedTypeSrc.includes('public bool FeatureEnabled'),
-  'WASM public-only generated type should contain the non-sensitive FeatureEnabled property.',
+  wasmGeneratedTypeSrc.includes('public string PublicBaseUrl'),
+  'WASM public-only generated type should contain the non-sensitive PublicBaseUrl property.',
 );
 
 // PropertyKeys metadata (safe for public bundles) must still be present
@@ -1205,320 +1078,5 @@ try {
 } finally {
   clearUserSecrets(aspNetProjectDir);
 }
-
-// --- Reload proof: successful reload fires configuration change notification ---
-
-const reloadSuccessResult = runDotnet(aspNetProjectDir, [
-  'run',
-  '--no-build',
-  '--no-launch-profile',
-  '--verbosity',
-  'quiet',
-  '--',
-  '--reload-proof',
-]);
-
-assert(
-  reloadSuccessResult.exitCode === 0,
-  `Reload success proof should exit cleanly, got code ${reloadSuccessResult.exitCode}.\n${reloadSuccessResult.stdout}\n${reloadSuccessResult.stderr}`,
-);
-
-const reloadSuccessLines = parseTaggedLines(reloadSuccessResult.stdout, ['RELOAD_']);
-
-assert(
-  reloadSuccessLines.has('RELOAD_PROOF_INITIAL'),
-  'Reload success proof should emit RELOAD_PROOF_INITIAL line.',
-);
-
-const reloadInitial = JSON.parse(reloadSuccessLines.get('RELOAD_PROOF_INITIAL')!) as AspNetPayload;
-assert(
-  reloadInitial.AppName === 'varlock-web',
-  'Reload proof initial state should have APP_NAME = varlock-web.',
-);
-
-assert(
-  !reloadSuccessLines.has('RELOAD_PROOF_TIMEOUT'),
-  'Reload success proof should not time out. Configuration change notification must fire after a successful file change.',
-);
-
-assert(
-  reloadSuccessLines.has('RELOAD_PROOF_RELOADED'),
-  'Reload success proof should emit RELOAD_PROOF_RELOADED line after file change triggers reload.',
-);
-
-const reloadReloaded = JSON.parse(reloadSuccessLines.get('RELOAD_PROOF_RELOADED')!) as AspNetPayload;
-assert(
-  reloadReloaded.AppName === 'varlock-reloaded',
-  'After successful reload, APP_NAME should reflect the updated .env.schema value.',
-);
-
-const reloadCount = parseInt(reloadSuccessLines.get('RELOAD_PROOF_COUNT') ?? '0', 10);
-assert(
-  reloadCount >= 1,
-  'Reload success proof should report at least one configuration reload notification.',
-);
-
-assert(
-  reloadSuccessLines.has('RELOAD_PROOF_MONITOR_APP_NAME'),
-  'Reload success proof should emit RELOAD_PROOF_MONITOR_APP_NAME line.',
-);
-assert(
-  reloadSuccessLines.get('RELOAD_PROOF_MONITOR_APP_NAME') === 'varlock-reloaded',
-  'IOptionsMonitor<VarlockAppOptions>.CurrentValue.APP_NAME should reflect the reloaded value.',
-);
-
-// --- Reload proof: failed reload does NOT fire notification or mutate state ---
-
-const reloadFailResult = runDotnet(aspNetProjectDir, [
-  'run',
-  '--no-build',
-  '--no-launch-profile',
-  '--verbosity',
-  'quiet',
-  '--',
-  '--reload-fail-proof',
-]);
-
-assert(
-  reloadFailResult.exitCode === 0,
-  `Reload failure proof should exit cleanly, got code ${reloadFailResult.exitCode}.\n${reloadFailResult.stdout}\n${reloadFailResult.stderr}`,
-);
-
-const reloadFailLines = parseTaggedLines(reloadFailResult.stdout, ['RELOAD_']);
-
-assert(
-  reloadFailLines.has('RELOAD_FAIL_PROOF_INITIAL'),
-  'Reload failure proof should emit RELOAD_FAIL_PROOF_INITIAL line.',
-);
-
-const failInitial = JSON.parse(reloadFailLines.get('RELOAD_FAIL_PROOF_INITIAL')!) as AspNetPayload;
-assert(
-  failInitial.AppName === 'varlock-web',
-  'Reload failure proof initial state should have APP_NAME = varlock-web.',
-);
-
-assert(
-  reloadFailLines.has('RELOAD_FAIL_PROOF_AFTER'),
-  'Reload failure proof should emit RELOAD_FAIL_PROOF_AFTER line.',
-);
-
-const failAfter = JSON.parse(reloadFailLines.get('RELOAD_FAIL_PROOF_AFTER')!) as AspNetPayload;
-assert(
-  failAfter.AppName === 'varlock-web',
-  'After failed reload, APP_NAME must remain unchanged (last-known-good preserved).',
-);
-assert(
-  failAfter.AppPort === 4311,
-  'After failed reload, APP_PORT must remain unchanged.',
-);
-assert(
-  failAfter.FeatureEnabled === true,
-  'After failed reload, FEATURE_ENABLED must remain unchanged.',
-);
-
-const failReloadCount = parseInt(reloadFailLines.get('RELOAD_FAIL_PROOF_COUNT') ?? '-1', 10);
-assert(
-  failReloadCount === 0,
-  `Failed reload must not fire configuration reload notification. Got ${failReloadCount} notification(s).`,
-);
-
-assert(
-  reloadFailLines.has('RELOAD_FAIL_PROOF_MONITOR_APP_NAME'),
-  'Reload failure proof should emit RELOAD_FAIL_PROOF_MONITOR_APP_NAME line.',
-);
-assert(
-  reloadFailLines.get('RELOAD_FAIL_PROOF_MONITOR_APP_NAME') === 'varlock-web',
-  'IOptionsMonitor<VarlockAppOptions>.CurrentValue.APP_NAME must remain unchanged after failed reload.',
-);
-
-const workerReloadResult = runDotnet(workerProjectDir, [
-  'run',
-  '--no-build',
-  '--verbosity',
-  'quiet',
-  '--',
-  '--reload-proof',
-]);
-
-assert(
-  workerReloadResult.exitCode === 0,
-  `Worker reload proof should exit cleanly, got code ${workerReloadResult.exitCode}.\n${workerReloadResult.stdout}\n${workerReloadResult.stderr}`,
-);
-
-const workerReloadLines = parseTaggedLines(workerReloadResult.stdout, ['WORKER_']);
-
-assert(
-  workerReloadLines.has('WORKER_RELOAD_PROOF_INITIAL'),
-  'Worker reload proof should emit WORKER_RELOAD_PROOF_INITIAL line.',
-);
-
-const workerReloadInitial = JSON.parse(workerReloadLines.get('WORKER_RELOAD_PROOF_INITIAL')!) as WorkerPayload;
-assertWorkerPayload(workerReloadInitial, 'Worker reload proof initial state');
-
-assert(
-  !workerReloadLines.has('WORKER_RELOAD_PROOF_TIMEOUT'),
-  'Worker reload proof should not time out. IOptionsMonitor<T>.OnChange must fire after a successful file change in the hosted service.',
-);
-
-assert(
-  workerReloadLines.has('WORKER_RELOAD_PROOF_RELOADED'),
-  'Worker reload proof should emit WORKER_RELOAD_PROOF_RELOADED line after file change triggers reload.',
-);
-
-const workerReloaded = JSON.parse(workerReloadLines.get('WORKER_RELOAD_PROOF_RELOADED')!) as WorkerPayload;
-assert(
-  workerReloaded.AppName === 'varlock-worker-reloaded',
-  'Worker reload proof should reflect the updated APP_NAME after a successful reload.',
-);
-assert(
-  workerReloaded.AppPort === 4313,
-  'Worker reload proof should preserve APP_PORT across successful reload.',
-);
-assert(
-  workerReloaded.FeatureEnabled === true,
-  'Worker reload proof should preserve FEATURE_ENABLED across successful reload.',
-);
-
-const workerReloadCount = parseInt(workerReloadLines.get('WORKER_RELOAD_PROOF_COUNT') ?? '0', 10);
-assert(
-  workerReloadCount >= 1,
-  'Worker reload proof should report at least one monitor notification after a successful reload.',
-);
-
-assert(
-  workerReloadLines.get('WORKER_RELOAD_PROOF_MONITOR_APP_NAME') === 'varlock-worker-reloaded',
-  'Worker reload proof should show IOptionsMonitor<VarlockWorkerOptions>.CurrentValue.APP_NAME as the reloaded value.',
-);
-
-const workerReloadFailResult = runDotnet(workerProjectDir, [
-  'run',
-  '--no-build',
-  '--verbosity',
-  'quiet',
-  '--',
-  '--reload-fail-proof',
-]);
-
-assert(
-  workerReloadFailResult.exitCode === 0,
-  `Worker reload failure proof should exit cleanly, got code ${workerReloadFailResult.exitCode}.\n${workerReloadFailResult.stdout}\n${workerReloadFailResult.stderr}`,
-);
-
-const workerReloadFailLines = parseTaggedLines(workerReloadFailResult.stdout, ['WORKER_']);
-
-assert(
-  !workerReloadFailLines.has('WORKER_RELOAD_FAIL_PROOF_TIMEOUT'),
-  'Worker reload failure proof should not time out while waiting for the failed reload signal.',
-);
-
-assert(
-  workerReloadFailLines.has('WORKER_RELOAD_FAIL_PROOF_INITIAL'),
-  'Worker reload failure proof should emit WORKER_RELOAD_FAIL_PROOF_INITIAL line.',
-);
-
-const workerReloadFailInitial = JSON.parse(workerReloadFailLines.get('WORKER_RELOAD_FAIL_PROOF_INITIAL')!) as WorkerPayload;
-assertWorkerPayload(workerReloadFailInitial, 'Worker reload failure proof initial state');
-
-assert(
-  workerReloadFailLines.has('WORKER_RELOAD_FAIL_PROOF_AFTER'),
-  'Worker reload failure proof should emit WORKER_RELOAD_FAIL_PROOF_AFTER line.',
-);
-
-const workerReloadFailAfter = JSON.parse(workerReloadFailLines.get('WORKER_RELOAD_FAIL_PROOF_AFTER')!) as WorkerPayload;
-assertWorkerPayload(workerReloadFailAfter, 'Worker reload failure proof last-known-good state');
-
-const workerReloadFailCount = parseInt(workerReloadFailLines.get('WORKER_RELOAD_FAIL_PROOF_COUNT') ?? '-1', 10);
-assert(
-  workerReloadFailCount === 0,
-  `Worker failed reload must not fire monitor notifications. Got ${workerReloadFailCount} notification(s).`,
-);
-
-assert(
-  workerReloadFailLines.get('WORKER_RELOAD_FAIL_PROOF_MONITOR_APP_NAME') === 'varlock-worker',
-  'Worker reload failure proof should keep IOptionsMonitor<VarlockWorkerOptions>.CurrentValue.APP_NAME at the last known good value.',
-);
-
-const snapshotProofResult = runDotnet(aspNetProjectDir, [
-  'run',
-  '--no-build',
-  '--no-launch-profile',
-  '--verbosity',
-  'quiet',
-  '--',
-  '--snapshot-proof',
-]);
-
-assert(
-  snapshotProofResult.exitCode === 0,
-  `Snapshot proof should exit cleanly, got code ${snapshotProofResult.exitCode}.\n${snapshotProofResult.stdout}\n${snapshotProofResult.stderr}`,
-);
-
-const snapshotLines = parseTaggedLines(snapshotProofResult.stdout, ['SNAPSHOT_']);
-
-assert(
-  snapshotLines.has('SNAPSHOT_PROOF_SCOPE_A_INITIAL'),
-  'Snapshot proof should emit SNAPSHOT_PROOF_SCOPE_A_INITIAL line.',
-);
-
-const snapshotScopeAInitial = JSON.parse(snapshotLines.get('SNAPSHOT_PROOF_SCOPE_A_INITIAL')!) as AspNetPayload;
-assert(
-  snapshotScopeAInitial.AppName === 'varlock-web',
-  'Snapshot proof initial scope should start with APP_NAME = varlock-web.',
-);
-
-assert(
-  !snapshotLines.has('SNAPSHOT_PROOF_TIMEOUT'),
-  'Snapshot proof should not time out while waiting for a successful reload.',
-);
-
-assert(
-  snapshotLines.has('SNAPSHOT_PROOF_SCOPE_B_AFTER'),
-  'Snapshot proof should emit SNAPSHOT_PROOF_SCOPE_B_AFTER line after a successful reload.',
-);
-
-const snapshotScopeBAfter = JSON.parse(snapshotLines.get('SNAPSHOT_PROOF_SCOPE_B_AFTER')!) as AspNetPayload;
-assert(
-  snapshotScopeBAfter.AppName === 'varlock-snapshot-reloaded',
-  'A new scope created after a successful reload should see the updated APP_NAME value.',
-);
-
-assert(
-  snapshotLines.has('SNAPSHOT_PROOF_SCOPE_A_STILL'),
-  'Snapshot proof should emit SNAPSHOT_PROOF_SCOPE_A_STILL line for the original scope.',
-);
-
-const snapshotScopeAStill = JSON.parse(snapshotLines.get('SNAPSHOT_PROOF_SCOPE_A_STILL')!) as AspNetPayload;
-assert(
-  snapshotScopeAStill.AppName === 'varlock-web',
-  'The original scope should keep its original IOptionsSnapshot<T> value after reload.',
-);
-
-const snapshotReloadCount = parseInt(snapshotLines.get('SNAPSHOT_PROOF_RELOAD_COUNT') ?? '0', 10);
-assert(
-  snapshotReloadCount >= 1,
-  'Snapshot proof should observe at least one successful reload notification.',
-);
-
-assert(
-  snapshotLines.get('SNAPSHOT_PROOF_MONITOR_APP_NAME') === 'varlock-snapshot-reloaded',
-  'Snapshot proof should show IOptionsMonitor<VarlockAppOptions>.CurrentValue.APP_NAME as the reloaded value.',
-);
-
-assert(
-  snapshotLines.has('SNAPSHOT_PROOF_SCOPE_C_AFTER_FAILED'),
-  'Snapshot proof should emit SNAPSHOT_PROOF_SCOPE_C_AFTER_FAILED line after a failed reload attempt.',
-);
-
-const snapshotScopeCAfterFailed = JSON.parse(snapshotLines.get('SNAPSHOT_PROOF_SCOPE_C_AFTER_FAILED')!) as AspNetPayload;
-assert(
-  snapshotScopeCAfterFailed.AppName === 'varlock-snapshot-reloaded',
-  'A new scope created after a failed reload should keep the last known good APP_NAME value.',
-);
-
-const snapshotFinalReloadCount = parseInt(snapshotLines.get('SNAPSHOT_PROOF_FINAL_RELOAD_COUNT') ?? '-1', 10);
-assert(
-  snapshotFinalReloadCount === snapshotReloadCount,
-  'Failed reload attempts must not add extra IOptionsMonitor<T>.OnChange notifications during snapshot proof.',
-);
 
 console.log('Varlock .NET proof slice passed.');

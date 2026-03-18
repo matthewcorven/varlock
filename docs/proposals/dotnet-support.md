@@ -781,19 +781,10 @@ examples/
   dotnet-blazor-wasm-net8-public/
 ```
 
-Each example should prove:
-
-- schema discovery
-- validation behavior
-- typed generated access
-- configuration provider integration where applicable
-- precedence over appsettings
-- `optional` behavior where applicable
-- `reloadOnChange` behavior where applicable
-- logging/redaction where applicable
+Each example should prove only its intended seam. Framework examples answer the framework-integration question, while focused console siblings own cross-cutting feature demos like typed binding, Serilog redaction, reload behavior, and other advanced lanes.
 
 Current repository proof slice ships `examples/dotnet-console-net8/`, `examples/dotnet-worker-net8/`, `examples/dotnet-aspnet-mvc-net8/`, `examples/dotnet-functions-isolated-net8/`, `examples/dotnet-blazor-server-net8/`, `examples/dotnet-winforms-net48/`, and `examples/dotnet-blazor-wasm-net8-public/`.
-Those examples prove direct low-level runtime loading, the hosted ASP.NET Serilog specimen (`WithVarlockRedaction(graph)` for Serilog-specific destructuring redaction on exact, case-sensitive key matches plus `WithVarlockMetadata(graph)` for `VarlockRedactLogs` enrichment), the explicit non-Serilog manual per-value redaction helper in the console example, `HostApplicationBuilder.AddVarlock()` convenience for Generic Host usage, startup configuration-provider layering over `appsettings.json`, User Secrets and `local.settings.json` coexistence where documented, standard `IOptions<T>` binding for a user-authored options class, runtime `ReloadOnChange` behavior including successful reload notification and failed reload last-known-good preservation, request-scoped `IOptionsSnapshot<T>` semantics, legacy non-hosted `net48` bridge usage, Blazor Server startup configuration access, and the Blazor WebAssembly public-only generation boundary.
+Those examples prove direct low-level runtime loading, `WebApplicationBuilder.AddVarlock()` and `HostApplicationBuilder.AddVarlock()` integration, startup configuration-provider layering over `appsettings.json`, User Secrets and `local.settings.json` coexistence where documented, legacy non-hosted `net48` bridge usage, Blazor Server startup configuration access, and the Blazor WebAssembly public-only generation boundary. Typed binding, Serilog redaction, reload behavior, and other feature-heavy stories are proven by the focused console siblings and package tests instead of being duplicated inside the framework examples.
 `dotnet watch` parity, plugin-backed resolution, and broader hosted-helper claims remain planned and should not be inferred from these specimens.
 
 The DX overhaul also now ships focused console siblings under `examples/dotnet-console-*` for direct load, typed config, sensitive handling, Serilog redaction, reload, custom schema path, custom working directory, provider-level environment fallback, optional startup, injected custom runtime behavior, coercion surfacing, expected validation failure, build-time public-only filtering, a local `exec()` command seam, schema reference composition, a manual DI/options pattern, explicit executable override, and metadata-only leak-prevention surfacing. Those siblings are teaching/proof artifacts for those exact seams only; they do not widen the app-type support matrix beyond the rows below.
@@ -809,8 +800,8 @@ It is intentionally a proof-planning table, not a claim that the listed examples
 | Support claim | Proving example app | Proving automated test | Key caveats | Proof status |
 | --- | --- | --- | --- | --- |
 | Console app direct runtime usage | `examples/dotnet-console-net8/` | `bun run proof:dotnet` console bridge check | non-hosted, uses low-level APIs instead of `IConfiguration` | proven |
-| ASP.NET Core MVC provider usage | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` ASP.NET provider check | provider ordering over `appsettings` with reload support; `ReloadOnChange` proven for successful reload, failed reload last-known-good, and configuration change-token notification semantics | proven |
-| Worker Service / Generic Host usage | `examples/dotnet-worker-net8/` | `bun run proof:dotnet` worker reload-proof and reload-fail-proof checks | proves long-lived `IOptionsMonitor<T>` reload behavior in a `BackgroundService` through `HostApplicationBuilder.AddVarlock()` | proven |
+| ASP.NET Core MVC provider usage | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` ASP.NET provider check | startup-only `WebApplicationBuilder` integration with `appsettings.json` ordering and User Secrets coexistence; reload, typed binding, and Serilog live in focused sibling or test lanes | proven |
+| Worker Service / Generic Host usage | `examples/dotnet-worker-net8/` | `bun run proof:dotnet` worker host check | proves `HostApplicationBuilder.AddVarlock()` wiring in a `BackgroundService`; reload semantics remain a separate proof lane | proven |
 | Azure Functions isolated worker usage | `examples/dotnet-functions-isolated-net8/` | `bun run proof:dotnet` functions isolated startup check | must document coexistence with `local.settings.json`; proven via `--dump-config` assertion that Varlock overrides function configuration and local.settings.json keys are preserved | proven |
 | Windows Forms legacy/non-hosted usage | `examples/dotnet-winforms-net48/` | `bun run proof:dotnet` winforms legacy bridge check | non-hosted direct runtime usage on .NET Framework 4.8; proven via `dotnet run` assertion that legacy desktop applications can invoke the Varlock CLI bridge and consume validated configuration | proven |
 | Blazor Server usage | `examples/dotnet-blazor-server-net8/` | `bun run proof:dotnet` blazor server hosting startup check | should prove server-side config access only; proven via `--dump-config` assertion that Varlock overrides Blazor Server configuration | proven |
@@ -829,11 +820,11 @@ It is intentionally a proof-planning table, not a claim that the listed examples
 | Explicit `dotnet build` example flow | `examples/dotnet-console-net8/`, `examples/dotnet-worker-net8/`, `examples/dotnet-aspnet-mvc-net8/`, `examples/dotnet-functions-isolated-net8/`, `examples/dotnet-blazor-server-net8/`, `examples/dotnet-winforms-net48/`, and `examples/dotnet-blazor-wasm-net8-public/` | `bun run proof:dotnet` explicit `dotnet build` check | proves clean compilation for all checked-in examples across `net8.0` (most) and `net48` (WinForms); watch, generated-file loops, and IntelliSense observations remain planned | proven |
 | User Secrets coexistence | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` ASP.NET user-secrets coexistence check | `WebApplicationBuilder` loads User Secrets before `AddVarlock(...)`, so the proof keeps User Secrets-only keys while showing Varlock overrides overlapping keys by provider order | proven |
 | `local.settings.json` coexistence | `examples/dotnet-functions-isolated-net8/` | `bun run proof:dotnet` azure functions config layering test | functions-specific only; proven via `--dump-config` assertion that functionsOnlyKey from local.settings.json is preserved when Varlock is added to configuration chain | proven |
-| `IOptions<T>` binding | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` ASP.NET `--options-proof` check | proven for a user-authored `VarlockAppOptions` via standard `Configure<T>(builder.Configuration)` binding; generated-type binder flow remains covered by the C# generation specimen | proven |
-| `IOptionsSnapshot<T>` scoped reload | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` snapshot-proof check | request-scoped semantics are proven by keeping one scope alive across a successful reload and then creating later scopes after both successful and failed reload attempts | proven |
-| `IOptionsMonitor<T>` long-lived reload | `examples/dotnet-worker-net8/` and `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` reload-proof and reload-fail-proof checks; C# `ReloadTests` | proven via DI-injected `IOptionsMonitor<T>` in both ASP.NET and Worker hosted flows; the proofs show `OnChange` fires on successful reloads, does not fire on failed reloads, and that `CurrentValue` reflects the last successful state | proven |
-| C# type generation | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` C# generation check | `proof:dotnet` invokes `dotnet build`, which runs `varlock typegen` during MSBuild, verifies the generated file exists at `obj/Varlock/AppConfig.g.cs`, and asserts the configured namespace and class name; generation is deterministic and incremental; the proof also packs `Varlock.MSBuild` and builds a temporary `PackageReference` consumer with no manual imports to prove the NuGet asset story | proven |
-| Serilog-specific destructuring redaction | `examples/dotnet-aspnet-mvc-net8/` | `bun run proof:dotnet` ASP.NET `--serilog-proof` check | proven only for Serilog: `WithVarlockRedaction(graph)` redacts exact, case-sensitive sensitive-key matches during `{@obj}` destructuring with the literal `[REDACTED]`, `WithVarlockMetadata(graph)` adds `VarlockRedactLogs`, and scalar message-template parameters remain raw | proven |
+| `IOptions<T>` binding | `examples/dotnet-console-di-options/` | `bun run proof:dotnet` di-options check | proven for the current manual hosted options pattern only; generated-type and convenience-overload stories remain separate proof lanes | proven |
+| `IOptionsSnapshot<T>` scoped reload | no dedicated checked-in example today | no dedicated proof artifact currently checked in | request-scoped semantics remain part of the product target, but the old framework-backed specimen was intentionally removed when feature demos moved out of framework examples | planned |
+| `IOptionsMonitor<T>` long-lived reload | no dedicated checked-in example today | `ReloadTests` cover provider reload mechanics, not a dedicated `IOptionsMonitor<T>` specimen | long-lived hosted reload semantics remain planned until a narrow proof artifact exists again | planned |
+| C# type generation | `examples/dotnet-console-typed-config/` and `examples/dotnet-console-public-only/` | `bun run proof:dotnet` typed-config check, public-only check, and packed `Varlock.MSBuild` package-consumer proof | focused console specimens plus the packed `Varlock.MSBuild` consumer now own the generation claim; framework examples no longer carry MSBuild generation proof | proven |
+| Serilog-specific destructuring redaction | `examples/dotnet-console-serilog/` | `bun run proof:dotnet` console Serilog check | proven only for Serilog: the console specimen shows exact, case-sensitive sensitive-key redaction with the literal `[REDACTED]` without implying broader hosting semantics | proven |
 | Manual per-value redaction helper | `examples/dotnet-console-net8/` | `bun run proof:dotnet` console redaction-helper check | proven via manual `VarlockRedactionHelper.Redact(graph, key, value)` output with the literal `[REDACTED]` and exact case-sensitive key matching; the proof also emits the same secret raw to show raw console output is unchanged unless the helper is called for that value | proven |
 | Non-default `SchemaPath` configuration | `examples/dotnet-console-custom-schema-path/` | `bun run proof:dotnet` custom-schema-path check | proves only the `AddVarlock(...)` `SchemaPath` override with a checked-in `config/.env.schema` entry point | proven |
 | Custom working directory configuration | `examples/dotnet-console-custom-working-dir/` | `bun run proof:dotnet` custom-working-dir check | proves only the `AddVarlock(...)` `WorkingDirectory` override while keeping the default `.env.schema` file name | proven |
@@ -991,7 +982,7 @@ Phase 1 exit criteria:
 Phase 2 exit criteria:
 
 - ~~the watch and reload specimen exists and demonstrates atomic reload plus last-known-good behavior~~ **done:** `ReloadOnChange` provider implementation with atomic swap, last-known-good preservation, debounced file watching, and proof in `bun run proof:dotnet`
-- hosted examples prove `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>` semantics (`IOptions<T>` root-service binding proof and `IOptionsSnapshot<T>` request-scoped proof now live in the ASP.NET example; standalone long-lived `IOptionsMonitor<T>` proof now lives in the worker example)
+- focused proof artifacts, not the framework examples themselves, carry the options story: the checked-in DI/options sibling proves the current manual `IOptions<T>` pattern, while dedicated `IOptionsSnapshot<T>` and long-lived `IOptionsMonitor<T>` specimens remain planned
 - `dotnet watch` and IDE-driven workflows are documented from real observed behavior, not expectation (not yet proven; `dotnet watch` parity not claimed)
 
 ### Phase 3: logging and wider platform coverage
@@ -1003,7 +994,7 @@ Phase 2 exit criteria:
 
 Phase 3 exit criteria:
 
-- ~~the security-boundary specimen exists and makes the Serilog versus non-Serilog distinction concrete~~ **done:** `bun run proof:dotnet` now exercises the hosted ASP.NET MVC `--serilog-proof` specimen built around `WithVarlockRedaction(graph)` and `WithVarlockMetadata(graph)`, the console `--redaction-helper-proof`, and the Blazor WebAssembly public-only boundary with the documented narrow caveats
+- ~~the security-boundary specimen exists and makes the Serilog versus non-Serilog distinction concrete~~ **done:** `bun run proof:dotnet` now exercises the focused console Serilog specimen, the console `--redaction-helper-proof`, and the Blazor WebAssembly public-only boundary with the documented narrow caveats
 - ~~Azure Functions isolated, Blazor Server, and Blazor WebAssembly examples prove the claimed caveats and supported flows~~ **done:** each checked-in example has a corresponding `bun run proof:dotnet` assertion for its supported startup or build-time flow
 - ~~the support-matrix ledger is filled for every v1 support claim~~ **done:** currently shipped rows are explicitly marked `proven` or `planned` with their caveats stated inline; no support claim is left implicit
 
@@ -1110,7 +1101,7 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Serilog integration exists as a supported package.
 - The supported Serilog scope is explicit: `WithVarlockRedaction(graph)` performs Serilog-specific destructuring redaction for exact, case-sensitive sensitive-key matches only, uses the literal `[REDACTED]`, and `WithVarlockMetadata(graph)` enriches `VarlockRedactLogs` only.
 - Scalar message-template parameters and non-Serilog pipelines are documented as outside that redaction path.
-- Example applications demonstrate the hosted Serilog specimen and the separate non-Serilog manual helper specimen.
+- Example applications demonstrate the focused Serilog specimen and the separate non-Serilog manual helper specimen.
 - Reload-aware Serilog re-registration is documented as deferred; the v1 policy uses the graph snapshot captured when the logger is configured.
 - The status of non-Serilog redaction and leak-prevention behavior is documented explicitly as supported, unsupported, or deferred.
 - The docs state explicitly that repository/file scanning remains an existing CLI workflow in v1 rather than a `.NET` runtime feature.
@@ -1136,10 +1127,10 @@ The `.NET` support initiative is only done when the project satisfies all of the
 - Worker Service, Azure Functions isolated worker, Blazor Server, and Blazor WebAssembly public-config examples exist and are working before the initiative is called complete.
 - Example apps demonstrate precedence with appsettings.
 - Example apps demonstrate coexistence with other common `.NET` configuration layers where the docs claim coexistence, such as User Secrets or `local.settings.json` in the relevant app types.
-- Example apps demonstrate typed access.
+- Example apps demonstrate typed access where that behavior is the point of the specimen.
 - Example apps demonstrate validation behavior.
 - Example apps demonstrate `Optional` behavior where relevant.
-- Example apps demonstrate `ReloadOnChange` behavior where relevant.
+- Example apps demonstrate `ReloadOnChange` behavior where a dedicated reload specimen exists.
 - At least one example demonstrates direct non-hosted loading without `IConfiguration` if that scenario is claimed as supported.
 - At least one example demonstrates plugin-backed secret resolution if plugin support is claimed in user-facing docs.
 - Example apps do not include unnecessary fork-only scaffolding or unfinished exploratory code.

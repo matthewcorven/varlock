@@ -1,12 +1,24 @@
-using Varlock.Extensions.Configuration; // 👈 Varlock
+using System.Text.Json;
+using dotnet_aspnet_mvc.Models;
+using Varlock.Extensions.Hosting; // 👈 Varlock
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Configuration.AddVarlock(); // 👈 Varlock: load .env.schema into IConfiguration
-// Add services to the container.
+builder.AddVarlock(); // 👈 Varlock: wire Varlock into the WebApplicationBuilder configuration pipeline
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
+
+if (args.Contains("--dump-config"))
+{
+  var payload = new MvcConfigPayload(
+    app.Configuration["APP_NAME"] ?? string.Empty,
+    app.Configuration["APPSETTINGS_ONLY"] ?? string.Empty,
+    app.Configuration["USERSECRETS_ONLY"] ?? string.Empty);
+
+  Console.WriteLine(JsonSerializer.Serialize(payload));
+  return;
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -30,3 +42,5 @@ app.MapControllerRoute(
 
 
 app.Run();
+
+sealed record MvcConfigPayload(string AppName, string AppSettingsOnly, string UserSecretsOnly);

@@ -1,15 +1,26 @@
 using dotnet_blazor_server.Components;
-using Varlock.Extensions.Configuration; // 👈 Varlock
+using System.Text.Json;
+using Varlock.Extensions.Hosting; // 👈 Varlock
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Configuration.AddVarlock(); // 👈 Varlock: load .env.schema into IConfiguration
+builder.AddVarlock(); // 👈 Varlock: wire Varlock into the Blazor Server host builder
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 var app = builder.Build();
+
+if (args.Contains("--dump-config"))
+{
+    var payload = new BlazorServerPayload(
+        app.Configuration["APP_NAME"] ?? string.Empty,
+        app.Configuration["COMPONENT_MESSAGE"] ?? string.Empty);
+
+    Console.WriteLine(JsonSerializer.Serialize(payload));
+    return;
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -28,3 +39,5 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+sealed record BlazorServerPayload(string AppName, string ComponentMessage);

@@ -195,6 +195,27 @@ This contract defines the first-wave control nodes that must stay green before w
   - no claim that the leak-prevention specimen proves automatic interception or enforcement; it proves metadata-only `PreventLeaks` surfacing plus manual helper output
 - Ready-now verdict: **green**. All eight sibling examples exist under `examples/`: `dotnet-console-coercion`, `dotnet-console-validation`, `dotnet-console-public-only`, `dotnet-console-exec`, `dotnet-console-composition`, `dotnet-console-di-options`, `dotnet-console-explicit-executable`, and `dotnet-console-leak-prevention`. `bun run proof:dotnet` builds and runs each specimen with targeted assertions covering coercion, expected validation failure, public-only generated-file filtering, the local `exec()` command seam, schema reference composition, the manual DI/options pattern, explicit executable override, and metadata-only leak-prevention surfacing.
 
+### DX-A3 — Framework example simplification
+
+- Owner: O'Brien
+- Reviewer: Picard
+- Status: **green** — framework examples simplified and re-scoped
+- Allowed surface:
+  - `examples/dotnet-aspnet-mvc/**`
+  - `examples/dotnet-blazor-server/**`
+  - `examples/dotnet-blazor-wasm-public/**`
+  - `examples/dotnet-functions-isolated/**`
+  - `examples/dotnet-worker/**`
+  - `examples/dotnet-winforms/**`
+  - `examples/README.md`
+  - `scripts/test-dotnet-proof.ts` for framework-proof alignment only
+  - `docs/proposals/dotnet-support.md`, `docs/proposals/dotnet-support-ledger.yml`, and `docs/proposals/dotnet-dx-overhaul.md` for claim-sync only
+- Explicit non-goals:
+  - no new package surface or hosting semantics
+  - no re-introducing feature demos already covered by console siblings or package tests
+  - no widening support claims for reload, Serilog, typed binding, or watch behavior just because the framework examples compile
+- Ready-now verdict: **green**. Framework examples now prove the framework seams only: MVC `WebApplicationBuilder.AddVarlock()` plus appsettings/User Secrets coexistence, Worker `HostApplicationBuilder.AddVarlock()`, Functions layering with `local.settings.json`, Blazor Server component access, WinForms direct runtime usage, and WASM public-only generation. Advanced feature proof ownership stays with the focused console siblings and package tests.
+
 ### DX-B2 — Varlock metapackage
 
 - Owner: Data

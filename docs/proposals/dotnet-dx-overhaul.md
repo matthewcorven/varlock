@@ -115,15 +115,15 @@ The existing framework examples remain but are simplified and refocused:
 
 | Directory | Framework | Purpose |
 |-----------|-----------|---------|
-| `dotnet-aspnet-mvc` | ASP.NET Core MVC | `AddVarlock()` in `WebApplicationBuilder` pipeline, MSBuild type gen, Serilog integration |
-| `dotnet-blazor-server` | Blazor Server | Same as MVC but in Blazor context — config flowing into components |
+| `dotnet-aspnet-mvc` | ASP.NET Core MVC | `AddVarlock()` in `WebApplicationBuilder`, plus coexistence with `appsettings.json` and User Secrets |
+| `dotnet-blazor-server` | Blazor Server | `AddVarlock()` during server startup, with configuration flowing into components |
 | `dotnet-blazor-wasm-public` | Blazor WebAssembly | `publicOnly=true` type generation — sensitive values excluded from client bundle |
 | `dotnet-functions-isolated` | Azure Functions (isolated) | `AddVarlock()` on `IConfigurationBuilder` in Functions host |
 | `dotnet-worker` | Worker Service | `builder.AddVarlock()` via `HostApplicationBuilder` extension |
 | `dotnet-winforms` | Windows Forms | Desktop app scenario — direct `VarlockCliRuntime.Load()` without DI |
 
 **Changes to existing framework examples:**
-- Remove any feature demonstrations that are now covered by a console sibling (e.g., if MVC example was the only place showing Serilog, that's now covered by `dotnet-console-sensitive-serilog`)
+- Remove any feature demonstrations that are now covered by a console sibling or package test. Framework examples are not the owners for Serilog, typed binding, reload, or other feature lanes unless the framework seam itself is the point.
 - Each framework example should focus on **framework-specific integration** only — the "how do I use Varlock with {framework}?" question
 - Keep `.env.schema` files minimal — enough to show the integration works, not a kitchen sink
 

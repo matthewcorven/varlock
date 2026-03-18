@@ -6,22 +6,14 @@ namespace dotnet_aspnet_mvc.Controllers;
 
 public class HomeController(IConfiguration configuration) : Controller // 👈 Varlock: inject IConfiguration
 {
-    // 👈 Varlock: known keys from .env.schema and which are sensitive
-    private static readonly (string Key, bool Sensitive)[] VarlockKeys =
-    [
-        ("APP_NAME", false),
-        ("APP_PORT", false),
-        ("FEATURE_ENABLED", false),
-        ("SECRET_TOKEN", true),
-    ];
+    private static readonly string[] Keys = ["APP_NAME", "APPSETTINGS_ONLY", "USERSECRETS_ONLY"];
 
     public IActionResult Index()
     {
-        // 👈 Varlock: read config values and pass to view
-        ViewBag.ConfigItems = VarlockKeys.Select(k => new
+        ViewBag.ConfigItems = Keys.Select(key => new
         {
-            k.Key,
-            Display = k.Sensitive ? "***" : configuration[k.Key] ?? "(null)",
+            Key = key,
+            Value = configuration[key] ?? "(null)",
         }).ToArray();
 
         return View();
