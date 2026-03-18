@@ -18,6 +18,11 @@ The framework examples are intentionally narrower than the console siblings:
 - `dotnet-winforms` proves direct `VarlockCliRuntime.Load()` usage in desktop code
 - `dotnet-blazor-wasm-public` proves only the build-time `publicOnly=true` boundary
 
+Shared reference material lives under `examples/dotnet-shared/`:
+
+- `.env.schema.reference` is the cheat sheet for the `@env-spec` decorator and schema-pattern surface the current `.NET` examples exercise
+- `dotnet-shared/` is not a runnable project and is not part of `bun run proof:dotnet`; it exists to keep the example-local schema guidance close to the specimens
+
 The console baseline still carries the executable-acquisition proof paths:
 
 1. repo-local lookup to `packages/varlock/bin/cli.js`
