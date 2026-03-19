@@ -474,6 +474,8 @@ const publicOnlyProjectDir = join(repoRoot, 'examples', 'dotnet-console-public-o
 const execProjectDir = join(repoRoot, 'examples', 'dotnet-console-exec');
 const compositionProjectDir = join(repoRoot, 'examples', 'dotnet-console-composition');
 const diOptionsProjectDir = join(repoRoot, 'examples', 'dotnet-console-di-options');
+const optionsSnapshotProjectDir = join(repoRoot, 'examples', 'dotnet-console-options-snapshot');
+const optionsMonitorProjectDir = join(repoRoot, 'examples', 'dotnet-console-options-monitor');
 const explicitExecutableProjectDir = join(repoRoot, 'examples', 'dotnet-console-explicit-executable');
 const leakPreventionProjectDir = join(repoRoot, 'examples', 'dotnet-console-leak-prevention');
 const workerProjectDir = join(repoRoot, 'examples', 'dotnet-worker');
@@ -925,6 +927,34 @@ assertCommandSucceeded('dotnet run dotnet-console-di-options', diOptionsResult);
   assert(lines.get('HTTP_PORT') === '4350', 'di-options should resolve HTTP_PORT into the manual options object.');
   assert(lines.get('FEATURE_ENABLED') === 'True', 'di-options should resolve FEATURE_ENABLED into the manual options object.');
   assert(lines.get('OPTIONS_PATTERN') === 'manual-map', 'di-options should keep the proof scoped to the manual mapping pattern.');
+}
+
+// Options-snapshot sibling
+const optionsSnapshotBuild = runDotnet(optionsSnapshotProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-options-snapshot', optionsSnapshotBuild);
+
+const optionsSnapshotResult = runDotnet(optionsSnapshotProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-options-snapshot', optionsSnapshotResult);
+{
+  const lines = parseAssignmentLines(optionsSnapshotResult.stdout);
+  assert(lines.get('APP_NAME') === 'varlock-options-snapshot', 'options-snapshot should resolve APP_NAME through IOptionsSnapshot.');
+  assert(lines.get('HTTP_PORT') === '4360', 'options-snapshot should resolve HTTP_PORT through IOptionsSnapshot.');
+  assert(lines.get('FEATURE_ENABLED') === 'True', 'options-snapshot should resolve FEATURE_ENABLED through IOptionsSnapshot.');
+  assert(lines.get('OPTIONS_PATTERN') === 'snapshot-scoped', 'options-snapshot should prove scoped snapshot access pattern.');
+}
+
+// Options-monitor sibling
+const optionsMonitorBuild = runDotnet(optionsMonitorProjectDir, ['build', '--nologo', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet build dotnet-console-options-monitor', optionsMonitorBuild);
+
+const optionsMonitorResult = runDotnet(optionsMonitorProjectDir, ['run', '--no-build', '--no-launch-profile', '--verbosity', 'quiet']);
+assertCommandSucceeded('dotnet run dotnet-console-options-monitor', optionsMonitorResult);
+{
+  const lines = parseAssignmentLines(optionsMonitorResult.stdout);
+  assert(lines.get('APP_NAME') === 'varlock-options-monitor', 'options-monitor should resolve APP_NAME through IOptionsMonitor.');
+  assert(lines.get('MAX_RETRIES') === '5', 'options-monitor should resolve MAX_RETRIES through IOptionsMonitor.');
+  assert(lines.get('VERBOSE') === 'False', 'options-monitor should resolve VERBOSE through IOptionsMonitor.');
+  assert(lines.get('OPTIONS_PATTERN') === 'monitor-singleton', 'options-monitor should prove singleton monitor access pattern.');
 }
 
 // Explicit-executable sibling

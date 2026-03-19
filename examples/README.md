@@ -8,6 +8,7 @@ Current automated proof in `bun run proof:dotnet` covers:
 - first console sibling batch: direct load, typed config, sensitive handling, Serilog redaction, and reload
 - second console sibling batch: custom schema path, custom working directory, provider-level environment fallback, optional startup, and custom runtime injection
 - third console sibling batch: coercion, expected validation failure, public-only build artifact filtering, local `exec()` command resolution, schema reference composition, manual DI/options mapping, explicit executable override, and metadata-only leak-prevention surfacing
+- fourth console sibling batch: `IOptionsSnapshot<T>` scoped reload via `CreateScope()`, `IOptionsMonitor<T>` singleton access with change tracking
 
 The framework examples are intentionally narrower than the console siblings:
 

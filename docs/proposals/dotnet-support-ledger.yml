@@ -414,15 +414,15 @@ support_matrix:
       caveat: covers the current manual hosted options pattern only; generated-type and convenience-overload stories are tracked separately
       proof_status: proven
     - id: dx-options-snapshot
-      example: none (focused specimen removed by DX-A3)
-      test: no dedicated proof artifact currently checked in
-      caveat: request-scoped semantics remain part of the product target, but the old framework-backed specimen was intentionally removed when feature demos moved out of framework examples
-      proof_status: planned
+      example: examples/dotnet-console-options-snapshot/
+      test: bun run proof:dotnet options-snapshot check
+      caveat: proves request-scoped IOptionsSnapshot<T> resolution via CreateScope() with the manual options mapping pattern; reload-on-change semantics remain a separate proof lane
+      proof_status: proven
     - id: dx-options-monitor
-      example: none (focused specimen removed by DX-A3)
-      test: ReloadTests cover provider reload mechanics, not a dedicated IOptionsMonitor<T> specimen
-      caveat: long-lived reload semantics remain planned until a narrow proof artifact exists again
-      proof_status: planned
+      example: examples/dotnet-console-options-monitor/
+      test: bun run proof:dotnet options-monitor check
+      caveat: proves singleton IOptionsMonitor<T> resolution with the manual options mapping pattern; change-notification semantics remain a separate proof lane
+      proof_status: proven
     - id: dx-csharp-generation
       example: examples/dotnet-console-typed-config/ + examples/dotnet-console-public-only/
       test: bun run proof:dotnet typed-config check, public-only check, and packed Varlock.MSBuild package-consumer proof
