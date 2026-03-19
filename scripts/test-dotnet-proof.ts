@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import fs from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRepoTempDirSync } from '../packages/utils/src/repo-temp';
@@ -104,6 +104,90 @@ function runBuiltAssembly(
     envOverrides,
     timeoutMs,
   );
+}
+
+type WatchResult = {
+  started: boolean;
+  buildCount: number;
+  rebuildCount: number;
+  output: string;
+};
+
+function runDotnetWatch(projectDir: string, stabilityWindowMs = 6000, overallTimeoutMs = 60_000): Promise<WatchResult> {
+  return new Promise((resolve) => {
+    const child = spawn('dotnet', ['watch', 'run', '--no-launch-profile'], {
+      cwd: projectDir,
+      env: { ...process.env },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let output = '';
+    let started = false;
+    let stabilityTimer: ReturnType<typeof setTimeout> | undefined;
+    let resolved = false;
+
+    const finish = (result: WatchResult) => {
+      if (resolved) return;
+      resolved = true;
+      if (stabilityTimer) clearTimeout(stabilityTimer);
+      child.kill('SIGTERM');
+      // Give process a moment to exit after SIGTERM
+      setTimeout(() => {
+        try { child.kill('SIGKILL'); } catch {}
+        resolve(result);
+      }, 1000);
+    };
+
+    const overallTimer = setTimeout(() => {
+      finish({ started, buildCount: 0, rebuildCount: 0, output: output + '\n[TIMEOUT]' });
+    }, overallTimeoutMs);
+
+    const onData = (chunk: Buffer) => {
+      const text = chunk.toString();
+      output += text;
+
+      if (!started && (text.includes('Application started') || text.includes('Now listening on'))) {
+        started = true;
+        // Start stability window after detecting startup
+        stabilityTimer = setTimeout(() => {
+          clearTimeout(overallTimer);
+          // Count rebuild indicators in output collected AFTER startup
+          const postStartupOutput = output.slice(output.indexOf('Application started') !== -1
+            ? output.indexOf('Application started')
+            : output.indexOf('Now listening on'));
+          const lines = postStartupOutput.split('\n');
+          const rebuildLines = lines.filter(
+            (l) => l.includes('Building...') || l.includes('Restarting the app') || l.includes('Hot reload'),
+          );
+          // Count initial builds from the full output
+          const allLines = output.split('\n');
+          const buildLines = allLines.filter((l) => l.includes('Building...'));
+          finish({
+            started: true,
+            buildCount: buildLines.length,
+            rebuildCount: rebuildLines.length,
+            output,
+          });
+        }, stabilityWindowMs);
+      }
+    };
+
+    child.stdout.on('data', onData);
+    child.stderr.on('data', onData);
+
+    child.on('error', () => {
+      clearTimeout(overallTimer);
+      finish({ started: false, buildCount: 0, rebuildCount: 0, output: output + '\n[PROCESS ERROR]' });
+    });
+
+    child.on('exit', () => {
+      // If process exits before stability window completes, resolve with what we have
+      if (!resolved) {
+        clearTimeout(overallTimer);
+        finish({ started, buildCount: 0, rebuildCount: 0, output });
+      }
+    });
+  });
 }
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -998,6 +1082,16 @@ const aspNetResult = runDotnet(aspNetProjectDir, [
 ]);
 const aspNetPayload = parseJsonOutput<AspNetPayload>('dotnet-aspnet-mvc-net8', aspNetResult);
 assertAspNetPayload(aspNetPayload, 'ASP.NET baseline proof');
+
+// --- Proof: dotnet watch runtime reload stability ---
+{
+  console.log('Running dotnet watch stability proof...');
+  const watchResult = await runDotnetWatch(aspNetProjectDir, 6000);
+  assert(watchResult.started, 'dotnet watch should start the ASP.NET MVC app successfully.');
+  assert(watchResult.rebuildCount === 0,
+    `dotnet watch should not trigger pathological rebuild loops. Observed ${watchResult.rebuildCount} rebuild(s) during stability window.\n${watchResult.output}`);
+  console.log('dotnet watch stability proof passed.');
+}
 
 const workerResult = runDotnet(workerProjectDir, [
   'run',

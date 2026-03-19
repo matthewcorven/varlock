@@ -389,10 +389,10 @@ support_matrix:
       caveat: an env-guarded proof-only harness prepends a temporary CLI entry to PATH and sets VARLOCK_DOTNET_PROOF_FORCE_PATH_LOOKUP=1 so the example disables local lookup only for that proof run
       proof_status: proven
     - id: dx-dotnet-watch
-      example: examples/dotnet-aspnet-mvc-net8/
-      test: watch and reload coalescing test
-      caveat: proves no pathological rebuild loops
-      proof_status: planned
+      example: examples/dotnet-aspnet-mvc/
+      test: bun run proof:dotnet watch stability check
+      caveat: proven via dotnet watch run with a 6-second stability window; the ASP.NET MVC example starts cleanly and shows zero pathological rebuilds during the observation period
+      proof_status: proven
     - id: dx-ide-build
       example: examples/dotnet-console-net8/ + examples/dotnet-aspnet-mvc-net8/
       test: bun run proof:dotnet explicit dotnet build check
