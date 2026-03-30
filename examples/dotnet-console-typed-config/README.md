@@ -1,6 +1,6 @@
-# Typed Config Console Example
+# Typed Configuration Console Example
 
-Demonstrates build-time type generation via `@generateTypes` — strongly-typed access to configuration values.
+This example shows the build-time `@generateTypes` path for strongly typed configuration access in C#. It stays scoped to the checked-in MSBuild generation and metadata flow.
 
 ## What It Shows
 

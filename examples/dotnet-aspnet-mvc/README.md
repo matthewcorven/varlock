@@ -1,6 +1,6 @@
 # ASP.NET Core MVC Example
 
-This example proves the MVC integration seam only: `WebApplicationBuilder.AddVarlock()` joins the normal ASP.NET Core configuration pipeline, Varlock overrides overlapping keys from `appsettings.json`, and User Secrets-only keys still flow through in development. It does not carry typed-generation, Serilog, reload, or options demos; those live in the focused console siblings and package tests.
+This example shows the MVC integration seam only: `WebApplicationBuilder.AddVarlock()` joins the normal ASP.NET Core configuration pipeline, Varlock overrides overlapping keys from `appsettings.json`, and User Secrets-only keys still flow through in development. The page intentionally renders only non-sensitive configuration values. It does not carry typed-generation, Serilog, reload, or options demos; those live in the focused console siblings and package tests.
 
 Run it from this directory:
 
@@ -8,7 +8,7 @@ Run it from this directory:
 dotnet run
 ```
 
-For the proof payload used by `bun run proof:dotnet`:
+For the machine-readable output used by automated validation:
 
 ```bash
 dotnet run -- --dump-config

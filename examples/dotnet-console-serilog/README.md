@@ -1,16 +1,16 @@
 # Serilog Console Example
 
-Demonstrates Varlock's Serilog integration — automatic redaction of `@sensitive` values in structured logs.
+This example shows the Serilog boundary: `WithVarlockRedaction(graph)` redacts sensitive properties when Serilog destructures `{@Object}` payloads, while the object being logged still holds plaintext values in-process.
 
 ## What It Shows
 
 - `Destructure.WithVarlockRedaction(graph)` — redacts sensitive property values in destructured `{@Object}` templates
 - `Enrich.WithVarlockMetadata(graph)` — adds `VarlockRedactLogs` enrichment property to log events
-- Sensitive values appear as `[REDACTED]` in Serilog output, non-sensitive values pass through
+- Sensitive values appear as `[REDACTED]` in destructured Serilog output, while direct access to the object or graph remains plaintext unless you mask it separately
 
 ## When to Use This Pattern
 
-When you use Serilog for structured logging and want to prevent `@sensitive` configuration values from leaking into log output, log aggregators (Seq, Datadog, Splunk), or other sinks.
+When you already use Serilog structured logging and want destructured event payloads to respect Varlock sensitivity metadata without changing the underlying configuration objects.
 
 ## Run
 

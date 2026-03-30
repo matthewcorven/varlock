@@ -983,7 +983,7 @@ assertCommandSucceeded('dotnet run dotnet-console-exec', execResult);
   assert(lines.get('SERVICE_TOKEN') === '[REDACTED]', 'exec should redact the sensitive token in its proof output.');
   assert(lines.get('SERVICE_TOKEN_PRESENT') === 'True', 'exec should resolve a non-empty token from the local command seam.');
   assert(lines.get('SERVICE_TOKEN_IS_SENSITIVE') === 'True', 'exec should preserve sensitive metadata on the resolved token.');
-  assert(lines.get('EXEC_PROOF') === 'local-bun-command', 'exec should scope the proof to the local bun command seam.');
+  assert(lines.get('EXEC_SOURCE') === 'local-bun-command', 'exec should stay scoped to the local bun command seam.');
 }
 
 // Composition sibling

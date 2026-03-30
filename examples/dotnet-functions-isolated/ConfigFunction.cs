@@ -8,6 +8,7 @@ namespace dotnet_functions_isolated;
 // 👈 Varlock: HTTP-triggered function that displays configuration values loaded from .env.schema
 public class ConfigFunction(IConfiguration configuration)
 {
+    // Limit the HTTP response to non-sensitive values.
     private static readonly string[] Keys = ["APP_NAME", "FUNCTIONS_ONLY_KEY"];
 
     [Function("Config")]
@@ -16,7 +17,7 @@ public class ConfigFunction(IConfiguration configuration)
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "text/plain; charset=utf-8");
 
-        response.WriteString("Functions configuration:\n");
+        response.WriteString("Functions non-sensitive configuration:\n");
         foreach (var key in Keys)
         {
             var value = configuration[key] ?? "(null)";

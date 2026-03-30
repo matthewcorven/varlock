@@ -1,6 +1,6 @@
 # Direct Load Console Example
 
-Demonstrates using `VarlockCliRuntime` directly — bypassing `IConfiguration` and the hosting model.
+This example shows direct `VarlockCliRuntime.Load()` usage without going through `IConfiguration` or the hosting model.
 
 ## What It Shows
 

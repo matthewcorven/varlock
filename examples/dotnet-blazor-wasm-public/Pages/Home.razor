@@ -5,10 +5,11 @@
 
 <h1>Blazor WebAssembly Public Config</h1>
 
-<p>This example proves the build-time public boundary only. The generated type keeps public values and metadata that are safe for the client bundle, while sensitive keys stay out of the emitted C#.</p>
+<p>This example shows the build-time public boundary only. The generated type keeps public values and metadata that are safe for the client bundle, while sensitive keys stay out of the emitted C#.</p>
 
 @* 👈 Varlock: display public configuration from the build-time generated type *@
-<h2>Varlock Configuration (public-only)</h2>
+@* The generated public type excludes SECRET_TOKEN entirely, so there is no plaintext client-side surface here. *@
+<h2>Client-Safe Public Values</h2>
 <p><em>Generated at build time via <code>@@generateTypes(publicOnly=true)</code>. Sensitive keys like
     <code>SECRET_TOKEN</code> are excluded.</em></p>
     <table class="table table-striped">

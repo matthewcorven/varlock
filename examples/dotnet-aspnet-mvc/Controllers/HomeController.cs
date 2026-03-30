@@ -6,6 +6,7 @@ namespace dotnet_aspnet_mvc.Controllers;
 
 public class HomeController(IConfiguration configuration) : Controller // 👈 Varlock: inject IConfiguration
 {
+    // Keep the UI limited to non-sensitive keys.
     private static readonly string[] Keys = ["APP_NAME", "APPSETTINGS_ONLY", "USERSECRETS_ONLY"];
 
     public IActionResult Index()

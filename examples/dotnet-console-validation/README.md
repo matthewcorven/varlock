@@ -1,6 +1,6 @@
 # Validation Console Example
 
-This example intentionally fails. It proves the current configuration-provider startup behavior when a required key resolves empty: `dotnet run` exits non-zero after printing the bridge error category and message.
+This example intentionally fails. It shows the current configuration-provider startup behavior when a required key resolves empty: `dotnet run` exits non-zero after printing the bridge error category and message.
 
 Expected behavior from this directory:
 

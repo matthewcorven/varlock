@@ -7,6 +7,7 @@ var graph = runtime.Load(new VarlockLoadOptions());
 Console.WriteLine("Resolved configuration:");
 foreach (var item in graph.Items)
 {
+    // graph.Items keeps the raw plaintext value in-process; this sample masks what it writes to stdout.
     var display = item.Value.IsSensitive ? "***" : item.Value.Value?.ToString() ?? "(null)";
     Console.WriteLine($"  {item.Key} = {display}");
 }

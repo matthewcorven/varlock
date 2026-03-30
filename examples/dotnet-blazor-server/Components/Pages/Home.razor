@@ -5,9 +5,10 @@
 
 <h1>Blazor Server + Varlock</h1>
 
-<p>This page keeps the proof narrow: the server host loads Varlock during startup, then a component reads the resulting values from <code>IConfiguration</code>.</p>
+<p>This page keeps the example focused: the server host loads Varlock during startup, then a component reads the resulting values from <code>IConfiguration</code>.</p>
+<p class="text-muted">Only non-sensitive values are rendered here.</p>
 
-<h2>Component Values</h2>
+<h2>Non-Sensitive Component Values</h2>
 <table class="table table-striped">
     <thead>
         <tr>
@@ -27,5 +28,6 @@
 </table>
 
 @code {
+    // Keep the component output limited to non-sensitive keys.
     private static readonly string[] VarlockKeys = ["APP_NAME", "COMPONENT_MESSAGE"];
 }

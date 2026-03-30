@@ -13,7 +13,7 @@ using var logger = new LoggerConfiguration()
     .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Properties:j}{NewLine}")
     .CreateLogger();
 
-// Log a config object — sensitive values are automatically redacted
+// The object still holds plaintext values here; Serilog applies redaction when it destructures {@Config}.
 var config = new
 {
     APP_NAME = graph.Items["APP_NAME"].Value,
@@ -22,11 +22,13 @@ var config = new
 };
 
 Console.WriteLine("Logging configuration object (sensitive values are redacted):");
+// This output is intentionally redacted by the Serilog destructuring policy.
 logger.Information("Application config: {@Config}", config);
 
 Console.WriteLine();
 Console.WriteLine("Direct values for verification:");
 foreach (var item in graph.Items)
 {
+    // This console path masks sensitive values manually; graph.Items still contains the raw plaintext values.
     Console.WriteLine($"  {item.Key} = {(item.Value.IsSensitive ? "[REDACTED]" : item.Value.Value?.ToString() ?? "(null)")} (sensitive={item.Value.IsSensitive})");
 }
