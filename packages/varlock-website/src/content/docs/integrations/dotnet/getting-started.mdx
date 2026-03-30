@@ -219,6 +219,7 @@ By default, Varlock is added **after** `appsettings.json` in the configuration p
 3. **User Secrets** (in Development) are loaded and override everything else
 
 This means:
+
 - Any key defined in Varlock overrides the same key from appsettings
 - Keys unique to appsettings (like logging settings) remain available
 - User Secrets take final precedence when present
@@ -248,17 +249,41 @@ If validation fails, you'll see a detailed error message pointing to the schema 
 
 Common startup errors:
 
-| Error | Cause | Fix |
-| --- | --- | --- |
-| "varlock executable not found" | CLI not discovered in any lookup path | Install `varlock` as a dependency or via package manager |
-| "@required key missing: DATABASE_URL" | Required key not in `.env` | Add the key to `.env` |
-| "Type mismatch: expected integer, got 'abc'" | Coercion failed | Fix the value in `.env` or the type in `.env.schema` |
-| "Cannot find varlock executable" (Windows) | Node.js not available | Ensure Node.js 22+ is installed |
+| Error                                        | Cause                                 | Fix                                                      |
+| -------------------------------------------- | ------------------------------------- | -------------------------------------------------------- |
+| "varlock executable not found"               | CLI not discovered in any lookup path | Install `varlock` as a dependency or via package manager |
+| "@required key missing: DATABASE_URL"        | Required key not in `.env`            | Add the key to `.env`                                    |
+| "Type mismatch: expected integer, got 'abc'" | Coercion failed                       | Fix the value in `.env` or the type in `.env.schema`     |
+| "Cannot find varlock executable" (Windows)   | Node.js not available                 | Ensure Node.js 22+ is installed                          |
 
 For offline environments or restricted networks, see [Distribution and release](/integrations/dotnet/distribution/).
+
+## Cloud-backed preview
+
+The same `.NET` bridge also works when Varlock resolves app-facing values from a cloud secret store instead of a checked-in local secret.
+
+```env-spec title=".env.schema"
+# @plugin(@varlock/azure-key-vault-plugin)
+# @initAzure(vaultUrl=$AZURE_KEY_VAULT_URL)
+# ---
+
+# @type=url
+AZURE_KEY_VAULT_URL=https://my-vault.vault.azure.net/
+
+DATABASE_URL=azureSecret("database-url")
+PUBLIC_BASE_URL=https://localhost:5001
+```
+
+The application code stays the same `builder.Configuration.AddVarlock()` call. What changes is where the config contract pays off:
+
+- development time: validate required keys and types while developers authenticate with `az login`, `aws configure`, or `gcloud auth application-default login`
+- deployed runtime: keep the same schema and `.NET` access pattern while swapping to Managed Identity, IAM roles, or attached service accounts
+
+For the fuller Azure, AWS, and GCP recipes, see [Cloud providers](/integrations/dotnet/cloud-providers/). The repository also includes a manual Azure Key Vault specimen in the examples tree.
 
 ## Next steps
 
 - **[Configuration & coexistence](/integrations/dotnet/configuration/)** — Understand how Varlock works alongside appsettings, User Secrets, and other config sources
 - **[Typed access](/integrations/dotnet/typed-options/)** — Generate C# types from your schema for fully type-safe configuration
+- **[Cloud providers](/integrations/dotnet/cloud-providers/)** — See Azure, AWS, and GCP recipes and where Varlock adds value on top of native integrations
 - **[Examples](/guides/examples/)** — See working proof applications for ASP.NET, Worker Services, and Azure Functions

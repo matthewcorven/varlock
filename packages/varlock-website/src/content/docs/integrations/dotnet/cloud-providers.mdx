@@ -1,0 +1,207 @@
+---
+title: Cloud Providers in .NET
+description: Azure, AWS, and Google Cloud patterns for using Varlock alongside native .NET cloud configuration integrations
+---
+
+Cloud platforms already give .NET teams ways to authenticate and fetch configuration. Varlock does not replace those services. It gives the application a schema-driven contract for the keys the app actually depends on: required values, defaults, coercion, sensitivity metadata, generated types, and consistent behavior across local development, CI, and deployed runtime.
+
+> The repository now includes one manual live Azure specimen in `examples/dotnet-console-azure-key-vault`. AWS and GCP remain documentation recipes, and the repository still does not yet ship CI-backed positive cloud-provider proof apps for live AWS, Azure, or GCP credentials.
+
+## At a glance
+
+| Provider     | Native .NET story                                                   | Keep that for                                                                      | Add Varlock for                                                                                    | Where Varlock helps most                                                                  |
+| ------------ | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Azure        | Azure App Configuration and Azure Key Vault configuration providers | feature flags, centralized app config, refresh, Key Vault references               | app-owned contract keys, validation, coercion, generated types, sensitivity metadata               | both; strongest at development-time contract enforcement and runtime identity swaps       |
+| AWS          | Systems Manager and AppConfig configuration providers               | remote config, hierarchical parameters, provider reload, hosted AWS identity flows | schema, typed access, sensitivity metadata, consistent secret naming across local, CI, and runtime | both; especially when local AWS CLI auth and hosted IAM roles should behave the same      |
+| Google Cloud | Secret Manager client library with ADC                              | direct secret retrieval                                                            | app-facing configuration contract, validation, coercion, sensitivity metadata, generated types     | both, and often more at runtime because the first-party `IConfiguration` story is thinner |
+
+## Shared .NET pattern
+
+When you combine a cloud-native provider with Varlock, keep native providers focused on store-specific or platform-specific capabilities, and let Varlock own the application contract.
+
+```csharp
+using Varlock.Extensions.Configuration;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration
+  .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+  // Optional native cloud provider goes here
+  .AddVarlock(source =>
+  {
+    source.ReloadOnChange = true;
+  })
+  .AddUserSecrets<Program>(optional: true)
+  .AddEnvironmentVariables();
+```
+
+If two providers own the same key, the last provider added wins. In practice, avoid duplicate ownership when possible:
+
+- let the cloud provider own platform settings, feature flags, and store-specific refresh behavior
+- let Varlock own app contract values, validation, coercion, generated types, and sensitivity/public-only intent
+
+## Azure
+
+Azure already has a strong first-party .NET story for centralized settings and secret references. Keep Azure App Configuration and Key Vault for Azure-native capabilities, and use Varlock when the app needs a stable configuration contract.
+
+### Native provider + Varlock
+
+```csharp
+using Azure.Identity;
+using Varlock.Extensions.Configuration;
+
+var builder = WebApplication.CreateBuilder(args);
+
+string endpoint = builder.Configuration.GetValue<string>("Endpoints:AppConfiguration")
+  ?? throw new InvalidOperationException("Missing Endpoints:AppConfiguration");
+
+builder.Configuration.AddAzureAppConfiguration(options =>
+{
+  options.Connect(new Uri(endpoint), new DefaultAzureCredential())
+    .ConfigureKeyVault(kv =>
+    {
+      kv.SetCredential(new DefaultAzureCredential());
+    });
+});
+
+builder.Configuration.AddVarlock(source =>
+{
+  source.ReloadOnChange = true;
+});
+```
+
+### Varlock schema pattern
+
+```env-spec title=".env.schema"
+# @plugin(@varlock/azure-key-vault-plugin)
+# @initAzure(vaultUrl=$AZURE_KEY_VAULT_URL)
+# ---
+
+# @type=url
+AZURE_KEY_VAULT_URL=https://my-vault.vault.azure.net/
+
+DATABASE_URL=azureSecret("database-url")
+STRIPE_SECRET_KEY=azureSecret("stripe-secret-key")
+PUBLIC_BASE_URL=https://localhost:5001
+```
+
+### Why add Varlock here?
+
+- Azure App Configuration can keep owning feature flags, snapshots, centralized key selection, and request-driven refresh.
+- Varlock gives the app a stable schema for the values it considers required, sensitive, typed, or public.
+- Local development can use `az login`, while deployed runtime can switch to Managed Identity without changing the app-facing config contract.
+- If you generate C# types from the schema, the same Azure-backed secrets also participate in typed options and logging/redaction policy.
+- If you want a real repo-backed proof path instead of only a recipe, use the manual `examples/dotnet-console-azure-key-vault` specimen.
+
+## AWS
+
+AWS already provides a normal `.NET` configuration-provider story for Systems Manager and AppConfig. Varlock fits well when you want those AWS-backed values to also participate in a schema contract.
+
+### Native provider + Varlock
+
+```csharp
+using Varlock.Extensions.Configuration;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration
+  .AddSystemsManager("/my-application/")
+  .AddAppConfig(
+    "AppConfigApplicationId",
+    "AppConfigEnvironmentId",
+    "AppConfigConfigurationProfileId",
+    TimeSpan.FromSeconds(20))
+  .AddVarlock(source =>
+  {
+    source.ReloadOnChange = true;
+  });
+```
+
+### Varlock schema pattern
+
+```env-spec title=".env.schema"
+# @plugin(@varlock/aws-secrets-plugin)
+# @initAws(region=us-east-1, namePrefix="prod/api/")
+# ---
+
+DATABASE_URL=awsSecret()
+REDIS_URL=awsSecret("shared/redis-url")
+PAYMENTS_CONFIG=awsParam("/prod/api/payments")
+```
+
+### Why add Varlock here?
+
+- AWS providers can keep owning AppConfig rollout behavior, Systems Manager path loading, and provider-side reload.
+- Varlock makes the application contract explicit: which keys are required, which ones are sensitive, and what types the app expects.
+- Local development can use `aws configure` or a named profile, while deployed runtime can switch to IAM roles without changing the schema.
+- This is especially useful when the same keys must behave consistently in local `.env`, CI, ECS, EC2, or Lambda-hosted flows.
+
+## Google Cloud
+
+In the official material reviewed here, Google Cloud's first-party story is mainly Secret Manager client-library access with Application Default Credentials rather than a richer `IConfiguration` provider stack. That makes Varlock comparatively more useful at the application boundary.
+
+### Varlock-first .NET pattern
+
+```csharp
+using Varlock.Extensions.Configuration;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration.AddVarlock(source =>
+{
+  source.ReloadOnChange = true;
+});
+```
+
+### Varlock schema pattern
+
+```env-spec title=".env.schema"
+# @plugin(@varlock/google-secret-manager-plugin)
+# @initGsm(projectId=$GCP_PROJECT_ID)
+# ---
+
+GCP_PROJECT_ID=my-gcp-project
+DATABASE_URL=gsm("database-url")
+OPENAI_API_KEY=gsm()
+```
+
+### Why add Varlock here?
+
+- If you only need ad hoc secret retrieval, the official Secret Manager client library may be enough.
+- If those secrets should join your application configuration contract, Varlock gives you required-value checks, coercion, sensitivity metadata, and generated types.
+- Local development can use `gcloud auth application-default login`, while deployed runtime can use an attached service account with `roles/secretmanager.secretAccessor`.
+- Compared with Azure and AWS, this is the case where Varlock often carries more of the runtime configuration story instead of only complementing native providers.
+
+## Where Varlock helps most
+
+### Development time
+
+Development time is the most universal win:
+
+- one `.env.schema` tells every developer which keys exist, which are required, which are sensitive, and what types the app expects
+- local auth stays cloud-native: `az login`, `aws configure`, or `gcloud auth application-default login`
+- the app fails fast before bad config reaches `IConfiguration`, `IOptions<T>`, or generated types
+
+### Deployed runtime
+
+Deployed runtime still matters, but the value differs by platform:
+
+- on Azure and AWS, Varlock usually complements native providers that already own refresh, feature flags, or hosted identity flows
+- on GCP or mixed-cloud deployments, Varlock often owns more of the application-facing contract because the first-party `.NET` provider story is thinner
+- in all three cases, the same schema can survive the switch from local user credentials to Managed Identity, IAM roles, or attached service accounts
+
+### CI and release safety
+
+Varlock also helps before deploy:
+
+- CI can catch missing keys, bad types, and broken resolver setup earlier
+- generated C# types and bridge diagnostics make configuration drift visible in code review and build output
+- docs, local development, and deployed runtime can all point at the same config contract instead of separate tribal knowledge
+
+## See also
+
+- [Configuration & coexistence](/integrations/dotnet/configuration/)
+- [Plugin Support in .NET](/integrations/dotnet/plugin-scope/)
+- [AWS Secrets Manager Plugin](/plugins/aws-secrets/)
+- [Azure Key Vault Plugin](/plugins/azure-key-vault/)
+- [Google Secret Manager Plugin](/plugins/google-secret-manager/)

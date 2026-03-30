@@ -37,6 +37,8 @@
 ## Learnings
 
 <!-- Append learnings below -->
+- 2026-03-30: Reusable .NET example wording split: framework examples that do not demonstrate secret handling should use one short sentence that they render or return only non-sensitive values, while secret-oriented examples should carry the explicit boundary language about plaintext remaining in-process, redaction happening only on the output path, or `publicOnly` excluding members from the generated surface.
+- 2026-03-19: Example comments for the .NET secret-handling specimens should mark the exact boundary, not restate the feature. Good comments identify three distinct states: plaintext still available in-process through IConfiguration or graph items, output redacted only because the sample routes through VarlockRedactionHelper or Serilog destructuring, and publicOnly-generated client surfaces excluding sensitive members entirely.
 - 2026-03-18: Full DX Overhaul security review (127 files, 2762 ins, 855 del). Overall PASS WITH NOTES. No critical or medium findings. Key security observations:
   - All 22 committed `.env` files contain safe example values. Two files use `sk-live-abc123` and `sk-test-12345` patterns that could trigger secret-scanning tools despite being obviously fake.
   - DI registration uses `TryAddSingleton` throughout — safe against overwrites.

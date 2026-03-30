@@ -9,6 +9,7 @@
 ## Learnings
 
 <!-- Append learnings below -->
+- 2026-03-30: When `.NET` docs add cloud-provider guidance ahead of checked-in proof apps, record the work as recipe documentation layered above each platform's native configuration integration, and make the dev-time, deployed-runtime, and CI/release value explicit without widening proof-backed support claims.
 - 2026-03-16: Temp-root hygiene consolidation belongs in the canonical ledger as two durable decisions: repo-owned temp artifacts route through `.tmp/`, and the six-character root-folder ignore rule stays root-anchored so nested paths like `packages/dotnet/` never disappear from review. Key implementation seams: `packages/utils/src/repo-temp.ts`, `packages/dotnet/Varlock.DotNet.Tests/TestPaths.cs`, and `.gitignore`.
 - 2026-03-16: When temp-folder investigations disagree on root cause, log only the repo-validated boundary in `decisions.md`: safe cleanup rules and ownership seams are durable; precise creator claims for external Copilot/context-mode folders are not, unless a documented config knob or code path proves them.
 - 2026-03-13: Merging follow-on `.NET` inbox notes required folding Data and O'Brien details into the existing first-slice decisions while recording Geordi's `lang=cs` specimen shape as a new active decision, to keep the ledger deduplicated and directional.

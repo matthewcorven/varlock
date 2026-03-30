@@ -108,7 +108,7 @@ public class MyService
   public MyService(IOptionsMonitor<MyConfig> options)
   {
     _options = options;
-    
+
     // Subscribe to changes
     _options.OnChange(newConfig =>
     {
@@ -149,6 +149,7 @@ builder.Configuration
 ```
 
 Example:
+
 - **appsettings.json**: `"API_KEY": "production-key"`
 - **Varlock (.env)**: `API_KEY=dev-key`
 - **User Secrets**: `API_KEY=my-local-secret`
@@ -167,7 +168,7 @@ var config = new ConfigurationBuilder();
 
 // The Functions host loads local.settings.json Values into config automatically
 // For proof/test flows, you may need to load it explicitly:
-var localSettingsPath = Path.Combine(context.HostingEnvironment.ContentRootPath, 
+var localSettingsPath = Path.Combine(context.HostingEnvironment.ContentRootPath,
                                      "local.settings.json");
 if (File.Exists(localSettingsPath))
 {
@@ -273,11 +274,13 @@ builder.Configuration
 ## Performance considerations
 
 Startup latency:
+
 - First load adds roughly 160-180ms on typical hardware (dominated by CLI bridge overhead)
 - This is the cost of spawning the `varlock` CLI process and parsing its output
 - Schema size has minimal impact on this latency within typical application scales
 
 Reload latency:
+
 - Reload changes incur a 300ms debounce by design (prevents thrashing on rapid file saves)
 - After debounce, reload takes roughly 200ms on typical hardware
 - Failed reloads are fast—validation happens before configuration is swapped
@@ -288,5 +291,6 @@ If sub-second reload is critical for your development experience, consider disab
 
 - **[Typed access & generation](/integrations/dotnet/typed-options/)** — Learn about generated C# types and `IOptions<T>` binding
 - **[Watch mode & IDE builds](/integrations/dotnet/watch-and-ide/)** — See how runtime reload differs from build-time generation
+- **[Cloud providers](/integrations/dotnet/cloud-providers/)** — See how Varlock fits alongside Azure, AWS, and Google Cloud configuration patterns
 - **[Examples](/guides/examples/)** — See working proof applications
 - **[Schema reference](/reference/schema-language/)** — Full `.env.schema` syntax and features

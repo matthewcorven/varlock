@@ -139,7 +139,9 @@ function runDotnetWatch(projectDir: string, stabilityWindowMs = 6000, overallTim
     };
 
     const overallTimer = setTimeout(() => {
-      finish({ started, buildCount: 0, rebuildCount: 0, output: output + '\n[TIMEOUT]' });
+      finish({
+        started, buildCount: 0, rebuildCount: 0, output: `${output}\n[TIMEOUT]`,
+      });
     }, overallTimeoutMs);
 
     const onData = (chunk: Buffer) => {
@@ -177,14 +179,18 @@ function runDotnetWatch(projectDir: string, stabilityWindowMs = 6000, overallTim
 
     child.on('error', () => {
       clearTimeout(overallTimer);
-      finish({ started: false, buildCount: 0, rebuildCount: 0, output: output + '\n[PROCESS ERROR]' });
+      finish({
+        started: false, buildCount: 0, rebuildCount: 0, output: `${output}\n[PROCESS ERROR]`,
+      });
     });
 
     child.on('exit', () => {
       // If process exits before stability window completes, resolve with what we have
       if (!resolved) {
         clearTimeout(overallTimer);
-        finish({ started, buildCount: 0, rebuildCount: 0, output });
+        finish({
+          started, buildCount: 0, rebuildCount: 0, output,
+        });
       }
     });
   });
@@ -451,7 +457,7 @@ function packVarlockMsbuildPackage(): PackedPackage {
       '--nologo',
       '--verbosity',
       'quiet',
-      '-p:PackageVersion=' + packageVersion,
+      `-p:PackageVersion=${packageVersion}`,
       '--output',
       packageSourceDir,
     ]),
@@ -1088,8 +1094,10 @@ assertAspNetPayload(aspNetPayload, 'ASP.NET baseline proof');
   console.log('Running dotnet watch stability proof...');
   const watchResult = await runDotnetWatch(aspNetProjectDir, 6000);
   assert(watchResult.started, 'dotnet watch should start the ASP.NET MVC app successfully.');
-  assert(watchResult.rebuildCount === 0,
-    `dotnet watch should not trigger pathological rebuild loops. Observed ${watchResult.rebuildCount} rebuild(s) during stability window.\n${watchResult.output}`);
+  assert(
+    watchResult.rebuildCount === 0,
+    `dotnet watch should not trigger pathological rebuild loops. Observed ${watchResult.rebuildCount} rebuild(s) during stability window.\n${watchResult.output}`,
+  );
   console.log('dotnet watch stability proof passed.');
 }
 
@@ -1104,9 +1112,7 @@ const workerResult = runDotnet(workerProjectDir, [
 const workerPayload = parseJsonOutput<WorkerPayload>('dotnet-worker-net8', workerResult);
 assertWorkerPayload(workerPayload, 'Worker example through HostApplicationBuilder.AddVarlock()');
 
-const functionsResult = runBuiltAssembly(functionsProjectDir, 'dotnet-functions-isolated', 'net10.0', [
-  '--dump-config',
-]);
+const functionsResult = runBuiltAssembly(functionsProjectDir, 'dotnet-functions-isolated', 'net10.0', ['--dump-config']);
 const functionsPayload = parseJsonOutput<FunctionsPayload>('dotnet-functions-isolated-net8', functionsResult);
 
 assert(functionsPayload.AppName === 'varlock-functions', 'Functions example should resolve APP_NAME from Varlock.');

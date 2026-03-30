@@ -32,10 +32,11 @@ Shared reference material lives under `examples/dotnet-shared/`:
 
 ## Cloud provider recipes
 
-Azure Key Vault, AWS Secrets Manager and Parameter Store, and Google Secret Manager examples currently live in the website docs rather than in the runnable example tree.
+Azure Key Vault now has one manual live specimen in the runnable example tree, while AWS and Google Cloud still live in the website docs.
 
-- `packages/varlock-website/src/content/docs/integrations/dotnet/cloud-providers.mdx` shows the `.NET` + Varlock patterns for Azure, AWS, and GCP
-- these are documentation recipes, not automated proof apps, because they require live cloud accounts and credentials
+- `dotnet-console-azure-key-vault` is a live Azure Key Vault specimen that uses a local `.env.local` plus Azure CLI auth
+- `packages/varlock-website/src/content/docs/integrations/dotnet/cloud-providers.mdx` shows the broader `.NET` + Varlock patterns for Azure, AWS, and GCP
+- `dotnet-console-azure-key-vault` is intentionally outside `bun run proof:dotnet` because it depends on live Azure credentials and throwaway cloud resources
 
 ## Automation notes
 

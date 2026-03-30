@@ -43,21 +43,29 @@ The .NET bridge has proven failure handling for plugin load and execution errors
 
 This is proven by existing test fixtures in `packages/dotnet/Varlock.DotNet.Tests/BridgeContractAlignmentTests.cs` under the `PluginLoadFailed` scenario.
 
-## Deferred: Checked-in plugin-backed example
+## Manual live specimen
 
-A checked-in .NET example application demonstrating positive plugin-backed secret resolution is **deferred beyond v1.0**.
+The repository now includes one checked-in manual live specimen demonstrating positive plugin-backed secret resolution through the `.NET` bridge:
+
+- `examples/dotnet-console-azure-key-vault` uses the Azure Key Vault plugin against a real vault and seeds the example with `scripts/provision-dotnet-azure-key-vault-example.ts`
+
+This is intentionally a manual proof path rather than part of the normal automated `.NET` proof run.
+
+## Deferred: CI-backed positive plugin proof
+
+CI-backed positive plugin proof is still **deferred beyond v1.0**.
 
 ### Rationale
 
-Creating a reliable checked-in example requires:
+Creating a reliable automated proof still requires:
 
 1. A real external plugin environment (e.g., a live 1Password vault, AWS account, or Azure Key Vault instance)
 2. CI credentials or ephemeral secrets management that works reliably across all platforms (Windows, macOS, Linux)
 3. The ability to safely rotate or reset test credentials between CI runs
 
-Varlock does not yet bundle plugin CI fixtures that would allow a deterministic, credential-free checked-in test. Rather than introduce mocked or fake plugin behavior that does not reflect real-world usage, we defer this example pending:
+Varlock does not yet bundle plugin CI fixtures that would allow a deterministic, credential-free automated test. Rather than introduce mocked or fake plugin behavior that does not reflect real-world usage, we defer CI-backed positive plugin proof pending:
 
-- Real-world .NET projects adopting plugin-backed resolution and requesting documentation
+- Real-world .NET projects adopting plugin-backed resolution and requesting deeper automation
 - Community feedback on plugin usage patterns in .NET
 - Infrastructure maturity for safely testing plugin integration in CI
 
@@ -69,7 +77,7 @@ If you are using Varlock plugins with .NET and encounter:
 - Plugin behavior that differs from the CLI or JavaScript bridge
 - CI integration challenges
 
-Please [file an issue](https://github.com/dmno-dev/varlock/issues) or join us on [Discord](https://chat.dmno.dev). Real-world adoption and feedback will drive prioritization of plugin-backed examples and deeper documentation.
+Please [file an issue](https://github.com/dmno-dev/varlock/issues) or join us on [Discord](https://chat.dmno.dev). Real-world adoption and feedback will drive prioritization of broader plugin-backed examples, deeper documentation, and CI-backed proof coverage.
 
 ## .NET-native plugin authoring
 
@@ -100,4 +108,5 @@ This design keeps the .NET bridge simple and maintainable while giving you acces
 
 - [Plugins Overview](/plugins/overview/)
 - [Plugins Guide](/guides/plugins/) — detailed plugin setup and configuration
+- [Cloud providers in .NET](/integrations/dotnet/cloud-providers/) — Azure, AWS, and GCP recipes for combining native integrations with Varlock
 - [Configuration Provider](/integrations/dotnet/overview/) — how the .NET bridge loads and exposes configuration
